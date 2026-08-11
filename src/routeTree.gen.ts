@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as QueueRouteImport } from './routes/queue'
+import { Route as SubmitRouteImport } from './routes/submit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -29,9 +31,19 @@ const LeaderboardRoute = LeaderboardRouteImport.update({
   path: '/leaderboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const QueueRoute = QueueRouteImport.update({
   id: '/queue',
   path: '/queue',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SubmitRoute = SubmitRouteImport.update({
+  id: '/submit',
+  path: '/submit',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -39,34 +51,50 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/profile': typeof ProfileRoute
   '/queue': typeof QueueRoute
+  '/submit': typeof SubmitRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/profile': typeof ProfileRoute
   '/queue': typeof QueueRoute
+  '/submit': typeof SubmitRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/profile': typeof ProfileRoute
   '/queue': typeof QueueRoute
+  '/submit': typeof SubmitRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/leaderboard' | '/queue'
+  fullPaths:
+    '/' | '/dashboard' | '/leaderboard' | '/profile' | '/queue' | '/submit'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/leaderboard' | '/queue'
-  id: '__root__' | '/' | '/dashboard' | '/leaderboard' | '/queue'
+  to: '/' | '/dashboard' | '/leaderboard' | '/profile' | '/queue' | '/submit'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/leaderboard'
+    | '/profile'
+    | '/queue'
+    | '/submit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   LeaderboardRoute: typeof LeaderboardRoute
+  ProfileRoute: typeof ProfileRoute
   QueueRoute: typeof QueueRoute
+  SubmitRoute: typeof SubmitRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -92,11 +120,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LeaderboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/queue': {
       id: '/queue'
       path: '/queue'
       fullPath: '/queue'
       preLoaderRoute: typeof QueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/submit': {
+      id: '/submit'
+      path: '/submit'
+      fullPath: '/submit'
+      preLoaderRoute: typeof SubmitRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -106,7 +148,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   LeaderboardRoute: LeaderboardRoute,
+  ProfileRoute: ProfileRoute,
   QueueRoute: QueueRoute,
+  SubmitRoute: SubmitRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
