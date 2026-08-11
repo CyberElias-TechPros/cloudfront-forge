@@ -21,7 +21,7 @@ export const Route = createFileRoute("/queue")({
       },
     ],
   }),
-  component: Queue;
+  component: Queue,
 });
 
 const filters = ["All", "Pending", "In progress", "Verified", "Expired"] as const;
