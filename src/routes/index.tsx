@@ -1,24 +1,205 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  ArrowRight,
+  BadgeCheck,
+  Eye,
+  Flame,
+  Gauge,
+  ListChecks,
+  ShieldCheck,
+  Trophy,
+  Users,
+} from "lucide-react";
+import { Shell } from "@/components/page-parts";
+import { members } from "@/lib/mock-data";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "LoopSquad — Fair Sub4Sub Growth for WhatsApp Creator Groups" },
+      {
+        name: "description",
+        content:
+          "Gamified follow-for-follow for YouTube creators: verified watch time, real subscribes, points and streaks so nobody gets cheated.",
+      },
+      { property: "og:title", content: "LoopSquad — Fair Sub4Sub Growth for Creator Groups" },
+      {
+        property: "og:description",
+        content:
+          "Verified watch time, real subscribes, and a leaderboard that rewards creators who actually show up.",
+      },
+    ],
+  }),
+  component: Landing,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+const steps = [
+  {
+    icon: ListChecks,
+    title: "Drop your video",
+    body: "Submit one link per day. It enters the group queue with a fair-rotation slot so everybody gets front-page time.",
+  },
+  {
+    icon: Eye,
+    title: "Watch for real",
+    body: "The player tracks watch time with random attention checks. Skipping, muting or tab-switching stops the timer.",
+  },
+  {
+    icon: BadgeCheck,
+    title: "Subscribe & comment",
+    body: "Confirm your subscribe and leave a genuine comment. Both are verified before points are released.",
+  },
+  {
+    icon: Trophy,
+    title: "Earn and spend points",
+    body: "Points buy you queue priority. Give more than you take or your video quietly drops down the list.",
+  },
+];
+
+const features = [
+  {
+    icon: ShieldCheck,
+    title: "Anti-cheat by design",
+    body: "Trust score per member, watch-time proofs, unsubscribe sweeps and a ratio rule: you can never receive more than you give.",
+  },
+  {
+    icon: Gauge,
+    title: "Balanced rotation",
+    body: "Queue order is decided by contribution, not by who shouts loudest in the group chat.",
+  },
+  {
+    icon: Flame,
+    title: "Streaks and quests",
+    body: "Daily quests, weekly squad goals and badge unlocks keep the group active after the first excitement fades.",
+  },
+  {
+    icon: Users,
+    title: "Built for WhatsApp squads",
+    body: "Join with a group invite code, one channel per member, and a weekly recap card you can paste back into the chat.",
+  },
+];
+
+function Landing() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
+    <>
+      <Shell className="pt-14">
+        <section className="grid items-center gap-10 lg:grid-cols-[1.15fr_1fr]">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs uppercase tracking-[0.2em] text-accent">
+              <Flame className="size-3.5" /> For WhatsApp creator groups
+            </span>
+            <h1 className="mt-5 text-6xl leading-[0.95] sm:text-7xl">
+              Grow together.
+              <br />
+              <span className="text-gradient">Nobody gets cheated.</span>
+            </h1>
+            <p className="mt-5 max-w-xl text-base text-muted-foreground">
+              LoopSquad turns your group&apos;s sub-for-sub chaos into a fair game: verified watch
+              time, real subscribes, honest comments, and points that decide whose video goes next.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link
+                to="/dashboard"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+              >
+                Enter your squad <ArrowRight className="size-4" />
+              </Link>
+              <Link
+                to="/rules"
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 text-sm font-semibold transition-colors hover:bg-secondary"
+              >
+                See the fairness rules
+              </Link>
+            </div>
+            <dl className="mt-10 grid max-w-lg grid-cols-3 gap-4">
+              {[
+                ["128", "active members"],
+                ["4.9k", "verified watches"],
+                ["0", "unsubscribe cheats"],
+              ].map(([v, k]) => (
+                <div key={k}>
+                  <dt className="font-display text-4xl leading-none">{v}</dt>
+                  <dd className="mt-1 text-xs uppercase tracking-widest text-muted-foreground">
+                    {k}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          <div className="surface glow-ring p-6">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              This week&apos;s squad board
+            </p>
+            <ul className="mt-4 space-y-3">
+              {members.slice(0, 5).map((m, i) => (
+                <li key={m.id} className="flex items-center gap-3 rounded-lg bg-secondary/60 p-3">
+                  <span className="grid size-8 place-items-center rounded-md bg-background font-display text-lg">
+                    {i + 1}
+                  </span>
+                  <span className="grid size-9 place-items-center rounded-full bg-accent text-sm font-semibold text-accent-foreground">
+                    {m.avatar}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{m.name}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{m.handle}</span>
+                  </span>
+                  <span className="text-right">
+                    <span className="block font-display text-xl leading-none">{m.points}</span>
+                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                      pts
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section className="mt-20">
+          <h2 className="text-4xl">How the loop works</h2>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {steps.map((s, i) => (
+              <div key={s.title} className="surface p-5">
+                <div className="flex items-center justify-between">
+                  <s.icon className="size-5 text-primary" />
+                  <span className="font-display text-3xl text-muted-foreground/40">0{i + 1}</span>
+                </div>
+                <h3 className="mt-4 text-2xl">{s.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{s.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-16 grid gap-4 sm:grid-cols-2">
+          {features.map((f) => (
+            <div key={f.title} className="surface flex gap-4 p-6">
+              <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-secondary text-accent">
+                <f.icon className="size-5" />
+              </span>
+              <div>
+                <h3 className="text-2xl">{f.title}</h3>
+                <p className="mt-1.5 text-sm text-muted-foreground">{f.body}</p>
+              </div>
+            </div>
+          ))}
+        </section>
+
+        <section className="surface mt-16 flex flex-col items-center gap-4 p-10 text-center">
+          <h2 className="text-4xl sm:text-5xl">Ready to make the group actually work?</h2>
+          <p className="max-w-xl text-sm text-muted-foreground">
+            Paste your group invite code, connect your channel, and start the first 7-day growth
+            sprint with your squad.
+          </p>
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+          >
+            Start the sprint <ArrowRight className="size-4" />
+          </Link>
+        </section>
+      </Shell>
+    </>
   );
 }
