@@ -27,8 +27,8 @@ export const Route = createFileRoute("/queue")({
 const filters = ["All", "Pending", "In progress", "Verified", "Expired"] as const;
 
 function Queue() {
-  const [activeId, setActiveId] = useState(tasks[0].id);
-  const active = tasks.find((t) => t.id === activeId)!;
+  const [activeId, setActiveId] = useState(tasks[0]!.id);
+  const active = tasks.find((t) => t.id === activeId) ?? tasks[0]!;
   const [elapsed, setElapsed] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
