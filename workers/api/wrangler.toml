@@ -1,0 +1,33 @@
+name = "creatorloop-api"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[vars]
+ENVIRONMENT = "development"
+
+[env.production]
+vars = { ENVIRONMENT = "production" }
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "creatorloop-db"
+database_id = "0a26848a-3c1e-4d2c-8b7a-8f5e5a7e5e6e"
+
+# KV Namespaces
+[[kv_namespaces]]
+binding = "KV_CACHE"
+id = "6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e"
+preview_id = "6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e"
+
+# R2 Bucket
+[[r2_buckets]]
+binding = "ASSETS_BUCKET"
+bucket_name = "creatorloop-assets"
+
+[triggers]
+crons = ["0 0 * * *"]
+
+[observability]
+enabled = true
+head_sampling_rate = 1
