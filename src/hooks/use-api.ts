@@ -9,17 +9,13 @@ import apiClientService, {
   type XpSummary,
   type StreakInfo,
   type CreateCommunityInput,
-  type AdminReport,
   type AdminMetrics,
   type CurrentMember,
   type QueueTask,
   type SubmissionDTO,
   type ActivityItem,
+  type Member,
 } from "@/lib/api-client";
-import { communities as mockCommunities } from "@/lib/mock-data-communities";
-import { missionAssignments as mockAssignments } from "@/lib/mock-data-missions";
-import { reviews as mockReviews } from "@/lib/mock-data-reviews";
-import { members as mockMembers, currentUser, type Member } from "@/lib/mock-data";
 
 const queryKeys = {
   communities: ["communities"] as const,
@@ -86,8 +82,8 @@ export function useCommunities() {
         const data = await apiClientService.communities.list();
         return data.map(mapCommunity);
       } catch (error) {
-        console.warn("[useCommunities] API unavailable, using mock data:", error);
-        return mockCommunities.map(mapCommunity);
+        console.warn("[useCommunities] API unavailable:", error);
+        return [];
       }
     },
   });
@@ -164,8 +160,8 @@ export function useMissionAssignments() {
         const data = await apiClientService.missions.assignments();
         return data.map(mapMissionAssignment);
       } catch (error) {
-        console.warn("[useMissionAssignments] API unavailable, using mock data:", error);
-        return mockAssignments;
+        console.warn("[useMissionAssignments] API unavailable:", error);
+        return [];
       }
     },
   });
@@ -188,8 +184,8 @@ export function useReviews() {
       try {
         return await apiClientService.reviews.list();
       } catch (error) {
-        console.warn("[useReviews] API unavailable, using mock data:", error);
-        return mockReviews;
+        console.warn("[useReviews] API unavailable:", error);
+        return [];
       }
     },
   });
@@ -261,18 +257,8 @@ export function useReview(reviewId: string) {
           })),
         };
       } catch (error) {
-        console.warn("[useReview] API unavailable, using mock data:", error);
-        const mock = mockReviews.find((r) => r.id === reviewId);
-        if (!mock) throw error;
-        const m = mock as unknown as Review & {
-          questions?: { id: string; text: string }[];
-          answers?: { questionId: string; answer: string | number | boolean }[];
-        };
-        return {
-          review: mock,
-          questions: m.questions ?? [],
-          answers: m.answers ?? [],
-        };
+        console.warn("[useReview] API unavailable:", error);
+        throw error;
       }
     },
   });
@@ -312,8 +298,8 @@ export function useCredits() {
       try {
         return await apiClientService.gamification.credits();
       } catch (error) {
-        console.warn("[useCredits] API unavailable, using defaults:", error);
-        return { balance: 45, totalEarned: 0, totalSpent: 0 } as CreditsSummary;
+        console.warn("[useCredits] API unavailable:", error);
+        return { balance: 0, totalEarned: 0, totalSpent: 0 } as CreditsSummary;
       }
     },
   });
@@ -326,8 +312,8 @@ export function useXp() {
       try {
         return await apiClientService.gamification.xp();
       } catch (error) {
-        console.warn("[useXp] API unavailable, using defaults:", error);
-        return { totalXp: 1840, currentLevel: 7, xpToNextLevel: 1160 } as XpSummary;
+        console.warn("[useXp] API unavailable:", error);
+        return { totalXp: 0, currentLevel: 1, xpToNextLevel: 0 } as XpSummary;
       }
     },
   });
@@ -340,10 +326,10 @@ export function useStreaks() {
       try {
         return await apiClientService.gamification.streaks();
       } catch (error) {
-        console.warn("[useStreaks] API unavailable, using defaults:", error);
+        console.warn("[useStreaks] API unavailable:", error);
         return {
-          currentStreak: 6,
-          longestStreak: 9,
+          currentStreak: 0,
+          longestStreak: 0,
           lastActive: new Date().toISOString(),
         } as StreakInfo;
       }
@@ -359,19 +345,8 @@ export function useLeaderboard() {
         const data = await apiClientService.gamification.leaderboard();
         return data;
       } catch (error) {
-        console.warn("[useLeaderboard] API unavailable, using mock data:", error);
-        return mockMembers
-          .map((m, i) => ({
-            id: m.id,
-            displayName: m.name,
-            photoUrl: null,
-            totalXp: m.points,
-            credits: 0,
-            reputation: m.trustScore,
-            weightedScore: m.points,
-            rank: i + 1,
-          }))
-          .sort((a, b) => b.totalXp - a.totalXp) as unknown as LeaderboardEntry[];
+        console.warn("[useLeaderboard] API unavailable:", error);
+        return [] as unknown as LeaderboardEntry[];
       }
     },
   });
@@ -395,35 +370,8 @@ export function useBadges() {
           icon: b.icon ?? "Award",
         }));
       } catch (error) {
-        console.warn("[useBadges] API unavailable, using mock data:", error);
-        return [
-          { name: "Day One", desc: "Joined the founding cohort", earned: true, icon: "Flag" },
-          {
-            name: "Fair Player",
-            desc: "Give more than you take for 30 days",
-            earned: true,
-            icon: "Scale",
-          },
-          { name: "Watch Hound", desc: "Complete 100 verified watches", earned: true, icon: "Eye" },
-          {
-            name: "Streak Keeper",
-            desc: "7-day participation streak",
-            earned: false,
-            icon: "Flame",
-          },
-          {
-            name: "Comment King",
-            desc: "Leave 50 genuine comments",
-            earned: false,
-            icon: "MessageCircle",
-          },
-          {
-            name: "Century Club",
-            desc: "Help a member reach 100 subs",
-            earned: false,
-            icon: "Trophy",
-          },
-        ];
+        console.warn("[useBadges] API unavailable:", error);
+        return [];
       }
     },
   });
@@ -457,72 +405,7 @@ export function useMyProfile() {
   });
 }
 
-const mockAdminReports: AdminReport[] = [
-  {
-    id: "flag-1",
-    reporterId: "r1",
-    reportedUserId: "u1",
-    resourceType: "video",
-    resourceId: null,
-    reason: "cheating",
-    description: "Watch timer completed in 12s on a 7-minute video",
-    status: "pending",
-    resolvedBy: null,
-    resolutionNotes: null,
-    createdAt: new Date(Date.now() - 2 * 3600_000).toISOString(),
-    updatedAt: new Date(Date.now() - 2 * 3600_000).toISOString(),
-    reporterName: "Mod bot",
-    reportedUserName: "Segun P.",
-  },
-  {
-    id: "flag-2",
-    reporterId: "r1",
-    reportedUserId: "u2",
-    resourceType: "user",
-    resourceId: null,
-    reason: "cheating",
-    description: "Unsubscribed from 3 channels within 48 hours",
-    status: "pending",
-    resolvedBy: null,
-    resolutionNotes: null,
-    createdAt: new Date(Date.now() - 26 * 3600_000).toISOString(),
-    updatedAt: new Date(Date.now() - 26 * 3600_000).toISOString(),
-    reporterName: "Mod bot",
-    reportedUserName: "Grace N.",
-  },
-  {
-    id: "flag-3",
-    reporterId: "r1",
-    reportedUserId: "u3",
-    resourceType: "comment",
-    resourceId: null,
-    reason: "spam",
-    description: "Copy-pasted the same comment on 5 videos",
-    status: "pending",
-    resolvedBy: null,
-    resolutionNotes: null,
-    createdAt: new Date(Date.now() - 2 * 24 * 3600_000).toISOString(),
-    updatedAt: new Date(Date.now() - 2 * 24 * 3600_000).toISOString(),
-    reporterName: "Mod bot",
-    reportedUserName: "Ifeanyi D.",
-  },
-  {
-    id: "flag-4",
-    reporterId: "r1",
-    reportedUserId: "u4",
-    resourceType: "video",
-    resourceId: null,
-    reason: "misleading",
-    description: "Thumbnail reported as clickbait by 2 members",
-    status: "pending",
-    resolvedBy: null,
-    resolutionNotes: null,
-    createdAt: new Date(Date.now() - 3 * 24 * 3600_000).toISOString(),
-    updatedAt: new Date(Date.now() - 3 * 24 * 3600_000).toISOString(),
-    reporterName: "Mod bot",
-    reportedUserName: "Bola K.",
-  },
-];
+// Mock admin reports removed: useAdminReports now returns real API data (or [] on error).
 
 export function useAdminMetrics() {
   return useQuery({
@@ -531,13 +414,13 @@ export function useAdminMetrics() {
       try {
         return await apiClientService.admin.metrics();
       } catch (error) {
-        console.warn("[useAdminMetrics] API unavailable, using defaults:", error);
+        console.warn("[useAdminMetrics] API unavailable:", error);
         return {
-          users: 128,
-          communities: 6,
-          videos: 42,
-          reviews: 210,
-          pendingReports: 4,
+          users: 0,
+          communities: 0,
+          videos: 0,
+          reviews: 0,
+          pendingReports: 0,
         } as AdminMetrics;
       }
     },
@@ -551,8 +434,8 @@ export function useAdminReports(status = "pending") {
       try {
         return await apiClientService.admin.reports(status);
       } catch (error) {
-        console.warn("[useAdminReports] API unavailable, using mock data:", error);
-        return status === "pending" ? mockAdminReports : [];
+        console.warn("[useAdminReports] API unavailable:", error);
+        return [];
       }
     },
   });
@@ -615,8 +498,8 @@ export function useCurrentMember() {
         const data = await apiClientService.users.member();
         return currentMemberFromApi(data);
       } catch (error) {
-        console.warn("[useCurrentMember] API unavailable, using mock data:", error);
-        return currentUser;
+        console.warn("[useCurrentMember] API unavailable:", error);
+        throw error;
       }
     },
   });

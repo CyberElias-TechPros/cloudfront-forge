@@ -14,6 +14,22 @@ export interface UserProfile {
   trustScore?: number;
 }
 
+export interface Member {
+  id: string;
+  name: string;
+  handle: string;
+  avatar: string;
+  points: number;
+  streak: number;
+  level: number;
+  rank: number;
+  niche: string;
+  subsGiven: number;
+  subsReceived: number;
+  watchMinutes: number;
+  trustScore: number;
+}
+
 export interface Community {
   id: string;
   name: string;

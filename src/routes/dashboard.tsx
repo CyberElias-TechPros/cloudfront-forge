@@ -1,7 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Clock, Eye, Flame, Target, Trophy, Users } from "lucide-react";
 import { PageHeader, Shell, StatCard, Thumb } from "@/components/page-parts";
-import { activity, currentUser, submissions, tasks } from "@/lib/mock-data";
+import {
+  useXp,
+  useStreaks,
+  useCurrentMember,
+  useQueueTasks,
+  useSubmissions,
+  useActivity,
+} from "@/hooks/use-api";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -30,6 +37,32 @@ const quests = [
 ];
 
 function Dashboard() {
+  const { data: xp } = useXp();
+  const { data: streaks } = useStreaks();
+  const { data: member } = useCurrentMember();
+  const { data: tasks = [] } = useQueueTasks();
+  const { data: submissions = [] } = useSubmissions();
+  const { data: activity = [] } = useActivity();
+
+  const currentUser = member ?? {
+    id: "",
+    name: "Creator",
+    handle: "@creator",
+    avatar: "C",
+    points: 0,
+    streak: 0,
+    level: 1,
+    rank: 0,
+    niche: "Creator",
+    subsGiven: 0,
+    subsReceived: 1,
+    watchMinutes: 0,
+    trustScore: 0,
+  };
+
+  const points = xp?.totalXp ?? currentUser.points;
+  const streak = streaks?.currentStreak ?? currentUser.streak;
+
   return (
     <Shell>
       <PageHeader
@@ -49,13 +82,13 @@ function Dashboard() {
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Points"
-          value={currentUser.points.toLocaleString()}
+          value={points.toLocaleString()}
           hint="+180 today"
           icon={<Trophy className="size-4" />}
         />
         <StatCard
           label="Streak"
-          value={`${currentUser.streak} days`}
+          value={`${streak} days`}
           hint="1 day to Streak Keeper badge"
           icon={<Flame className="size-4" />}
         />
@@ -163,9 +196,7 @@ function Dashboard() {
                   </span>
                   <span
                     className={
-                      a.points.startsWith("-")
-                        ? "text-sm text-destructive"
-                        : "text-sm text-success"
+                      a.points.startsWith("-") ? "text-sm text-destructive" : "text-sm text-success"
                     }
                   >
                     {a.points}

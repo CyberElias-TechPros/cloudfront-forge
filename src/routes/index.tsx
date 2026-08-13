@@ -11,7 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { Shell } from "@/components/page-parts";
-import { members } from "@/lib/mock-data";
+import { useLeaderboard } from "@/hooks/use-api";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -80,6 +80,14 @@ const features = [
 ];
 
 function Landing() {
+  const { data: leaderboard = [] } = useLeaderboard();
+  const boardItems = leaderboard.slice(0, 5).map((m) => ({
+    id: m.id,
+    name: m.displayName ?? "Member",
+    sub: `${m.reputation}% trust`,
+    points: m.totalXp,
+  }));
+
   return (
     <>
       <Shell className="pt-14">
@@ -132,26 +140,29 @@ function Landing() {
               This week&apos;s squad board
             </p>
             <ul className="mt-4 space-y-3">
-              {members.slice(0, 5).map((m, i) => (
-                <li key={m.id} className="flex items-center gap-3 rounded-lg bg-secondary/60 p-3">
-                  <span className="grid size-8 place-items-center rounded-md bg-background font-display text-lg">
-                    {i + 1}
-                  </span>
-                  <span className="grid size-9 place-items-center rounded-full bg-accent text-sm font-semibold text-accent-foreground">
-                    {m.avatar}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{m.name}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{m.handle}</span>
-                  </span>
-                  <span className="text-right">
-                    <span className="block font-display text-xl leading-none">{m.points}</span>
-                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                      pts
+              {boardItems.map((m, i) => {
+                const avatar = (m.name[0] ?? "?").toUpperCase();
+                return (
+                  <li key={m.id} className="flex items-center gap-3 rounded-lg bg-secondary/60 p-3">
+                    <span className="grid size-8 place-items-center rounded-md bg-background font-display text-lg">
+                      {i + 1}
                     </span>
-                  </span>
-                </li>
-              ))}
+                    <span className="grid size-9 place-items-center rounded-full bg-accent text-sm font-semibold text-accent-foreground">
+                      {avatar}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{m.name}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{m.sub}</span>
+                    </span>
+                    <span className="text-right">
+                      <span className="block font-display text-xl leading-none">{m.points}</span>
+                      <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                        pts
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </section>

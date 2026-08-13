@@ -1,8 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, Clock, MessageCircle, Pause, Play, ShieldAlert, UserPlus } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock,
+  MessageCircle,
+  Pause,
+  Play,
+  ShieldAlert,
+  UserPlus,
+} from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { PageHeader, Shell, Thumb } from "@/components/page-parts";
-import { tasks } from "@/lib/mock-data";
+import { useQueueTasks, useWatch } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/queue")({
@@ -27,13 +36,37 @@ export const Route = createFileRoute("/queue")({
 const filters = ["All", "Pending", "In progress", "Verified", "Expired"] as const;
 
 function Queue() {
-  const [activeId, setActiveId] = useState(tasks[0]!.id);
-  const active = tasks.find((t) => t.id === activeId) ?? tasks[0]!;
+  const { data: tasks = [] } = useQueueTasks();
+  const watch = useWatch();
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const active = tasks.find((t) => t.id === activeId) ?? tasks[0];
   const [elapsed, setElapsed] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
   const [commented, setCommented] = useState(false);
+  const [claimedIds, setClaimedIds] = useState<string[]>([]);
   const [filter, setFilter] = useState<(typeof filters)[number]>("All");
+
+  const alreadyClaimed = active
+    ? claimedIds.includes(active.id) || active.status === "verified"
+    : false;
+
+  const handleClaim = async () => {
+    if (!active) return;
+    try {
+      await watch.mutateAsync({
+        videoId: active.id,
+        watchSeconds: elapsed,
+        subscribed,
+        commented,
+      });
+      setClaimedIds((ids) => [...ids, active.id]);
+      toast.success(`Claimed +${active.reward} points!`);
+    } catch (error) {
+      console.error("Watch claim error:", error);
+      toast.error("Could not claim right now. Try again.");
+    }
+  };
 
   useEffect(() => {
     setElapsed(0);
@@ -43,15 +76,15 @@ function Queue() {
   }, [activeId]);
 
   useEffect(() => {
-    if (!playing) return;
+    if (!playing || !active) return;
     const id = setInterval(() => {
       setElapsed((e) => Math.min(e + 1, active.requiredSec));
     }, 1000);
     return () => clearInterval(id);
-  }, [playing, active.requiredSec]);
+  }, [playing, active?.requiredSec]);
 
-  const pct = Math.round((elapsed / active.requiredSec) * 100);
-  const watchDone = elapsed >= active.requiredSec;
+  const pct = Math.round((elapsed / (active?.requiredSec ?? 1)) * 100);
+  const watchDone = elapsed >= (active?.requiredSec ?? 0);
   const claimable = watchDone && subscribed && commented;
 
   const shown = tasks.filter((t) =>
@@ -65,6 +98,21 @@ function Queue() {
             ? t.status === "verified"
             : t.status === "expired",
   );
+
+  if (!active) {
+    return (
+      <Shell>
+        <PageHeader
+          eyebrow="Fair rotation"
+          title="Watch Queue"
+          description="The timer only counts while the video is playing and in focus. Random attention checks keep it honest."
+        />
+        <p className="mt-6 text-sm text-muted-foreground">
+          No videos in the queue yet. Check back soon or post your own submission.
+        </p>
+      </Shell>
+    );
+  }
 
   return (
     <Shell>
@@ -139,10 +187,15 @@ function Queue() {
 
             <button
               type="button"
-              disabled={!claimable}
+              onClick={handleClaim}
+              disabled={!claimable || alreadyClaimed || watch.isPending}
               className="mt-4 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground disabled:opacity-40"
             >
-              Claim +{active.reward} points
+              {alreadyClaimed
+                ? "Claimed"
+                : watch.isPending
+                  ? "Claiming…"
+                  : `Claim +${active.reward} points`}
             </button>
 
             <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
@@ -162,7 +215,9 @@ function Queue() {
                 onClick={() => setFilter(f)}
                 className={cn(
                   "rounded-full border border-border px-3 py-1.5 text-xs",
-                  filter === f ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground",
+                  filter === f
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card text-muted-foreground",
                 )}
               >
                 {f}

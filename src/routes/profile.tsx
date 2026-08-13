@@ -1,7 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Award, Flame, Lock, Settings2, Youtube } from "lucide-react";
 import { PageHeader, Shell, StatCard } from "@/components/page-parts";
-import { activity, badges, currentUser } from "@/lib/mock-data";
+import {
+  useMyProfile,
+  useXp,
+  useCredits,
+  useStreaks,
+  useBadges,
+  useCurrentMember,
+  useActivity,
+} from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/profile")({
@@ -24,12 +32,53 @@ export const Route = createFileRoute("/profile")({
 });
 
 function Profile() {
+  const { data: profile } = useMyProfile();
+  const { data: xp } = useXp();
+  const { data: credits } = useCredits();
+  const { data: streaks } = useStreaks();
+  const { data: badges = [] } = useBadges();
+  const { data: member } = useCurrentMember();
+  const { data: activity = [] } = useActivity();
+
+  const currentUser = member ?? {
+    id: "",
+    name: "Creator",
+    handle: "@creator",
+    avatar: "C",
+    points: 0,
+    streak: 0,
+    level: 1,
+    rank: 0,
+    niche: "Creator",
+    subsGiven: 0,
+    subsReceived: 1,
+    watchMinutes: 0,
+    trustScore: 0,
+  };
+
   const xpPct = 62;
+  const level = xp?.currentLevel ?? currentUser.level;
+  const balance = credits?.balance ?? 0;
+  const streak = streaks?.currentStreak ?? currentUser.streak;
+  const displayName = profile?.displayName ?? currentUser.name;
+  const photoUrl = profile?.photoUrl ?? null;
+  const memberSince = profile?.createdAt
+    ? new Date(profile.createdAt).toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      })
+    : "Aug 2026";
+  const initials = displayName
+    .split(" ")
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
   return (
     <Shell>
       <PageHeader
-        eyebrow="Member since Aug 2026"
+        eyebrow={`Member since ${memberSince}`}
         title="Your profile"
         description="Your trust score decides how much of the squad's attention you can receive each week."
         action={
@@ -45,21 +94,27 @@ function Profile() {
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1.4fr]">
         <section className="surface p-6">
           <div className="flex items-center gap-4">
-            <span className="grid size-16 place-items-center rounded-full bg-accent font-display text-3xl text-accent-foreground">
-              {currentUser.avatar}
+            <span className="grid size-16 place-items-center overflow-hidden rounded-full bg-accent font-display text-3xl text-accent-foreground">
+              {photoUrl ? (
+                <img src={photoUrl} alt="" className="size-full object-cover" />
+              ) : (
+                initials
+              )}
             </span>
             <div>
-              <h2 className="text-3xl leading-none">{currentUser.name}</h2>
+              <h2 className="text-3xl leading-none">{displayName}</h2>
               <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Youtube className="size-4 text-primary" /> {currentUser.handle}
+                <Youtube className="size-4 text-primary" /> {profile?.email ?? currentUser.handle}
               </p>
             </div>
           </div>
 
           <div className="mt-6">
             <div className="flex items-center justify-between text-sm">
-              <span>Level {currentUser.level}</span>
-              <span className="text-muted-foreground">{xpPct}% to level {currentUser.level + 1}</span>
+              <span>Level {level}</span>
+              <span className="text-muted-foreground">
+                {xpPct}% to level {level + 1}
+              </span>
             </div>
             <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-secondary">
               <div className="h-full bg-accent" style={{ width: `${xpPct}%` }} />
@@ -73,7 +128,7 @@ function Profile() {
               ["Subs given", String(currentUser.subsGiven)],
               ["Subs received", String(currentUser.subsReceived)],
               ["Watch minutes", String(currentUser.watchMinutes)],
-              ["Streak", `${currentUser.streak} days`],
+              ["Streak", `${streak} days`],
             ].map(([k, v]) => (
               <div key={k} className="rounded-lg bg-secondary/60 p-3">
                 <dt className="text-xs uppercase tracking-widest text-muted-foreground">{k}</dt>
@@ -92,7 +147,7 @@ function Profile() {
             />
             <StatCard
               label="Points balance"
-              value={currentUser.points.toLocaleString()}
+              value={balance.toLocaleString()}
               hint="Spend on queue priority"
               icon={<Flame className="size-4" />}
             />

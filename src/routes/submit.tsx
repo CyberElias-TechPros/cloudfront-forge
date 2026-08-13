@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Info, Link2, Sparkles, Timer } from "lucide-react";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { PageHeader, Shell } from "@/components/page-parts";
-import { submissions } from "@/lib/mock-data";
+import { useSubmissions, useSubmitVideo } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/submit")({
@@ -32,10 +32,29 @@ const boosts = [
 ];
 
 function Submit() {
+  const { data: submissions = [] } = useSubmissions();
+  const submitVideo = useSubmitVideo();
   const [niche, setNiche] = useState("Tech");
   const [boost, setBoost] = useState("Standard");
   const [target, setTarget] = useState(20);
   const [minWatch, setMinWatch] = useState(3);
+  const [link, setLink] = useState("");
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!link) {
+      toast.error("Paste your YouTube link first.");
+      return;
+    }
+    try {
+      await submitVideo.mutateAsync({ youtubeUrl: link });
+      toast.success("Video submitted to the squad queue!");
+      setLink("");
+    } catch (error) {
+      console.error("Submit error:", error);
+      toast.error("Could not submit right now. Check the link and try again.");
+    }
+  };
 
   return (
     <Shell>
@@ -46,7 +65,7 @@ function Submit() {
       />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.3fr_1fr]">
-        <form className="surface space-y-6 p-6" onSubmit={(e) => e.preventDefault()}>
+        <form className="surface space-y-6 p-6" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="url" className="text-sm font-medium">
               YouTube video link
@@ -55,6 +74,8 @@ function Submit() {
               <Link2 className="size-4 text-muted-foreground" />
               <input
                 id="url"
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
                 placeholder="https://youtube.com/watch?v=..."
                 className="w-full bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
               />
@@ -82,7 +103,9 @@ function Submit() {
                   onClick={() => setNiche(n)}
                   className={cn(
                     "rounded-full border border-border px-3 py-1.5 text-xs",
-                    niche === n ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground",
+                    niche === n
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card text-muted-foreground",
                   )}
                 >
                   {n}
@@ -93,7 +116,10 @@ function Submit() {
 
           <div className="grid gap-6 sm:grid-cols-2">
             <div>
-              <label htmlFor="target" className="flex items-center justify-between text-sm font-medium">
+              <label
+                htmlFor="target"
+                className="flex items-center justify-between text-sm font-medium"
+              >
                 Watch target <span className="text-muted-foreground">{target} members</span>
               </label>
               <input
@@ -107,7 +133,10 @@ function Submit() {
               />
             </div>
             <div>
-              <label htmlFor="minwatch" className="flex items-center justify-between text-sm font-medium">
+              <label
+                htmlFor="minwatch"
+                className="flex items-center justify-between text-sm font-medium"
+              >
                 Minimum watch <span className="text-muted-foreground">{minWatch} min</span>
               </label>
               <input
@@ -149,9 +178,10 @@ function Submit() {
 
           <button
             type="submit"
-            className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
+            disabled={submitVideo.isPending}
+            className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
           >
-            Add to the queue
+            {submitVideo.isPending ? "Submitting…" : "Add to the queue"}
           </button>
         </form>
 

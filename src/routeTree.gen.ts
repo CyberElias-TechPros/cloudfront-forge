@@ -11,12 +11,19 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as CommunitiesRouteImport } from './routes/communities'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as GamificationRouteImport } from './routes/gamification'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as MissionsRouteImport } from './routes/missions'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as QueueRouteImport } from './routes/queue'
+import { Route as ReviewsRouteImport } from './routes/reviews'
 import { Route as RulesRouteImport } from './routes/rules'
 import { Route as SubmitRouteImport } from './routes/submit'
+import { Route as AuthSigninRouteImport } from './routes/auth/signin'
+import { Route as CommunitiesCommunityIdRouteImport } from './routes/communities/$communityId'
+import { Route as ReviewsReviewIdRouteImport } from './routes/reviews/$reviewId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,14 +35,29 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CommunitiesRoute = CommunitiesRouteImport.update({
+  id: '/communities',
+  path: '/communities',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GamificationRoute = GamificationRouteImport.update({
+  id: '/gamification',
+  path: '/gamification',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LeaderboardRoute = LeaderboardRouteImport.update({
   id: '/leaderboard',
   path: '/leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MissionsRoute = MissionsRouteImport.update({
+  id: '/missions',
+  path: '/missions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -48,6 +70,11 @@ const QueueRoute = QueueRouteImport.update({
   path: '/queue',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReviewsRoute = ReviewsRouteImport.update({
+  id: '/reviews',
+  path: '/reviews',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RulesRoute = RulesRouteImport.update({
   id: '/rules',
   path: '/rules',
@@ -58,80 +85,142 @@ const SubmitRoute = SubmitRouteImport.update({
   path: '/submit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthSigninRoute = AuthSigninRouteImport.update({
+  id: '/auth/signin',
+  path: '/auth/signin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommunitiesCommunityIdRoute = CommunitiesCommunityIdRouteImport.update({
+  id: '/$communityId',
+  path: '/$communityId',
+  getParentRoute: () => CommunitiesRoute,
+} as any)
+const ReviewsReviewIdRoute = ReviewsReviewIdRouteImport.update({
+  id: '/$reviewId',
+  path: '/$reviewId',
+  getParentRoute: () => ReviewsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/communities': typeof CommunitiesRouteWithChildren
   '/dashboard': typeof DashboardRoute
+  '/gamification': typeof GamificationRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/missions': typeof MissionsRoute
   '/profile': typeof ProfileRoute
   '/queue': typeof QueueRoute
+  '/reviews': typeof ReviewsRouteWithChildren
   '/rules': typeof RulesRoute
   '/submit': typeof SubmitRoute
+  '/auth/signin': typeof AuthSigninRoute
+  '/communities/$communityId': typeof CommunitiesCommunityIdRoute
+  '/reviews/$reviewId': typeof ReviewsReviewIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/communities': typeof CommunitiesRouteWithChildren
   '/dashboard': typeof DashboardRoute
+  '/gamification': typeof GamificationRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/missions': typeof MissionsRoute
   '/profile': typeof ProfileRoute
   '/queue': typeof QueueRoute
+  '/reviews': typeof ReviewsRouteWithChildren
   '/rules': typeof RulesRoute
   '/submit': typeof SubmitRoute
+  '/auth/signin': typeof AuthSigninRoute
+  '/communities/$communityId': typeof CommunitiesCommunityIdRoute
+  '/reviews/$reviewId': typeof ReviewsReviewIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/communities': typeof CommunitiesRouteWithChildren
   '/dashboard': typeof DashboardRoute
+  '/gamification': typeof GamificationRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/missions': typeof MissionsRoute
   '/profile': typeof ProfileRoute
   '/queue': typeof QueueRoute
+  '/reviews': typeof ReviewsRouteWithChildren
   '/rules': typeof RulesRoute
   '/submit': typeof SubmitRoute
+  '/auth/signin': typeof AuthSigninRoute
+  '/communities/$communityId': typeof CommunitiesCommunityIdRoute
+  '/reviews/$reviewId': typeof ReviewsReviewIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/admin'
+    | '/communities'
     | '/dashboard'
+    | '/gamification'
     | '/leaderboard'
+    | '/missions'
     | '/profile'
     | '/queue'
+    | '/reviews'
     | '/rules'
     | '/submit'
+    | '/auth/signin'
+    | '/communities/$communityId'
+    | '/reviews/$reviewId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
+    | '/communities'
     | '/dashboard'
+    | '/gamification'
     | '/leaderboard'
+    | '/missions'
     | '/profile'
     | '/queue'
+    | '/reviews'
     | '/rules'
     | '/submit'
+    | '/auth/signin'
+    | '/communities/$communityId'
+    | '/reviews/$reviewId'
   id:
     | '__root__'
     | '/'
     | '/admin'
+    | '/communities'
     | '/dashboard'
+    | '/gamification'
     | '/leaderboard'
+    | '/missions'
     | '/profile'
     | '/queue'
+    | '/reviews'
     | '/rules'
     | '/submit'
+    | '/auth/signin'
+    | '/communities/$communityId'
+    | '/reviews/$reviewId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  CommunitiesRoute: typeof CommunitiesRouteWithChildren
   DashboardRoute: typeof DashboardRoute
+  GamificationRoute: typeof GamificationRoute
   LeaderboardRoute: typeof LeaderboardRoute
+  MissionsRoute: typeof MissionsRoute
   ProfileRoute: typeof ProfileRoute
   QueueRoute: typeof QueueRoute
+  ReviewsRoute: typeof ReviewsRouteWithChildren
   RulesRoute: typeof RulesRoute
   SubmitRoute: typeof SubmitRoute
+  AuthSigninRoute: typeof AuthSigninRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -150,6 +239,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/communities': {
+      id: '/communities'
+      path: '/communities'
+      fullPath: '/communities'
+      preLoaderRoute: typeof CommunitiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -157,11 +253,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/gamification': {
+      id: '/gamification'
+      path: '/gamification'
+      fullPath: '/gamification'
+      preLoaderRoute: typeof GamificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/leaderboard': {
       id: '/leaderboard'
       path: '/leaderboard'
       fullPath: '/leaderboard'
       preLoaderRoute: typeof LeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/missions': {
+      id: '/missions'
+      path: '/missions'
+      fullPath: '/missions'
+      preLoaderRoute: typeof MissionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -178,6 +288,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QueueRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reviews': {
+      id: '/reviews'
+      path: '/reviews'
+      fullPath: '/reviews'
+      preLoaderRoute: typeof ReviewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/rules': {
       id: '/rules'
       path: '/rules'
@@ -192,19 +309,78 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SubmitRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/signin': {
+      id: '/auth/signin'
+      path: '/auth/signin'
+      fullPath: '/auth/signin'
+      preLoaderRoute: typeof AuthSigninRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/communities/$communityId': {
+      id: '/communities/$communityId'
+      path: '/$communityId'
+      fullPath: '/communities/$communityId'
+      preLoaderRoute: typeof CommunitiesCommunityIdRouteImport
+      parentRoute: typeof CommunitiesRoute
+    }
+    '/reviews/$reviewId': {
+      id: '/reviews/$reviewId'
+      path: '/$reviewId'
+      fullPath: '/reviews/$reviewId'
+      preLoaderRoute: typeof ReviewsReviewIdRouteImport
+      parentRoute: typeof ReviewsRoute
+    }
   }
 }
+
+interface CommunitiesRouteChildren {
+  CommunitiesCommunityIdRoute: typeof CommunitiesCommunityIdRoute
+}
+
+const CommunitiesRouteChildren: CommunitiesRouteChildren = {
+  CommunitiesCommunityIdRoute: CommunitiesCommunityIdRoute,
+}
+
+const CommunitiesRouteWithChildren = CommunitiesRoute._addFileChildren(
+  CommunitiesRouteChildren,
+)
+
+interface ReviewsRouteChildren {
+  ReviewsReviewIdRoute: typeof ReviewsReviewIdRoute
+}
+
+const ReviewsRouteChildren: ReviewsRouteChildren = {
+  ReviewsReviewIdRoute: ReviewsReviewIdRoute,
+}
+
+const ReviewsRouteWithChildren =
+  ReviewsRoute._addFileChildren(ReviewsRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  CommunitiesRoute: CommunitiesRouteWithChildren,
   DashboardRoute: DashboardRoute,
+  GamificationRoute: GamificationRoute,
   LeaderboardRoute: LeaderboardRoute,
+  MissionsRoute: MissionsRoute,
   ProfileRoute: ProfileRoute,
   QueueRoute: QueueRoute,
+  ReviewsRoute: ReviewsRouteWithChildren,
   RulesRoute: RulesRoute,
   SubmitRoute: SubmitRoute,
+  AuthSigninRoute: AuthSigninRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
