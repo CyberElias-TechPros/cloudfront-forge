@@ -23,6 +23,40 @@ function certPemToDer(pem: string): Uint8Array {
   return b64ToBytes(b64);
 }
 
+// Web Crypto's `importKey('spki', …)` needs the SubjectPublicKeyInfo, not the
+// full X.509 certificate DER. Extract it by walking the cert's ASN.1 structure.
+function readTlv(buf: Uint8Array, pos: number) {
+  const tag = buf[pos];
+  let len = buf[pos + 1];
+  let headerLen = 2;
+  if (len & 0x80) {
+    const numBytes = len & 0x7f;
+    len = 0;
+    for (let i = 0; i < numBytes; i++) len = (len << 8) | buf[pos + 2 + i];
+    headerLen = 2 + numBytes;
+  }
+  const valueStart = pos + headerLen;
+  const valueEnd = valueStart + len;
+  return { tag, valueStart, valueEnd };
+}
+
+function extractSpkiFromCert(certDer: Uint8Array): Uint8Array {
+  const certTlv = readTlv(certDer, 0);
+  if (certTlv.tag !== 0x30) throw new Error("AUTH_TOKEN_INVALID");
+  const tbs = readTlv(certDer, certTlv.valueStart);
+  let r = tbs.valueStart;
+  const first = readTlv(certDer, r);
+  if (first.tag === 0xa0) r = first.valueEnd; // skip optional version tag
+  r = readTlv(certDer, r).valueEnd; // serialNumber
+  r = readTlv(certDer, r).valueEnd; // signature algorithm
+  r = readTlv(certDer, r).valueEnd; // issuer
+  r = readTlv(certDer, r).valueEnd; // validity
+  r = readTlv(certDer, r).valueEnd; // subject
+  const spki = readTlv(certDer, r);
+  if (spki.tag !== 0x30) throw new Error("AUTH_TOKEN_INVALID");
+  return certDer.subarray(r, spki.valueEnd);
+}
+
 // Dev-only token: a base64url-encoded JSON payload (`<base64url(json)>`). Strictly gated to
 // ENVIRONMENT === "development" so it is never accepted in production. Lets us smoke-test
 // the API locally without a real Firebase project.
@@ -61,7 +95,7 @@ async function getSigningCert(kid: string): Promise<Uint8Array> {
   const certs = (await res.json()) as Record<string, string>;
   const expires = Date.now() + 6 * 60 * 60 * 1000;
   for (const [k, pem] of Object.entries(certs)) {
-    certCache.set(k, { der: certPemToDer(pem), expires });
+    certCache.set(k, { der: extractSpkiFromCert(certPemToDer(pem)), expires });
   }
   const found = certCache.get(kid);
   if (!found) throw new Error("AUTH_TOKEN_INVALID");
@@ -87,7 +121,7 @@ async function verifyRealIdToken(
   const key = await crypto.subtle.importKey(
     "spki",
     der,
-    { name: "RSASSA-PKCS1-v1_5" },
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
     false,
     ["verify"],
   );
