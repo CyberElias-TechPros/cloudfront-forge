@@ -12,7 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SiteFooter, SiteHeader } from "../components/site-chrome";
-import { AuthProvider } from "../hooks/useAuth";
+import { AuthProvider, RequireAuth } from "../hooks/useAuth";
 
 function NotFoundComponent() {
   return (
@@ -129,6 +129,11 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
+  const pathname = router.state?.location?.pathname ?? "/";
+  const isPublic =
+    pathname === "/" || pathname === "/rules" || pathname.startsWith("/auth/");
+  const outlet = isPublic ? <Outlet /> : <RequireAuth><Outlet /></RequireAuth>;
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -136,9 +141,7 @@ function RootComponent() {
         <div className="flex min-h-screen flex-col">
           <SiteHeader />
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <div className="flex-1">
-            <Outlet />
-          </div>
+          <div className="flex-1">{outlet}</div>
           <SiteFooter />
         </div>
       </AuthProvider>

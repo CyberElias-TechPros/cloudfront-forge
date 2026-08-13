@@ -1,36 +1,35 @@
 name = "creatorloop-api"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
+account_id = "c567f93a5269d713595b68c75f8f33c5"
 
 [vars]
-ENVIRONMENT = "development"
-
-[env.production]
-vars = { ENVIRONMENT = "production" }
+ENVIRONMENT = "production"
+FIREBASE_PROJECT_ID = "creator-loop-ring"
+YOUTUBE_API_KEY = "placeholder"
+AI_PROVIDER = "google"
+AI_API_KEY = "placeholder"
 
 # D1 Database
 [[d1_databases]]
 binding = "DB"
 database_name = "creatorloop-db"
-database_id = "0a26848a-3c1e-4d2c-8b7a-8f5e5a7e5e6e"
+database_id = "263dfc51-32c0-4973-9e9e-e9c660ebced7"
 
 [[migrations]]
 tag = "001_initial_schema"
-new_sqlite_tables = ["users", "creator_profiles", "youtube_channels", "communities", "community_members", "community_settings", "pods", "pod_members", "videos", "reviews", "review_questions", "review_answers", "missions", "mission_assignments", "credit_accounts", "credit_transactions", "xp_accounts", "xp_transactions", "reputation_accounts", "reputation_events", "streaks", "badges", "user_badges", "challenges", "challenge_entries", "challenge_votes", "notifications", "notification_preferences", "reports", "audit_logs", "admin_users"]
 
 [[migrations]]
 tag = "002_watch_sessions"
-new_sqlite_tables = ["watch_sessions"]
 
 [[migrations]]
 tag = "003_reputation_columns"
-alter_tables = { reputation_accounts = ["subscriptions_given", "subscriptions_received", "watch_minutes"] }
 
 # KV Namespaces
 [[kv_namespaces]]
 binding = "KV_CACHE"
-id = "6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e"
-preview_id = "6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e"
+id = "a1a3abb4acf84266add6f7226141ea14"
+preview_id = "a1a3abb4acf84266add6f7226141ea14"
 
 # R2 Bucket
 [[r2_buckets]]

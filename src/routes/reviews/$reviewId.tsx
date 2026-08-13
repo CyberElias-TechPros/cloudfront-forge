@@ -74,8 +74,8 @@ function ReviewDetail() {
           </div>
 
           <div className="space-y-6">
-            {detail.questions.map((q) => {
-              const answer = detail.answers.find((a) => a.questionId === q.id);
+            {detail.questions?.map((q) => {
+              const answer = detail.answers?.find((a) => a.questionId === q.id);
               return (
                 <div key={q.id} className="space-y-2">
                   <p className="text-sm font-medium">{q.text}</p>

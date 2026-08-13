@@ -8,12 +8,13 @@ import {
 } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: import.meta.env["VITE_FIREBASE_API_KEY"] || "your_api_key",
-  authDomain: import.meta.env["VITE_FIREBASE_AUTH_DOMAIN"] || "creatorloop-dev.firebaseapp.com",
-  projectId: import.meta.env["VITE_FIREBASE_PROJECT_ID"] || "creatorloop-dev",
-  storageBucket: import.meta.env["VITE_FIREBASE_STORAGE_BUCKET"] || "creatorloop-dev.appspot.com",
-  messagingSenderId: import.meta.env["VITE_FIREBASE_MESSAGING_SENDER_ID"] || "your_sender_id",
-  appId: import.meta.env["VITE_FIREBASE_APP_ID"] || "your_app_id",
+  apiKey: import.meta.env["VITE_FIREBASE_API_KEY"] || "AIzaSyAqcPLTHaIujDMj_lXUxM9bang2AGW6AVA",
+  authDomain: import.meta.env["VITE_FIREBASE_AUTH_DOMAIN"] || "creator-loop-ring.firebaseapp.com",
+  projectId: import.meta.env["VITE_FIREBASE_PROJECT_ID"] || "creator-loop-ring",
+  storageBucket: import.meta.env["VITE_FIREBASE_STORAGE_BUCKET"] || "creator-loop-ring.firebasestorage.app",
+  messagingSenderId: import.meta.env["VITE_FIREBASE_MESSAGING_SENDER_ID"] || "365634472671",
+  appId: import.meta.env["VITE_FIREBASE_APP_ID"] || "1:365634472671:web:cfbd912ccc8563edf7b76a",
+  measurementId: import.meta.env["VITE_FIREBASE_MEASUREMENT_ID"] || "G-DB32W6M1R8",
 };
 
 const app = initializeApp(firebaseConfig);
