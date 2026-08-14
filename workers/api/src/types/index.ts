@@ -10,6 +10,7 @@ export interface Env {
   YOUTUBE_API_KEY: string;
   AI_PROVIDER: string;
   AI_API_KEY: string;
+  AI_MODEL: string;
   JWT_SECRET: string;
   ENCRYPTION_KEY: string;
   ENVIRONMENT: string;

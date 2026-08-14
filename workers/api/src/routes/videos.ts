@@ -422,23 +422,48 @@ export const reviewRoutes = [
 
   {
     method: "POST",
-    path: "/api/v1/reviews/{reviewId}/answers",
+    pattern: "^\\/api\\/v1/reviews/([^/]+)/answers$",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
         const userId = await requireAuth(request, env);
+        const url = new URL(request.url);
+        const reviewId = url.pathname.split("/")[4];
+        if (!reviewId) {
+          return createErrorResponse("VALIDATION_ERROR", "Review ID is required", 400);
+        }
         const body = (await request.json().catch(() => ({}))) as any;
+        const answers: any[] = Array.isArray(body?.answers) ? body.answers : [];
 
         const db = new Database(env);
-        const now = new Date().toISOString();
-
-        const result = await db.querySingle(
-          "SELECT * FROM reviews WHERE id = (SELECT review_id FROM reviews WHERE submitter_id = ? OR reviewer_id = ? LIMIT 1)",
-          [userId, userId],
+        const review = await db.querySingle(
+          "SELECT id FROM reviews WHERE id = ? AND (reviewer_id = ? OR submitter_id = ?)",
+          [reviewId, userId, userId],
         );
+        if (!review) {
+          return createErrorResponse("NOT_FOUND", "Review not found", 404);
+        }
 
-        // In a real implementation, we'd validate the review belongs to the user
+        const now = db.now();
+        const statements = answers
+          .filter((a) => a?.questionId)
+          .map((a) => ({
+            sql: "INSERT INTO review_answers (id, review_id, question_id, rating_value, text_answer, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            params: [
+              db.uuid(),
+              reviewId,
+              a.questionId,
+              a.ratingValue ?? null,
+              a.textAnswer ?? null,
+              now,
+            ],
+          }));
 
-        return createResponse({ message: "Answers submitted" });
+        if (statements.length > 0) {
+          await db.execute("DELETE FROM review_answers WHERE review_id = ?", [reviewId]);
+          await db.batch(statements);
+        }
+
+        return createResponse({ message: "Answers submitted", saved: statements.length });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);

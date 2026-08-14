@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AiRouteImport } from './routes/ai'
 import { Route as CommunitiesRouteImport } from './routes/communities'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as GamificationRouteImport } from './routes/gamification'
@@ -33,6 +34,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiRoute = AiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommunitiesRoute = CommunitiesRouteImport.update({
@@ -104,6 +110,7 @@ const ReviewsReviewIdRoute = ReviewsReviewIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/ai': typeof AiRoute
   '/communities': typeof CommunitiesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/gamification': typeof GamificationRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/ai': typeof AiRoute
   '/communities': typeof CommunitiesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/gamification': typeof GamificationRoute
@@ -139,6 +147,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/ai': typeof AiRoute
   '/communities': typeof CommunitiesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/gamification': typeof GamificationRoute
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/ai'
     | '/communities'
     | '/dashboard'
     | '/gamification'
@@ -175,6 +185,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/ai'
     | '/communities'
     | '/dashboard'
     | '/gamification'
@@ -192,6 +203,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/ai'
     | '/communities'
     | '/dashboard'
     | '/gamification'
@@ -210,6 +222,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  AiRoute: typeof AiRoute
   CommunitiesRoute: typeof CommunitiesRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   GamificationRoute: typeof GamificationRoute
@@ -237,6 +250,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai': {
+      id: '/ai'
+      path: '/ai'
+      fullPath: '/ai'
+      preLoaderRoute: typeof AiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/communities': {
@@ -359,6 +379,7 @@ const ReviewsRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  AiRoute: AiRoute,
   CommunitiesRoute: CommunitiesRouteWithChildren,
   DashboardRoute: DashboardRoute,
   GamificationRoute: GamificationRoute,

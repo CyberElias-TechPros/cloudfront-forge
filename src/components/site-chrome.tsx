@@ -12,6 +12,7 @@ const links = [
   { to: "/communities", label: "Communities" },
   { to: "/missions", label: "Missions" },
   { to: "/reviews", label: "Reviews" },
+  { to: "/ai", label: "AI" },
   { to: "/gamification", label: "Gamification" },
   { to: "/leaderboard", label: "Leaderboard" },
   { to: "/profile", label: "Profile" },

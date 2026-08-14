@@ -237,16 +237,99 @@ export const communityRoutes = [
 
   {
     method: "GET",
-    path: "/api/v1/communities/{communityId}/members",
+    pattern: "^\\/api\\/v1/communities/([^/]+)/members$",
     handler: async (request: Request, env: Env): Promise<Response> => {
-      return createResponse({ members: [] });
+      try {
+        const userId = await requireAuth(request, env);
+        const url = new URL(request.url);
+        const communityId = url.pathname.split("/")[4];
+        if (!communityId) {
+          return createErrorResponse("VALIDATION_ERROR", "Community ID is required", 400);
+        }
+        const db = new Database(env);
+        const result = await db.query(
+          `SELECT cm.id, cm.role, cm.status, cm.joined_at, u.id as userId,
+                  u.display_name as displayName, u.photo_url as photoUrl
+           FROM community_members cm
+           JOIN users u ON cm.user_id = u.id
+           WHERE cm.community_id = ? AND cm.status = 'active'
+           ORDER BY cm.joined_at ASC`,
+          [communityId],
+        );
+        return createResponse({ members: result.results ?? [] });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to fetch members", 500);
+      }
     },
   },
   {
     method: "PUT",
-    path: "/api/v1/communities/{communityId}/settings",
+    pattern: "^\\/api\\/v1/communities/([^/]+)/settings$",
     handler: async (request: Request, env: Env): Promise<Response> => {
-      return createResponse({ message: "Settings updated" });
+      try {
+        const userId = await requireAuth(request, env);
+        const url = new URL(request.url);
+        const communityId = url.pathname.split("/")[4];
+        if (!communityId) {
+          return createErrorResponse("VALIDATION_ERROR", "Community ID is required", 400);
+        }
+        const db = new Database(env);
+        const community = await db.querySingle(
+          "SELECT id FROM communities WHERE id = ? AND owner_id = ? AND deleted_at IS NULL",
+          [communityId, userId],
+        );
+        if (!community) {
+          return createErrorResponse(
+            "FORBIDDEN",
+            "Only the community owner can update settings",
+            403,
+          );
+        }
+        const body = (await request.json().catch(() => ({}))) as any;
+        const now = db.now();
+        const existing = await db.querySingle(
+          "SELECT id FROM community_settings WHERE community_id = ?",
+          [communityId],
+        );
+        const allowPeerReview = body.allowPeerReview ?? true;
+        const allowCollaboration = body.allowCollaboration ?? true;
+        const requireApproval = body.requireApproval ?? true;
+        const defaultLanguage = body.defaultLanguage ?? null;
+        if (existing) {
+          await db.execute(
+            `UPDATE community_settings
+             SET allow_peer_review = ?, allow_collaboration = ?, require_approval = ?,
+                 default_language = ?, updated_at = ?
+             WHERE community_id = ?`,
+            [allowPeerReview, allowCollaboration, requireApproval, defaultLanguage, now, communityId],
+          );
+        } else {
+          await db.execute(
+            `INSERT INTO community_settings
+              (id, community_id, allow_peer_review, allow_collaboration, require_approval, default_language, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              db.uuid(),
+              communityId,
+              allowPeerReview,
+              allowCollaboration,
+              requireApproval,
+              defaultLanguage,
+              now,
+              now,
+            ],
+          );
+        }
+        return createResponse({ message: "Settings updated" });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to update settings", 500);
+      }
     },
   },
 ];

@@ -8,6 +8,7 @@ import { adminRoutes } from "./admin";
 import { notificationRoutes } from "./notifications";
 import { feedRoutes } from "./feed";
 import { watchRoutes } from "./watch";
+import { aiRoutes } from "./ai";
 
 export const routes = [
   ...authRoutes,
@@ -21,4 +22,5 @@ export const routes = [
   ...notificationRoutes,
   ...feedRoutes,
   ...watchRoutes,
+  ...aiRoutes,
 ];

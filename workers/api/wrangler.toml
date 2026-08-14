@@ -6,9 +6,8 @@ account_id = "c567f93a5269d713595b68c75f8f33c5"
 [vars]
 ENVIRONMENT = "production"
 FIREBASE_PROJECT_ID = "creator-loop-ring"
-YOUTUBE_API_KEY = "placeholder"
-AI_PROVIDER = "google"
-AI_API_KEY = "placeholder"
+AI_PROVIDER = "nvidia"
+AI_MODEL = "meta/llama-3.1-8b-instruct"
 
 # D1 Database
 [[d1_databases]]
