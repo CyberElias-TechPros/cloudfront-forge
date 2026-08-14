@@ -39,13 +39,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchProfile = async (user: User) => {
     try {
       // Call our backend to get/create user and profile
-      const response = await api.post<Profile>("/api/v1/auth/register", {
+      const response = await api.post<{ user: Profile }>("/api/v1/auth/register", {
         firebaseUid: user.uid,
         email: user.email,
         displayName: user.displayName,
         photoUrl: user.photoURL,
       });
-      setProfile(response);
+      setProfile(response.user);
     } catch (error: unknown) {
       console.error("Error fetching profile:", error);
     }

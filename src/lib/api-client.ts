@@ -355,7 +355,7 @@ export const apiClientService = {
     users: (status = "active") => getData<UserProfile[]>(`/api/v1/admin/users?status=${status}`),
     reports: (status = "pending") =>
       getData<AdminReport[]>(`/api/v1/admin/reports?status=${status}`),
-    resolveReport: (reportId: string, data: { status: "resolved" | "dismissed"; notes?: string }) =>
+    resolveReport: (reportId: string, data: { status: "resolved" | "dismissed"; resolutionNotes?: string }) =>
       postData<{ message: string }>(`/api/v1/admin/reports/${reportId}/resolve`, data),
     createReport: (data: {
       reportedUserId: string;

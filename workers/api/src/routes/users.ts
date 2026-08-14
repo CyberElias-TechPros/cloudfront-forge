@@ -90,13 +90,16 @@ export const userRoutes = [
         ]);
 
         return createResponse({
-          user: {
-            id: user.id,
-            displayName: user.display_name,
-            email: user.email,
-            photoUrl: user.photo_url,
-            createdAt: user.created_at,
-          },
+          id: user.id,
+          firebaseUid: user.firebase_uid,
+          email: user.email,
+          emailVerified: Boolean(user.email_verified),
+          displayName: user.display_name,
+          photoUrl: user.photo_url,
+          createdAt: user.created_at,
+          updatedAt: user.updated_at,
+          deletedAt: user.deleted_at,
+          lastActive: user.last_active,
           profile: profile,
           channels: channels.results,
         });

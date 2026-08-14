@@ -148,13 +148,13 @@ export const missionRoutes = [
         const db = new Database(env);
 
         const result = await db.query(
-          `SELECT ma.*, m.title, m.description, m.difficulty, m.xp_reward, m.credit_reward, m.time_estimate_minutes
+          `SELECT ma.*, m.title, m.description, m.difficulty, m.xp_reward, m.credit_reward, m.time_estimate_minutes,
+                  datetime(ma.assigned_at, '+7 days') as due_at
             FROM mission_assignments ma
             JOIN missions m ON ma.mission_id = m.id
             WHERE ma.user_id = ? AND ma.status IN ('assigned', 'in_progress')
             ORDER BY ma.assigned_at ASC
-            LIMIT 20`,
-          [userId],
+            LIMIT 20`,          [userId],
         );
 
         return createResponse(result.results);

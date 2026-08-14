@@ -172,22 +172,22 @@ export function useMissionAssignments() {
 function mapMission(raw: {
   id: string;
   title: string;
-  description: string | null;
+  description?: string | null;
   difficulty?: string;
-  xp_reward?: number;
-  credit_reward?: number;
-  time_estimate_minutes?: number;
-  is_assigned?: number | boolean;
-  is_completed?: number | boolean;
+  xpReward?: number;
+  creditReward?: number;
+  timeEstimateMinutes?: number;
+  isAssigned?: number | boolean;
+  isCompleted?: number | boolean;
 }): Mission {
   return {
     id: raw.id,
     title: raw.title,
     description: raw.description ?? "",
-    reward: { xp: raw.xp_reward ?? 0, credits: raw.credit_reward ?? 0 },
+    reward: { xp: raw.xpReward ?? 0, credits: raw.creditReward ?? 0 },
     category: "Mission",
     difficulty: (raw.difficulty as Mission["difficulty"]) ?? "medium",
-    estimatedTimeMins: raw.time_estimate_minutes ?? 15,
+    estimatedTimeMins: raw.timeEstimateMinutes ?? 15,
   };
 }
 
@@ -196,8 +196,16 @@ export function useMissions() {
     queryKey: queryKeys.missions,
     queryFn: async () => {
       try {
-        const data = await apiClientService.missions.list();
-        return (data as unknown as Array<Parameters<typeof mapMission>[0]>).map(mapMission);
+        const data = (await apiClientService.missions.list()) as unknown as Array<{
+          id: string;
+          title: string;
+          description?: string | null;
+          difficulty?: string;
+          xpReward?: number;
+          creditReward?: number;
+          timeEstimateMinutes?: number;
+        }>;
+        return data.map(mapMission);
       } catch (error) {
         console.warn("[useMissions] API unavailable:", error);
         return [];
@@ -312,10 +320,19 @@ export function useReview(reviewId: string) {
             text: String(q.questionText ?? q.question_text ?? q.text ?? ""),
             type: String(q.questionType ?? q.question_type ?? q.type ?? "rating"),
           })),
-          answers: (raw.answers ?? []).map((a) => ({
-            questionId: String(a.questionId ?? ""),
-            answer: (a.ratingValue ?? a.textAnswer ?? "") as string | number | boolean,
-          })),
+          answers: (raw.answers ?? []).map((a) => {
+            const q = (raw.questions ?? []).find(
+              (x) => String(x.id) === String(a.questionId),
+            );
+            const qType = String(q?.questionType ?? q?.question_type ?? q?.type ?? "rating");
+            let value: string | number | boolean = "";
+            if (typeof a.ratingValue === "number") {
+              value = qType === "yes_no" ? a.ratingValue === 1 : a.ratingValue;
+            } else if (typeof a.textAnswer === "string") {
+              value = a.textAnswer;
+            }
+            return { questionId: String(a.questionId ?? ""), answer: value };
+          }),
         };
       } catch (error) {
         console.warn("[useReview] API unavailable:", error);
@@ -529,7 +546,7 @@ export function useResolveReport() {
     mutationFn: (args: { reportId: string; status: "resolved" | "dismissed"; notes?: string }) =>
       apiClientService.admin.resolveReport(args.reportId, {
         status: args.status,
-        ...(args.notes ? { notes: args.notes } : {}),
+        ...(args.notes ? { resolutionNotes: args.notes } : {}),
       }),
     onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({

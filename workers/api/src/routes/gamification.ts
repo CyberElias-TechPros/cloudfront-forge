@@ -128,15 +128,15 @@ export const gamificationRoutes = [
         const result = await database.query("SELECT * FROM streaks WHERE user_id = ?", [userId]);
 
         const rows = result.results as Array<{
-          currentStreak?: number;
-          longestStreak?: number;
-          lastActivityDate?: string;
+          current_streak?: number;
+          longest_streak?: number;
+          last_activity_date?: string;
         }>;
-        const currentStreak = rows.reduce((max, r) => Math.max(max, r.currentStreak ?? 0), 0);
-        const longestStreak = rows.reduce((max, r) => Math.max(max, r.longestStreak ?? 0), 0);
+        const currentStreak = rows.reduce((max, r) => Math.max(max, r.current_streak ?? 0), 0);
+        const longestStreak = rows.reduce((max, r) => Math.max(max, r.longest_streak ?? 0), 0);
         const lastActive =
           rows
-            .map((r) => r.lastActivityDate)
+            .map((r) => r.last_activity_date)
             .filter((d): d is string => Boolean(d))
             .sort()
             .reverse()[0] ?? new Date().toISOString();
