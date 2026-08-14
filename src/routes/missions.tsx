@@ -3,8 +3,14 @@ import { Flame, RefreshCw, Target, Trophy, Zap } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader, Shell, Thumb } from "@/components/page-parts";
-import { useMissionAssignments, useCompleteMission, useCurrentMember } from "@/hooks/use-api";
-import type { MissionAssignment } from "@/lib/api-client";
+import {
+  useMissionAssignments,
+  useCompleteMission,
+  useCurrentMember,
+  useMissions,
+  useAssignMission,
+} from "@/hooks/use-api";
+import type { MissionAssignment, Mission } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/missions")({
@@ -47,6 +53,21 @@ function Missions() {
   const { data: missionAssignments = [], isLoading } = useMissionAssignments();
   const completeMission = useCompleteMission();
   const { data: member } = useCurrentMember();
+  const { data: availableMissions = [] } = useMissions();
+  const assignMission = useAssignMission();
+
+  const myMissionIds = new Set(missionAssignments.map((a) => a.missionId));
+  const discover = availableMissions.filter((m: Mission) => !myMissionIds.has(m.id));
+
+  const handleAccept = async (missionId: string) => {
+    try {
+      await assignMission.mutateAsync(missionId);
+      toast.success("Mission accepted! It's now in your list.");
+    } catch (error) {
+      console.error("Accept error:", error);
+      toast.error("Could not accept this mission right now.");
+    }
+  };
 
   const currentUser = member ?? {
     id: "",
@@ -144,6 +165,53 @@ function Missions() {
           icon={<Flame className="size-4" />}
         />
       </div>
+
+      {discover.length > 0 ? (
+        <section className="mt-6">
+          <h2 className="mb-3 text-2xl">Discover missions</h2>
+          <div className="space-y-3">
+            {discover.map((m: Mission) => (
+              <article
+                key={m.id}
+                className="surface flex items-center justify-between gap-4 p-5"
+              >
+                <div className="flex items-center gap-4">
+                  <Thumb hue={330} label={m.category} />
+                  <div>
+                    <h3 className="text-xl font-medium">{m.title}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{m.description}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+                      <span
+                        className={cn(
+                          "rounded-full border px-2 py-0.5",
+                          difficultyColors[m.difficulty],
+                        )}
+                      >
+                        {m.difficulty}
+                      </span>
+                      <span className="text-muted-foreground">
+                        ~{m.estimatedTimeMins} min
+                      </span>
+                      <span className="text-muted-foreground">
+                        +{m.reward.xp} XP
+                        {m.reward.credits > 0 ? ` · +${m.reward.credits} credits` : ""}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleAccept(m.id)}
+                  disabled={assignMission.isPending}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                >
+                  {assignMission.isPending ? "Accepting..." : "Accept mission"}
+                </button>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div className="mt-6 space-y-3">
         {isLoading ? (

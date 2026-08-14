@@ -276,6 +276,8 @@ export const apiClientService = {
   missions: {
     list: () => getData<Mission[]>("/api/v1/missions"),
     assignments: () => getData<MissionAssignment[]>("/api/v1/missions/assignments"),
+    assign: (missionId: string) =>
+      postData<{ message: string }>(`/api/v1/missions/${missionId}/assign`),
     complete: (assignmentId: string) =>
       postData<{ message: string; xpAwarded: number; creditsAwarded: number }>(
         `/api/v1/missions/assignments/${assignmentId}/complete`,

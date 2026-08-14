@@ -49,7 +49,8 @@ function CommunityDetail() {
   const members = detail.members.map((m) => ({
     id: m.id,
     name: m.displayName ?? "Member",
-    handle: m.role,
+    handle: "@" + (m.displayName ?? "member").toLowerCase().replace(/\s+/g, ""),
+    role: m.role,
     avatar: (m.displayName?.[0] ?? "?").toUpperCase(),
     points: null as number | null,
     trustScore: null as number | null,
@@ -148,7 +149,7 @@ function CommunityDetail() {
                         </div>
                       </div>
                     </td>
-                    <td className="p-4 text-muted-foreground">{community.niche}</td>
+                    <td className="p-4 text-muted-foreground">{m.role}</td>
                     <td className="p-4">{m.points?.toLocaleString() ?? "—"}</td>
                     <td className="p-4">
                       {m.trustScore !== null ? (

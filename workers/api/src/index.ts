@@ -13,6 +13,7 @@ import { adminRoutes } from "./routes/admin";
 import { notificationRoutes } from "./routes/notifications";
 import { feedRoutes } from "./routes/feed";
 import { watchRoutes } from "./routes/watch";
+import { aiRoutes } from "./routes/ai";
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -62,6 +63,7 @@ export default {
         ...notificationRoutes,
         ...feedRoutes,
         ...watchRoutes,
+        ...aiRoutes,
       ];
 
       // Find matching route

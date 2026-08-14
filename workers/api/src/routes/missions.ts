@@ -54,6 +54,7 @@ export const missionRoutes = [
     path: "/api/v1/missions",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
+        await requireAuth(request, env);
         const body = (await request.json().catch(() => ({}))) as any;
         const validation = createMissionSchema.safeParse(body);
 

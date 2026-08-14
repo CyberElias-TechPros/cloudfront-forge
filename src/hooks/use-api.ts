@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClientService, {
   type Community,
   type CommunityDetail,
+  type Mission,
   type MissionAssignment,
   type Review,
   type LeaderboardEntry,
@@ -163,6 +164,54 @@ export function useMissionAssignments() {
         console.warn("[useMissionAssignments] API unavailable:", error);
         return [];
       }
+    },
+  });
+}
+
+function mapMission(raw: {
+  id: string;
+  title: string;
+  description: string | null;
+  difficulty?: string;
+  xp_reward?: number;
+  credit_reward?: number;
+  time_estimate_minutes?: number;
+  is_assigned?: number | boolean;
+  is_completed?: number | boolean;
+}): Mission {
+  return {
+    id: raw.id,
+    title: raw.title,
+    description: raw.description ?? "",
+    reward: { xp: raw.xp_reward ?? 0, credits: raw.credit_reward ?? 0 },
+    category: "Mission",
+    difficulty: (raw.difficulty as Mission["difficulty"]) ?? "medium",
+    estimatedTimeMins: raw.time_estimate_minutes ?? 15,
+  };
+}
+
+export function useMissions() {
+  return useQuery({
+    queryKey: queryKeys.missions,
+    queryFn: async () => {
+      try {
+        const data = await apiClientService.missions.list();
+        return (data as unknown as Array<Parameters<typeof mapMission>[0]>).map(mapMission);
+      } catch (error) {
+        console.warn("[useMissions] API unavailable:", error);
+        return [];
+      }
+    },
+  });
+}
+
+export function useAssignMission() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (missionId: string) => apiClientService.missions.assign(missionId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.missions });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.assignments });
     },
   });
 }

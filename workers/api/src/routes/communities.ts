@@ -72,6 +72,7 @@ export const communityRoutes = [
         }
 
         const db = new Database(env);
+        const userId = await requireAuth(request, env);
         const community = await db.querySingle("SELECT * FROM communities WHERE id = ?", [
           communityId,
         ]);
@@ -79,6 +80,12 @@ export const communityRoutes = [
         if (!community) {
           return createErrorResponse("NOT_FOUND", "Community not found", 404);
         }
+
+        const memberResult = await db.querySingle(
+          "SELECT COUNT(*) as count FROM community_members WHERE community_id = ? AND status = 'active'",
+          [communityId],
+        );
+        const memberCount = (memberResult?.count ?? 0) as number;
 
         const members = await db.query(
           "SELECT u.id, u.display_name, u.photo_url, cm.role, cm.joined_at FROM community_members cm JOIN users u ON cm.user_id = u.id WHERE cm.community_id = ? AND cm.status = 'active'",
@@ -96,6 +103,10 @@ export const communityRoutes = [
             logoUrl: community.logo_url,
             bannerUrl: community.banner_url,
             createdAt: community.created_at,
+            updatedAt: community.updated_at,
+            memberCount,
+            isOwner: community.owner_id === userId,
+            inviteCode: community.invite_code,
           },
           members: members.results,
         });
