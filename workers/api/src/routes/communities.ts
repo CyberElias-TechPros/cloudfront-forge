@@ -110,7 +110,10 @@ export const communityRoutes = [
           },
           members: members.results,
         });
-      } catch (error) {
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
         console.error("Get community error:", error);
         return createErrorResponse("INTERNAL_ERROR", "Failed to get community", 500);
       }
