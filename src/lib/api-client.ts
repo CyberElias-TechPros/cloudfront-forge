@@ -28,6 +28,7 @@ export interface Member {
   subsReceived: number;
   watchMinutes: number;
   trustScore: number;
+  isAdmin: boolean;
 }
 
 export interface Community {
@@ -121,6 +122,12 @@ export interface Review {
   dueAt: string;
 }
 
+export interface ReviewAnswerInput {
+  questionId: string;
+  ratingValue?: number;
+  textAnswer?: string;
+}
+
 export interface LeaderboardEntry {
   id: string;
   displayName: string | null;
@@ -174,6 +181,7 @@ export interface CurrentMember {
   subsReceived: number;
   watchMinutes: number;
   trustScore: number;
+  isAdmin: boolean;
 }
 
 export interface QueueTask {
@@ -296,7 +304,7 @@ export const apiClientService = {
     start: (reviewId: string) => postData<{ message: string }>(`/api/v1/reviews/${reviewId}/start`),
     complete: (
       reviewId: string,
-      data: { score: number; feedbackText?: string; answers: Record<string, unknown> },
+      data: { score?: number; feedbackText?: string; answers?: ReviewAnswerInput[] },
     ) =>
       postData<{ message: string; xpAwarded: number }>(
         `/api/v1/reviews/${reviewId}/complete`,

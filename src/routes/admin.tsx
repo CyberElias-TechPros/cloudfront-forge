@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AlertTriangle, CheckCircle2, Settings2, Users, XCircle } from "lucide-react";
 import { PageHeader, Shell, StatCard } from "@/components/page-parts";
 import { cn } from "@/lib/utils";
-import { useAdminReports, useAdminMetrics, useResolveReport, useAdminUsers } from "@/hooks/use-api";
+import { useAdminReports, useAdminMetrics, useResolveReport, useAdminUsers, useCurrentMember } from "@/hooks/use-api";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -24,11 +24,34 @@ export const Route = createFileRoute("/admin")({
 });
 
 function Admin() {
+  const { data: member, isLoading: memberLoading } = useCurrentMember();
   const flagsQuery = useAdminReports("pending");
   const statsQuery = useAdminMetrics();
   const resolveReportMutation = useResolveReport();
   const usersQuery = useAdminUsers("active");
   const users = usersQuery.data ?? [];
+
+  if (memberLoading) {
+    return (
+      <Shell>
+        <div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>
+      </Shell>
+    );
+  }
+
+  if (!member?.isAdmin) {
+    return (
+      <Shell>
+        <div className="py-16 text-center">
+          <XCircle className="mx-auto size-12 text-destructive/60" />
+          <p className="mt-3 text-lg font-medium">Admin access required</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            You don't have permission to view this console.
+          </p>
+        </div>
+      </Shell>
+    );
+  }
 
   const watchlist = users
     .filter((m) => (m.trustScore ?? 100) < 90)

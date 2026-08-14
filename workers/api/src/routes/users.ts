@@ -261,6 +261,13 @@ export const userRoutes = [
           "SELECT * FROM reputation_accounts WHERE user_id = ?",
           [userId],
         );
+        const adminRow = await db.querySingle(
+          "SELECT role FROM admin_users WHERE user_id = ?",
+          [userId],
+        );
+        const isAdmin = !!(
+          adminRow && ["super_admin", "admin"].includes(adminRow.role)
+        );
         const streaks = await db.query(
           "SELECT current_streak FROM streaks WHERE user_id = ?",
           [userId],
@@ -300,6 +307,7 @@ export const userRoutes = [
           subsReceived: reputation?.subscriptions_received ?? 0,
           watchMinutes: reputation?.watch_minutes ?? 0,
           trustScore: reputation?.score ?? 0,
+          isAdmin,
         });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {

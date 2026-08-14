@@ -11,12 +11,16 @@ const submitVideoSchema = z.object({
 
 const reviewSchema = z.object({
   score: z.number().min(1).max(5).optional(),
-  feedbackText: z.string().min(20).max(2000),
-});
-
-const reviewAnswerSchema = z.object({
-  ratingValue: z.number().min(1).max(5).optional(),
-  textAnswer: z.string().min(3).max(500).optional(),
+  feedbackText: z.string().max(2000).optional(),
+  answers: z
+    .array(
+      z.object({
+        questionId: z.string(),
+        ratingValue: z.number().min(0).max(5).optional(),
+        textAnswer: z.string().max(500).optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const videoRoutes = [
@@ -257,7 +261,21 @@ export const reviewRoutes = [
         const db = new Database(env);
 
         const result = await db.query(
-          `SELECT r.*, v.title as video_title, v.thumbnail_url, u.display_name as submitter_name, u.photo_url as submitter_photo
+          `SELECT
+             r.id,
+             r.video_id as videoId,
+             v.title as videoTitle,
+             v.thumbnail_url as videoThumbnail,
+             r.submitter_id as submitterId,
+             u.display_name as submitterName,
+             r.reviewer_id as reviewerId,
+             r.status as status,
+             r.score as score,
+             r.feedback_text as feedbackText,
+             r.assigned_at as assignedAt,
+             r.started_at as startedAt,
+             r.completed_at as completedAt,
+             r.due_at as dueAt
            FROM reviews r
            JOIN videos v ON r.video_id = v.id
            JOIN users u ON r.submitter_id = u.id
@@ -291,11 +309,28 @@ export const reviewRoutes = [
 
         const db = new Database(env);
         const review = await db.querySingle(
-          `SELECT r.*, v.title as video_title, v.thumbnail_url, v.youtube_url,
-                  u.display_name as submitter_name, u.photo_url as submitter_photo
+          `SELECT
+             r.id,
+             r.video_id as videoId,
+             v.title as videoTitle,
+             v.thumbnail_url as videoThumbnail,
+             v.youtube_url as youtubeUrl,
+             r.submitter_id as submitterId,
+             u.display_name as submitterName,
+             u.photo_url as submitterPhoto,
+             r.reviewer_id as reviewerId,
+             ru.display_name as reviewerName,
+             r.status as status,
+             r.score as score,
+             r.feedback_text as feedbackText,
+             r.assigned_at as assignedAt,
+             r.started_at as startedAt,
+             r.completed_at as completedAt,
+             r.due_at as dueAt
            FROM reviews r
            JOIN videos v ON r.video_id = v.id
            JOIN users u ON r.submitter_id = u.id
+           LEFT JOIN users ru ON r.reviewer_id = ru.id
            WHERE r.id = ?`,
           [reviewId],
         );
@@ -305,7 +340,7 @@ export const reviewRoutes = [
         }
 
         // Ensure user is authorized (reviewer or submitter)
-        if (review.reviewer_id !== userId && review.submitter_id !== userId) {
+        if (review.reviewerId !== userId && review.submitterId !== userId) {
           return createErrorResponse("FORBIDDEN", "Access denied", 403);
         }
 
@@ -328,16 +363,22 @@ export const reviewRoutes = [
         return createResponse({
           review: {
             id: review.id,
-            videoTitle: review.video_title,
-            videoThumbnail: review.thumbnail_url,
-            youtubeUrl: review.youtube_url,
+            videoId: review.videoId,
+            videoTitle: review.videoTitle,
+            videoThumbnail: review.videoThumbnail,
+            youtubeUrl: review.youtubeUrl,
+            submitterId: review.submitterId,
+            submitterName: review.submitterName,
+            submitterPhoto: review.submitterPhoto,
+            reviewerId: review.reviewerId,
+            reviewerName: review.reviewerName,
             status: review.status,
-            submitterName: review.submitter_name,
-            submitterPhoto: review.submitter_photo,
-            feedbackText: review.feedback_text,
             score: review.score,
-            assignedAt: review.assigned_at,
-            startedAt: review.started_at,
+            feedbackText: review.feedbackText,
+            assignedAt: review.assignedAt,
+            startedAt: review.startedAt,
+            completedAt: review.completedAt,
+            dueAt: review.dueAt,
           },
           questions: questions.results,
           answers: answers,
@@ -404,11 +445,30 @@ export const reviewRoutes = [
         // Update review
         await db.execute(
           "UPDATE reviews SET status = 'completed', completed_at = ?, score = ?, feedback_text = ? WHERE id = ? AND reviewer_id = ?",
-          [now, body.score ?? null, body.feedbackText, reviewId, userId],
+          [now, body.score ?? null, body.feedbackText ?? null, reviewId, userId],
         );
 
-        // Award credits and XP (handled by gamification service)
-        // For now, just return success
+        // Persist per-question review answers
+        const answers = Array.isArray(body?.answers) ? body.answers : [];
+        if (answers.length > 0) {
+          await db.execute("DELETE FROM review_answers WHERE review_id = ?", [reviewId]);
+          const statements = answers
+            .filter((a: any) => a?.questionId)
+            .map((a: any) => ({
+              sql: "INSERT INTO review_answers (id, review_id, question_id, rating_value, text_answer, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+              params: [
+                db.uuid(),
+                reviewId,
+                a.questionId,
+                a.ratingValue ?? null,
+                a.textAnswer ?? null,
+                now,
+              ],
+            }));
+          if (statements.length > 0) {
+            await db.batch(statements);
+          }
+        }
 
         return createResponse({ message: "Review completed successfully" });
       } catch (error: any) {

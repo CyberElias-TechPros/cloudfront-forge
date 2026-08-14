@@ -5,6 +5,7 @@ import apiClientService, {
   type Mission,
   type MissionAssignment,
   type Review,
+  type ReviewAnswerInput,
   type LeaderboardEntry,
   type CreditsSummary,
   type XpSummary,
@@ -242,7 +243,7 @@ export function useReviews() {
 
 export interface ReviewDetailData {
   review: Review;
-  questions: { id: string; text: string }[];
+  questions: { id: string; text: string; type?: string }[];
   answers: { questionId: string; answer: string | number | boolean }[];
 }
 
@@ -265,6 +266,16 @@ type RawReview = {
   dueAt?: unknown;
 };
 
+type RawQuestion = {
+  id?: unknown;
+  questionText?: unknown;
+  question_text?: unknown;
+  text?: unknown;
+  questionType?: unknown;
+  question_type?: unknown;
+  type?: unknown;
+};
+
 export function useReview(reviewId: string) {
   return useQuery({
     queryKey: queryKeys.review(reviewId),
@@ -273,7 +284,7 @@ export function useReview(reviewId: string) {
         const data = await apiClientService.reviews.get(reviewId);
         const raw = data as unknown as {
           review: RawReview;
-          questions: Array<{ id: string; questionText?: string; text?: string }>;
+          questions: Array<RawQuestion>;
           answers: Array<{ questionId?: string; ratingValue?: number; textAnswer?: string }>;
         };
         const r = raw.review;
@@ -298,7 +309,8 @@ export function useReview(reviewId: string) {
           },
           questions: (raw.questions ?? []).map((q) => ({
             id: String(q.id),
-            text: String(q.questionText ?? q.text ?? ""),
+            text: String(q.questionText ?? q.question_text ?? q.text ?? ""),
+            type: String(q.questionType ?? q.question_type ?? q.type ?? "rating"),
           })),
           answers: (raw.answers ?? []).map((a) => ({
             questionId: String(a.questionId ?? ""),
@@ -326,11 +338,18 @@ export function useStartReview() {
 export function useCompleteReview() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (args: { reviewId: string; score: number; feedbackText?: string }) => {
-      const payload: { score: number; feedbackText?: string; answers: Record<string, unknown> } = {
-        score: args.score,
-        answers: {},
-      };
+    mutationFn: (args: {
+      reviewId: string;
+      score?: number;
+      feedbackText?: string;
+      answers?: ReviewAnswerInput[];
+    }) => {
+      const payload: {
+        score?: number;
+        feedbackText?: string;
+        answers?: ReviewAnswerInput[];
+      } = { answers: args.answers ?? [] };
+      if (typeof args.score === "number") payload.score = args.score;
       if (args.feedbackText) payload.feedbackText = args.feedbackText;
       return apiClientService.reviews.complete(args.reviewId, payload);
     },
@@ -536,6 +555,7 @@ function currentMemberFromApi(m: CurrentMember): Member {
     subsReceived: m.subsReceived,
     watchMinutes: m.watchMinutes,
     trustScore: m.trustScore,
+    isAdmin: m.isAdmin,
   };
 }
 

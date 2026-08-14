@@ -25,6 +25,7 @@ export function SiteHeader() {
   const navigate = useNavigate();
   const { user, loading, signIn, signOut } = useAuth();
   const { data: member } = useCurrentMember();
+  const visibleLinks = links.filter((l) => l.to !== "/admin" || member?.isAdmin);
 
   const handleSignIn = async () => {
     try {
@@ -68,7 +69,7 @@ export function SiteHeader() {
         </Link>
 
         <nav className="ml-4 hidden items-center gap-1 lg:flex">
-          {links.map((l) => (
+          {visibleLinks.map((l) => (
             <Link
               key={l.to}
               to={l.to}
@@ -138,7 +139,7 @@ export function SiteHeader() {
 
       <div className={cn("border-t border-border lg:hidden", open ? "block" : "hidden")}>
         <nav className="mx-auto grid max-w-7xl gap-1 px-4 py-3">
-          {links.map((l) => (
+          {visibleLinks.map((l) => (
             <Link
               key={l.to}
               to={l.to}

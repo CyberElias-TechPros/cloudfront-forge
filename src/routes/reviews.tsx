@@ -3,8 +3,8 @@ import { Calendar, CheckCircle, Clock, FileText, MessageCircle, Play, Star } fro
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader, Shell, Thumb } from "@/components/page-parts";
-import { useReviews, useCompleteReview } from "@/hooks/use-api";
-import type { Review } from "@/lib/api-client";
+import { useReviews, useCompleteReview, useReview, useCurrentMember } from "@/hooks/use-api";
+import type { Review, ReviewAnswerInput } from "@/lib/api-client";
 interface ReviewQuestion {
   id: string;
   text: string;
@@ -55,6 +55,7 @@ function Reviews() {
   );
   const [reviewToOpen, setReviewToOpen] = useState<Review | null>(null);
   const { data: reviews = [], isLoading } = useReviews();
+  const { data: member } = useCurrentMember();
 
   const filtered = filter === "all" ? reviews : reviews.filter((r) => r.status === filter);
 
@@ -129,7 +130,12 @@ function Reviews() {
         ) : null}
 
         {filtered.map((review) => (
-          <ReviewCard key={review.id} review={review} onOpen={() => setReviewToOpen(review)} />
+          <ReviewCard
+            key={review.id}
+            review={review}
+            currentUserId={member?.id}
+            onOpen={() => setReviewToOpen(review)}
+          />
         ))}
       </div>
 
@@ -144,8 +150,16 @@ function Reviews() {
   );
 }
 
-function ReviewCard({ review, onOpen }: { review: Review; onOpen: () => void }) {
-  const isMine = review.reviewerId === "me";
+function ReviewCard({
+  review,
+  currentUserId,
+  onOpen,
+}: {
+  review: Review;
+  currentUserId?: string | undefined;
+  onOpen: () => void;
+}) {
+  const isMine = !!currentUserId && review.reviewerId === currentUserId;
   const role = isMine ? "Reviewer" : null;
 
   return (
@@ -235,35 +249,61 @@ function ReviewDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  if (!review) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <ReviewDialogContent review={review} onOpenChange={onOpenChange} />
+    </Dialog>
+  );
+}
+
+function ReviewDialogContent({
+  review,
+  onOpenChange,
+}: {
+  review: Review;
+  onOpenChange: (open: boolean) => void;
+}) {
   const [answers, setAnswers] = useState<Record<string, string | number | boolean>>({});
   const completeReview = useCompleteReview();
-
-  const reviewWithQuestions = review as Review & { questions?: ReviewQuestion[] };
-  const questions = reviewWithQuestions.questions ?? [];
-
-  if (!review) return null;
+  const { data: detail } = useReview(review.id);
+  const questions = detail?.questions ?? [];
 
   const handleAnswer = (q: ReviewQuestion, value: string | number | boolean) => {
     setAnswers((prev) => ({ ...prev, [q.id]: value }));
   };
 
   const handleSubmit = async () => {
-    const ratingAnswers = Object.entries(answers).filter(([, v]) => typeof v === "number");
+    const answersArray: ReviewAnswerInput[] = questions
+      .map((q) => {
+        const v = answers[q.id];
+        if (typeof v === "number") return { questionId: q.id, ratingValue: v };
+        if (typeof v === "boolean") return { questionId: q.id, ratingValue: v ? 1 : 0 };
+        if (typeof v === "string" && v.trim()) return { questionId: q.id, textAnswer: v.trim() };
+        return { questionId: q.id };
+      })
+      .filter((a) => typeof a.ratingValue === "number" || typeof a.textAnswer === "string");
+
+    const ratingAnswers = answersArray.filter((a) => typeof a.ratingValue === "number");
     const score =
       ratingAnswers.length > 0
         ? Math.round(
-            ratingAnswers.reduce((a, [, v]) => a + (v as number), 0) / ratingAnswers.length,
+            ratingAnswers.reduce((s, a) => s + (a.ratingValue as number), 0) / ratingAnswers.length,
           )
-        : 0;
-    const textAnswers = Object.entries(answers)
-      .filter(([, v]) => typeof v === "string" && String(v).trim())
-      .map(([, v]) => String(v))
+        : undefined;
+    const textAnswers = answersArray
+      .filter((a) => a.textAnswer)
+      .map((a) => a.textAnswer as string)
       .join(" ");
 
-    const payload: { reviewId: string; score: number; feedbackText?: string } = {
-      reviewId: review.id,
-      score,
-    };
+    const payload: {
+      reviewId: string;
+      answers: ReviewAnswerInput[];
+      score?: number;
+      feedbackText?: string;
+    } = { reviewId: review.id, answers: answersArray };
+    if (score !== undefined) payload.score = score;
     if (textAnswers) payload.feedbackText = textAnswers;
 
     try {
@@ -279,17 +319,19 @@ function ReviewDialog({
   const allAnswered = questions.every((q) => answers[q.id] !== undefined);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Review: {review.videoTitle}</DialogTitle>
-          <DialogDescription>
-            Provide thoughtful feedback for {review.submitterName}.
-          </DialogDescription>
-        </DialogHeader>
+    <DialogContent className="max-w-2xl">
+      <DialogHeader>
+        <DialogTitle>Review: {review.videoTitle}</DialogTitle>
+        <DialogDescription>
+          Provide thoughtful feedback for {review.submitterName}.
+        </DialogDescription>
+      </DialogHeader>
 
-        <div className="py-4 space-y-6 max-h-[400px] overflow-y-auto">
-          {questions.map((q) => (
+      <div className="py-4 space-y-6 max-h-[400px] overflow-y-auto">
+        {questions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No questions for this review.</p>
+        ) : (
+          questions.map((q) => (
             <div key={q.id} className="space-y-2">
               <label className="text-sm font-medium">{q.text}</label>
               {q.type === "rating" ? (
@@ -310,7 +352,7 @@ function ReviewDialog({
                     </button>
                   ))}
                 </div>
-              ) : q.type === "boolean" ? (
+              ) : q.type === "yes_no" ? (
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -343,19 +385,19 @@ function ReviewDialog({
                 />
               )}
             </div>
-          ))}
-        </div>
+          ))
+        )}
+      </div>
 
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={!allAnswered || completeReview.isPending}>
-            {completeReview.isPending ? "Submitting..." : "Submit review"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <DialogFooter>
+        <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          Cancel
+        </Button>
+        <Button onClick={handleSubmit} disabled={!allAnswered || completeReview.isPending}>
+          {completeReview.isPending ? "Submitting..." : "Submit review"}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   );
 }
 
