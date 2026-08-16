@@ -3,7 +3,16 @@ import { createResponse, createErrorResponse } from "../middleware/errorHandler"
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { generateInviteCode, generateSlug } from "../lib/utils";
+import { sanitize } from "../lib/sanitize";
 import { z } from "zod";
+import { createLogger } from "../lib/logger";
+
+function getPagination(request: Request): { limit: number; offset: number } {
+  const { searchParams } = new URL(request.url);
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)));
+  const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10));
+  return { limit, offset };
+}
 
 const createCommunitySchema = z.object({
   name: z.string().min(3).max(100),
@@ -38,6 +47,14 @@ export const communityRoutes = [
       try {
         const userId = await requireAuth(request, env);
         const db = new Database(env);
+        const { limit, offset } = getPagination(request);
+
+        const totalResult = await db.query(
+          `SELECT COUNT(*) as count FROM communities c
+           JOIN community_members cm ON c.id = cm.community_id
+           WHERE cm.user_id = ? AND cm.status = 'active'`,
+          [userId],
+        );
 
         const result = await db.query(
           `
@@ -45,11 +62,17 @@ export const communityRoutes = [
           JOIN community_members cm ON c.id = cm.community_id
           WHERE cm.user_id = ? AND cm.status = 'active'
           ORDER BY cm.joined_at DESC
+          LIMIT ? OFFSET ?
         `,
-          [userId],
+          [userId, limit, offset],
         );
 
-        return createResponse(result.results);
+        return createResponse({
+          items: result.results,
+          total: totalResult.results[0]?.count ?? 0,
+          limit,
+          offset,
+        });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
@@ -63,6 +86,7 @@ export const communityRoutes = [
     method: "GET",
     pattern: "^\\/api\\/v1/communities/([^/]+)$",
     handler: async (request: Request, env: Env): Promise<Response> => {
+      const logger = createLogger(env);
       try {
         const url = new URL(request.url);
         const communityId = url.pathname.split("/").pop();
@@ -114,7 +138,7 @@ export const communityRoutes = [
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
-        console.error("Get community error:", error);
+        logger.error("Get community error", error);
         return createErrorResponse("INTERNAL_ERROR", "Failed to get community", 500);
       }
     },
@@ -124,6 +148,7 @@ export const communityRoutes = [
     method: "POST",
     path: "/api/v1/communities",
     handler: async (request: Request, env: Env): Promise<Response> => {
+      const logger = createLogger(env);
       try {
         const userId = await requireAuth(request, env);
         const body = (await request.json().catch(() => ({}))) as any;
@@ -142,15 +167,17 @@ export const communityRoutes = [
 
         const communityId = db.uuid();
         const inviteCode = generateInviteCode();
-        const slug = `${generateSlug(body.name)}-${communityId.substring(0, 8)}`;
+        const sanitizedName = sanitize(body.name);
+        const sanitizedDescription = body.description ? sanitize(body.description) : null;
+        const slug = `${generateSlug(sanitizedName)}-${communityId.substring(0, 8)}`;
 
         await db.execute(
           `INSERT INTO communities (id, name, description, slug, invite_code, is_public, owner_id, max_members, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             communityId,
-            body.name,
-            body.description ?? null,
+            sanitizedName,
+            sanitizedDescription,
             slug,
             inviteCode,
             body.isPublic ?? false,
@@ -161,7 +188,6 @@ export const communityRoutes = [
           ],
         );
 
-        // Add creator as owner
         await db.execute(
           "INSERT INTO community_members (id, community_id, user_id, role, joined_at, status) VALUES (?, ?, ?, ?, ?, ?)",
           [db.uuid(), communityId, userId, "owner", now, "active"],
@@ -210,7 +236,6 @@ export const communityRoutes = [
           return createErrorResponse("NOT_FOUND", "Community not found with this invite code", 404);
         }
 
-        // Check if already a member
         const existingMember = await db.querySingle(
           "SELECT * FROM community_members WHERE community_id = ? AND user_id = ? AND status = 'active'",
           [community.id, userId],
@@ -220,7 +245,6 @@ export const communityRoutes = [
           return createErrorResponse("CONFLICT", "Already a member of this community", 409);
         }
 
-        // Check member limit
         const memberCount = await db.querySingle(
           "SELECT COUNT(*) as count FROM community_members WHERE community_id = ? AND status = 'active'",
           [community.id],
@@ -318,7 +342,14 @@ export const communityRoutes = [
              SET allow_peer_review = ?, allow_collaboration = ?, require_approval = ?,
                  default_language = ?, updated_at = ?
              WHERE community_id = ?`,
-            [allowPeerReview, allowCollaboration, requireApproval, defaultLanguage, now, communityId],
+            [
+              allowPeerReview,
+              allowCollaboration,
+              requireApproval,
+              defaultLanguage,
+              now,
+              communityId,
+            ],
           );
         } else {
           await db.execute(

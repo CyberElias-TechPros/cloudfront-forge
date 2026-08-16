@@ -35,13 +35,58 @@ export const Route = createFileRoute("/gamification")({
 const xpLevels = [0, 100, 250, 500, 1000, 1800, 3000, 5000, 8000, 12000, 18000];
 
 function Gamification() {
-  const { data: xp } = useXp();
-  const { data: credits } = useCredits();
-  const { data: streaks } = useStreaks();
-  const { data: leaderboard = [] } = useLeaderboard();
-  const { data: badges = [] } = useBadges();
-  const { data: member } = useCurrentMember();
-  const { data: activity = [] } = useActivity();
+  const { data: xp, isLoading: xpLoading, isError: xpError } = useXp();
+  const { data: credits, isLoading: creditsLoading, isError: creditsError } = useCredits();
+  const { data: streaks, isLoading: streaksLoading, isError: streaksError } = useStreaks();
+  const { data: leaderboard = [], isLoading: lbLoading, isError: lbError } = useLeaderboard();
+  const { data: badges = [], isLoading: badgesLoading, isError: badgesError } = useBadges();
+  const { data: member, isLoading: memberLoading, isError: memberError } = useCurrentMember();
+  const { data: activity = [], isLoading: activityLoading, isError: activityError } = useActivity();
+
+  const loading =
+    xpLoading ||
+    creditsLoading ||
+    streaksLoading ||
+    lbLoading ||
+    badgesLoading ||
+    memberLoading ||
+    activityLoading;
+
+  if (loading) {
+    return (
+      <Shell>
+        <PageHeader eyebrow="" title="Gamification" description="" />
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="text-center">
+            <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <p className="text-sm text-muted-foreground">Loading gamification data...</p>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  const error =
+    xpError ||
+    creditsError ||
+    streaksError ||
+    lbError ||
+    badgesError ||
+    memberError ||
+    activityError;
+  if (error) {
+    return (
+      <Shell>
+        <PageHeader eyebrow="" title="Gamification" description="" />
+        <div className="mt-6 surface p-6 text-center text-destructive">
+          <p className="text-sm">Failed to load gamification data. Please try again later.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {(error as unknown as Error).message}
+          </p>
+        </div>
+      </Shell>
+    );
+  }
 
   const currentUser = member ?? {
     id: "",

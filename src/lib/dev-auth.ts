@@ -1,3 +1,10 @@
+if (
+  import.meta.env.PROD &&
+  (import.meta.env.DEV === true || import.meta.env["VITE_USE_DEV_AUTH"] === "true")
+) {
+  throw new Error("Dev auth is not allowed in production");
+}
+
 export interface DevSession {
   uid: string;
   email: string;
@@ -8,10 +15,7 @@ export interface DevSession {
 const STORAGE_KEY = "creatorloop_dev_session";
 
 export function devEnabled(): boolean {
-  return (
-    import.meta.env.DEV === true ||
-    import.meta.env["VITE_USE_DEV_AUTH"] === "true"
-  );
+  return import.meta.env.DEV === true || import.meta.env["VITE_USE_DEV_AUTH"] === "true";
 }
 
 export function getDevSession(): DevSession | null {
@@ -33,10 +37,8 @@ export function clearDevSession(): void {
 }
 
 export function defaultDevSession(): DevSession {
-  const uid =
-    (import.meta.env["VITE_DEV_UID"] as string | undefined) || "dev-local";
-  const name =
-    (import.meta.env["VITE_DEV_NAME"] as string | undefined) || "Dev User";
+  const uid = (import.meta.env["VITE_DEV_UID"] as string | undefined) || "dev-local";
+  const name = (import.meta.env["VITE_DEV_NAME"] as string | undefined) || "Dev User";
   return {
     uid,
     email: `${uid}@creatorloop.local`,

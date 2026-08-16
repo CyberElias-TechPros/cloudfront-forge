@@ -3,6 +3,7 @@ import { createResponse, createErrorResponse } from "../middleware/errorHandler"
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { generateChatCompletion, AI_SYSTEM_PROMPT, type ChatMessage } from "../services/ai";
+import { createLogger } from "../lib/logger";
 
 const HISTORY_LIMIT = 20;
 
@@ -11,11 +12,14 @@ export const aiRoutes = [
     method: "POST",
     path: "/api/v1/ai/chat",
     handler: async (request: Request, env: Env): Promise<Response> => {
+      const logger = createLogger(env);
       try {
         const userId = await requireAuth(request, env);
-        const body = (await request.json().catch(() => ({}))) as any;
-        const message: string | undefined = body?.message?.trim();
-        const conversationId: string | undefined = body?.conversationId;
+        const rawBody = await request.json().catch(() => ({}));
+        const body = rawBody as Record<string, unknown>;
+        const message = typeof body.message === "string" ? body.message.trim() : undefined;
+        const conversationId =
+          typeof body.conversationId === "string" ? body.conversationId : undefined;
 
         if (!message) {
           return createErrorResponse("VALIDATION_ERROR", "Message is required", 400);
@@ -93,7 +97,7 @@ export const aiRoutes = [
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
-        console.error("AI chat error:", error);
+        logger.error("AI chat error", error);
         return createErrorResponse("INTERNAL_ERROR", "Failed to process chat", 500);
       }
     },
@@ -162,10 +166,10 @@ export const aiRoutes = [
           return createErrorResponse("VALIDATION_ERROR", "Conversation ID is required", 400);
         }
         const db = new Database(env);
-        await db.execute(
-          "DELETE FROM ai_conversations WHERE id = ? AND user_id = ?",
-          [convId, userId],
-        );
+        await db.execute("DELETE FROM ai_conversations WHERE id = ? AND user_id = ?", [
+          convId,
+          userId,
+        ]);
         return createResponse({ message: "Conversation deleted" });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {

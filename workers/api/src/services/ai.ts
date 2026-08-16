@@ -1,4 +1,5 @@
 import type { Env } from "../types";
+import { createLogger } from "../lib/logger";
 
 const NVIDIA_BASE = "https://integrate.api.nvidia.com/v1";
 const DEFAULT_MODEL = "meta/llama-3.1-8b-instruct";
@@ -16,10 +17,8 @@ export const AI_SYSTEM_PROMPT =
   "Be concise, practical, and supportive. Use plain language and short paragraphs. " +
   "Do not invent platform features that do not exist; if unsure, say so.";
 
-export async function generateChatCompletion(
-  messages: ChatMessage[],
-  env: Env,
-): Promise<string> {
+export async function generateChatCompletion(messages: ChatMessage[], env: Env): Promise<string> {
+  const logger = createLogger(env);
   const apiKey = env.AI_API_KEY;
   const model = env.AI_MODEL || DEFAULT_MODEL;
 
@@ -43,14 +42,14 @@ export async function generateChatCompletion(
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    console.error("NVIDIA AI request failed", res.status, text.slice(0, 500));
+    logger.error("NVIDIA AI request failed", new Error(`Status ${res.status}: ${text.slice(0, 500)}`));
     throw new Error("AI_REQUEST_FAILED");
   }
 
   const data = (await res.json().catch(() => null)) as any;
   const content: string | undefined = data?.choices?.[0]?.message?.content;
   if (!content) {
-    console.error("NVIDIA AI empty response", JSON.stringify(data).slice(0, 500));
+    logger.error("NVIDIA AI empty response", new Error(JSON.stringify(data).slice(0, 500)));
     throw new Error("AI_EMPTY_RESPONSE");
   }
   return content.trim();

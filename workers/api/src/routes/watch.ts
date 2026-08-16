@@ -2,21 +2,18 @@ import type { Env } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
+import { YouTubeService } from "../services/youtube";
 import { z } from "zod";
-
-const REQUIRED_WATCH_SEC = 180;
-const REWARD_XP = 30;
-const REWARD_CREDITS = 10;
+import { createLogger } from "../lib/logger";
 
 function levelForXp(totalXp: number): number {
   return Math.max(1, Math.floor(totalXp / 250) + 1);
 }
 
 async function ensureReputation(db: Database, userId: string, now: string): Promise<void> {
-  const existing = await db.querySingle(
-    "SELECT id FROM reputation_accounts WHERE user_id = ?",
-    [userId],
-  );
+  const existing = await db.querySingle("SELECT id FROM reputation_accounts WHERE user_id = ?", [
+    userId,
+  ]);
   if (!existing) {
     await db.execute(
       `INSERT INTO reputation_accounts (id, user_id, score, last_calculated, created_at, updated_at)
@@ -24,6 +21,63 @@ async function ensureReputation(db: Database, userId: string, now: string): Prom
       [db.uuid(), userId, now, now, now],
     );
   }
+}
+
+async function verifyYouTubeSubscription(
+  db: Database,
+  watcherId: string,
+  videoChannelId: string,
+  videoId: string,
+  env: Env,
+): Promise<{ subscribed: boolean; watchVerified: boolean; watchSeconds: number; reason: string }> {
+  const logger = createLogger(env);
+  const youtube = new YouTubeService(env);
+  const accessToken = await youtube.getValidAccessToken(watcherId);
+  const REQUIRED_WATCH_SEC = parseInt(env.REQUIRED_WATCH_SEC || "180", 10);
+  let watchVerified = false;
+  let watchSeconds = 0;
+
+  if (accessToken) {
+    try {
+      watchSeconds = await youtube.getWatchTime(accessToken, videoId);
+      watchVerified = watchSeconds >= REQUIRED_WATCH_SEC;
+    } catch (error) {
+      logger.error("YouTube watch time verification error", error);
+    }
+  }
+
+  if (!accessToken) {
+    return { subscribed: false, watchVerified: false, watchSeconds: 0, reason: "YouTube account not connected" };
+  }
+
+  if (!videoChannelId) {
+    return { subscribed: false, watchVerified, watchSeconds, reason: "Video channel ID missing" };
+  }
+
+  try {
+    const subscribed = await youtube.isSubscribedTo(accessToken, videoChannelId);
+    return {
+      subscribed,
+      watchVerified,
+      watchSeconds,
+      reason: subscribed
+        ? watchVerified
+          ? "YouTube subscription and watch time verified"
+          : `Watch time not yet verified (${Math.round(watchSeconds)}s / ${REQUIRED_WATCH_SEC}s)`
+        : "Not subscribed to channel",
+    };
+  } catch (error) {
+    logger.error("YouTube subscription verification error", error);
+    return { subscribed: false, watchVerified, watchSeconds, reason: "YouTube verification failed" };
+  }
+}
+
+async function notifyUser(db: Database, userId: string, type: string, title: string, message: string): Promise<void> {
+  const now = new Date().toISOString();
+  await db.execute(
+    `INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+    [db.uuid(), userId, type, title, message, now],
+  );
 }
 
 const watchSchema = z.object({
@@ -38,10 +92,13 @@ export const watchRoutes = [
     method: "POST",
     path: "/api/v1/watch",
     handler: async (request: Request, env: Env): Promise<Response> => {
+      const logger = createLogger(env);
       try {
+        const REQUIRED_WATCH_SEC = parseInt(env.REQUIRED_WATCH_SEC || "180", 10);
+        const REWARD_XP = parseInt(env.REWARD_XP || "30", 10);
+        const REWARD_CREDITS = parseInt(env.REWARD_CREDITS || "10", 10);
         const watcherId = await requireAuth(request, env);
-        const body = (await request.json().catch(() => ({}))) as any;
-
+        const body = await request.json().catch(() => ({}));
         const validation = watchSchema.safeParse(body);
         if (!validation.success) {
           return createErrorResponse(
@@ -54,9 +111,10 @@ export const watchRoutes = [
 
         const db = new Database(env);
 
-        const video = await db.querySingle("SELECT id, user_id FROM videos WHERE id = ?", [
-          videoId,
-        ]);
+        const video = await db.querySingle(
+          "SELECT id, user_id, channel_id FROM videos WHERE id = ?",
+          [videoId],
+        );
         if (!video) {
           return createErrorResponse("NOT_FOUND", "Video not found", 404);
         }
@@ -67,7 +125,17 @@ export const watchRoutes = [
         );
 
         const now = new Date().toISOString();
-        const claimable = watchSeconds >= REQUIRED_WATCH_SEC && subscribed && commented;
+
+        const {
+          subscribed: verifiedSubscribed,
+          watchVerified,
+          watchSeconds: verifiedWatchSeconds,
+          reason: subReason,
+        } = await verifyYouTubeSubscription(db, watcherId, video.channel_id ?? "", videoId, env);
+
+        const effectiveWatchSeconds = watchVerified ? verifiedWatchSeconds : watchSeconds;
+        const watchClaimable = effectiveWatchSeconds >= REQUIRED_WATCH_SEC && verifiedSubscribed && commented;
+        const claimable = watchClaimable;
 
         if (existing) {
           await db.execute(
@@ -75,9 +143,9 @@ export const watchRoutes = [
              status = ?, verified_at = ?, updated_at = ? WHERE id = ?`,
             [
               watchSeconds,
-              subscribed ? 1 : 0,
+              verifiedSubscribed ? 1 : 0,
               commented ? 1 : 0,
-              claimable ? "claimed" : watchSeconds >= REQUIRED_WATCH_SEC ? "verified" : "started",
+              claimable ? "claimed" : effectiveWatchSeconds >= REQUIRED_WATCH_SEC ? "verified" : "started",
               claimable ? now : existing.verified_at,
               now,
               existing.id,
@@ -93,8 +161,8 @@ export const watchRoutes = [
               videoId,
               watcherId,
               watchSeconds,
-              claimable ? "claimed" : watchSeconds >= REQUIRED_WATCH_SEC ? "verified" : "started",
-              subscribed ? 1 : 0,
+              claimable ? "claimed" : effectiveWatchSeconds >= REQUIRED_WATCH_SEC ? "verified" : "started",
+              verifiedSubscribed ? 1 : 0,
               commented ? 1 : 0,
               claimable ? now : null,
               now,
@@ -103,68 +171,107 @@ export const watchRoutes = [
           );
         }
 
-        // Award once: only when newly claimable and not already claimed.
         let xpAwarded = 0;
         let creditsAwarded = 0;
         const alreadyClaimed = existing?.status === "claimed";
 
-        if (claimable && !alreadyClaimed) {
+        const effectiveSubscribed = verifiedSubscribed && subscribed;
+
+        if (claimable && !alreadyClaimed && effectiveSubscribed) {
           xpAwarded = REWARD_XP;
           creditsAwarded = REWARD_CREDITS;
+
+          const batchStatements: Array<{ sql: string; params: unknown[] }> = [];
 
           const xp = await db.querySingle("SELECT * FROM xp_accounts WHERE user_id = ?", [
             watcherId,
           ]);
+
           if (xp) {
             const totalXp = (xp.total_xp ?? 0) + xpAwarded;
-            await db.execute(
-              "UPDATE xp_accounts SET total_xp = ?, level = ?, updated_at = ? WHERE user_id = ?",
-              [totalXp, levelForXp(totalXp), now, watcherId],
-            );
+            batchStatements.push({
+              sql: "UPDATE xp_accounts SET total_xp = ?, level = ?, updated_at = ? WHERE user_id = ?",
+              params: [totalXp, levelForXp(totalXp), now, watcherId],
+            });
           } else {
-            await db.execute(
-              `INSERT INTO xp_accounts (id, user_id, total_xp, level, xp_to_next_level, created_at, updated_at)
+            batchStatements.push({
+              sql: `INSERT INTO xp_accounts (id, user_id, total_xp, level, xp_to_next_level, created_at, updated_at)
                VALUES (?, ?, ?, ?, ?, ?, ?)`,
-              [db.uuid(), watcherId, xpAwarded, levelForXp(xpAwarded), 250, now, now],
-            );
+              params: [db.uuid(), watcherId, xpAwarded, levelForXp(xpAwarded), 250, now, now],
+            });
           }
 
-          await ensureReputation(db, watcherId, now);
-          await db.execute(
-            `UPDATE reputation_accounts
+          batchStatements.push({
+            sql: `INSERT INTO reputation_accounts (id, user_id, score, last_calculated, created_at, updated_at)
+                 VALUES (?, ?, 100, ?, ?, ?)
+                 ON CONFLICT(user_id) DO NOTHING`,
+            params: [db.uuid(), watcherId, now, now, now],
+          });
+
+          batchStatements.push({
+            sql: `UPDATE reputation_accounts
              SET score = MIN(100, score + 1),
                  watch_minutes = watch_minutes + ?,
                  subscriptions_given = subscriptions_given + ?,
                  updated_at = ?
-             WHERE user_id = ?`,
-            [Math.round(watchSeconds / 60), subscribed ? 1 : 0, now, watcherId],
-          );
+           WHERE user_id = ?`,
+            params: [Math.round(effectiveWatchSeconds / 60), effectiveSubscribed ? 1 : 0, now, watcherId],
+          });
 
-          // Credit the submitter with a received subscription + watch.
           if (video.user_id && video.user_id !== watcherId) {
-            await ensureReputation(db, video.user_id, now);
-            await db.execute(
-              `UPDATE reputation_accounts
+            batchStatements.push({
+              sql: `INSERT INTO reputation_accounts (id, user_id, score, last_calculated, created_at, updated_at)
+                   VALUES (?, ?, 100, ?, ?, ?)
+                   ON CONFLICT(user_id) DO NOTHING`,
+              params: [db.uuid(), video.user_id, now, now, now],
+            });
+
+            batchStatements.push({
+              sql: `UPDATE reputation_accounts
                SET score = MIN(100, score + 1),
                    subscriptions_received = subscriptions_received + ?,
                    updated_at = ?
-               WHERE user_id = ?`,
-              [subscribed ? 1 : 0, now, video.user_id],
+             WHERE user_id = ?`,
+              params: [effectiveSubscribed ? 1 : 0, now, video.user_id],
+            });
+          }
+
+          const batchResult = await db.batch(batchStatements);
+          if (!batchResult) {
+            throw new Error("Failed to process rewards transaction");
+          }
+
+          if (video.user_id && video.user_id !== watcherId) {
+            await notifyUser(
+              db,
+              video.user_id,
+              "WATCH_SESSION_CLAIMED",
+              "Your video was watched",
+              `Someone completed watching your video and earned rewards.`,
             );
           }
         }
 
+        const status =
+          claimable && effectiveSubscribed
+            ? "claimed"
+            : effectiveWatchSeconds >= REQUIRED_WATCH_SEC
+              ? "verified"
+              : "started";
+
         return createResponse({
-          status: claimable ? "claimed" : watchSeconds >= REQUIRED_WATCH_SEC ? "verified" : "started",
-          claimable,
+          status,
+          claimable: effectiveSubscribed && effectiveWatchSeconds >= REQUIRED_WATCH_SEC,
           xpAwarded,
           creditsAwarded,
+          subReason,
         });
-      } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        if (message === "AUTH_required" || message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
-        console.error("Watch submit error:", error);
+        logger.error("Watch submit error", error);
         return createErrorResponse("INTERNAL_ERROR", "Failed to record watch", 500);
       }
     },

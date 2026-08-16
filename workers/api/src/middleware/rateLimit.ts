@@ -1,9 +1,24 @@
 import type { Env } from "../types";
+import { createLogger } from "../lib/logger";
 
-const RATE_LIMIT_WINDOW = 60; // seconds
-const RATE_LIMIT_MAX_REQUESTS = 100;
+export interface RateLimitOptions {
+  maxRequests?: number;
+  windowSeconds?: number;
+  failClosed?: boolean;
+}
 
-export async function rateLimitMiddleware(request: Request, env: Env): Promise<boolean> {
+export async function rateLimitMiddleware(
+  request: Request,
+  env: Env,
+  options: RateLimitOptions = {},
+): Promise<boolean> {
+  const logger = createLogger(env);
+  const {
+    maxRequests = parseInt(env.RATE_LIMIT_MAX_REQUESTS || "100", 10),
+    windowSeconds = parseInt(env.RATE_LIMIT_WINDOW || "60", 10),
+    failClosed = false,
+  } = options;
+
   const ip = getIP(request);
   const key = `rate_limit:${ip}`;
 
@@ -11,7 +26,7 @@ export async function rateLimitMiddleware(request: Request, env: Env): Promise<b
     const current = await env.KV_CACHE.get(key, { type: "json" });
     const count = current ? (current as any).count : 0;
 
-    if (count >= RATE_LIMIT_MAX_REQUESTS) {
+    if (count >= maxRequests) {
       return false;
     }
 
@@ -19,22 +34,21 @@ export async function rateLimitMiddleware(request: Request, env: Env): Promise<b
       key,
       JSON.stringify({
         count: count + 1,
-        resetTime: Date.now() + RATE_LIMIT_WINDOW * 1000,
+        resetTime: Date.now() + windowSeconds * 1000,
       }),
-      { expirationTtl: RATE_LIMIT_WINDOW },
+      { expirationTtl: windowSeconds },
     );
 
     return true;
   } catch (error) {
-    console.error("Rate limit error:", error);
-    return true;
+    logger.error("Rate limit error", error);
+    // Fail-open for general endpoints, fail-closed for critical endpoints
+    return failClosed ? false : true;
   }
 }
 
 function getIP(request: Request): string {
   const forwarded =
-    request.headers.get("cf-connecting-ip") ||
-    request.headers.get("x-forwarded-for") ||
-    "unknown";
+    request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "unknown";
   return forwarded.split(",")[0]?.trim() ?? "unknown";
 }

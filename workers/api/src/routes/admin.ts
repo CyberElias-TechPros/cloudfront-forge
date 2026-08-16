@@ -134,11 +134,12 @@ export const adminRoutes = [
         const adminId = await requireAdmin(request, env);
         const url = new URL(request.url);
         const reportId = url.pathname.split("/")[5];
-        const body = (await request.json().catch(() => ({}))) as any;
+        const body = await request.json().catch(() => ({}));
+        const status = (body as Record<string, unknown>).status as string | undefined;
+        const resolutionNotes = (body as Record<string, unknown>).resolutionNotes as
+          string | undefined;
 
-        const { status, resolutionNotes } = body;
-
-        if (!["resolved", "dismissed"].includes(status)) {
+        if (!status || !["resolved", "dismissed"].includes(status)) {
           return createErrorResponse("VALIDATION_ERROR", "Invalid status", 400);
         }
 

@@ -3,6 +3,14 @@ import { createResponse, createErrorResponse } from "../middleware/errorHandler"
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { z } from "zod";
+import { createLogger } from "../lib/logger";
+
+function getPagination(request: Request): { limit: number; offset: number } {
+  const { searchParams } = new URL(request.url);
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)));
+  const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10));
+  return { limit, offset };
+}
 
 const submitVideoSchema = z.object({
   youtubeUrl: z.string().url(),
@@ -23,6 +31,31 @@ const reviewSchema = z.object({
     .optional(),
 });
 
+async function notifyCommunityMembers(db: Database, communityId: string, type: string, title: string, message: string, excludeUserId: string): Promise<void> {
+  const members = await db.query(
+    `SELECT user_id FROM community_members WHERE community_id = ? AND user_id != ? AND status = 'active'`,
+    [communityId, excludeUserId],
+  );
+
+  const now = new Date().toISOString();
+  const statements = members.results.map((m: any) => ({
+    sql: `INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+    params: [db.uuid(), m.user_id, type, title, message, now],
+  }));
+
+  if (statements.length > 0) {
+    await db.batch(statements);
+  }
+}
+
+async function notifyUser(db: Database, userId: string, type: string, title: string, message: string): Promise<void> {
+  const now = new Date().toISOString();
+  await db.execute(
+    `INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+    [db.uuid(), userId, type, title, message, now],
+  );
+}
+
 export const videoRoutes = [
   {
     method: "GET",
@@ -32,23 +65,36 @@ export const videoRoutes = [
         const userId = await requireAuth(request, env);
         const { searchParams } = new URL(request.url);
         const communityId = searchParams.get("communityId");
+        const { limit, offset } = getPagination(request);
 
         const db = new Database(env);
-        let result;
+
+        let countQuery = "SELECT COUNT(*) as count FROM videos v WHERE v.status = 'active'";
+        let dataQuery = `SELECT v.*, c.name as community_name FROM videos v LEFT JOIN communities c ON v.community_id = c.id WHERE v.status = 'active'`;
+        const params: any[] = [];
 
         if (communityId) {
-          result = await db.query(
-            "SELECT * FROM videos WHERE community_id = ? AND status = 'active' ORDER BY created_at DESC LIMIT 20",
-            [communityId],
-          );
+          countQuery += " AND v.community_id = ?";
+          dataQuery += " AND v.community_id = ?";
+          params.push(communityId);
         } else {
-          result = await db.query(
-            "SELECT v.*, c.name as community_name FROM videos v LEFT JOIN communities c ON v.community_id = c.id WHERE v.user_id = ? AND v.status = 'active' ORDER BY v.created_at DESC LIMIT 20",
-            [userId],
-          );
+          countQuery += " AND v.user_id = ?";
+          dataQuery += " AND v.user_id = ?";
+          params.push(userId);
         }
 
-        return createResponse(result.results);
+        const totalResult = await db.query(countQuery, params);
+        dataQuery += ` ORDER BY v.created_at DESC LIMIT ? OFFSET ?`;
+        params.push(limit, offset);
+
+        const result = await db.query(dataQuery, params);
+
+        return createResponse({
+          items: result.results,
+          total: totalResult.results[0]?.count ?? 0,
+          limit,
+          offset,
+        });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
@@ -62,6 +108,7 @@ export const videoRoutes = [
     method: "POST",
     path: "/api/v1/videos",
     handler: async (request: Request, env: Env): Promise<Response> => {
+      const logger = createLogger(env);
       try {
         const userId = await requireAuth(request, env);
         const body = (await request.json().catch(() => ({}))) as any;
@@ -78,13 +125,11 @@ export const videoRoutes = [
         const db = new Database(env);
         const now = new Date().toISOString();
 
-        // Extract YouTube video ID from URL
         const youtubeVideoId = extractYouTubeId(body.youtubeUrl);
         if (!youtubeVideoId) {
           return createErrorResponse("VALIDATION_ERROR", "Invalid YouTube URL", 400);
         }
 
-        // Fetch YouTube metadata
         const metadata = await fetchYouTubeMetadata(youtubeVideoId, env);
 
         const videoId = db.uuid();
@@ -93,7 +138,7 @@ export const videoRoutes = [
         await db.execute(
           `INSERT INTO videos (id, user_id, community_id, youtube_video_id, youtube_url, title, description, thumbnail_url, duration_seconds, status, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-           [
+          [
             videoId,
             userId,
             communityId,
@@ -109,8 +154,16 @@ export const videoRoutes = [
           ],
         );
 
-        // Create credit transaction for spending credits
-        // This would be handled by the gamification service
+        if (communityId) {
+          await notifyCommunityMembers(
+            db,
+            communityId,
+            "NEW_VIDEO_SUBMITTED",
+            "New Video Submitted",
+            `A new video has been submitted to your community.`,
+            userId,
+          );
+        }
 
         return createResponse({
           message: "Video submitted successfully",
@@ -122,7 +175,7 @@ export const videoRoutes = [
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
-        console.error("Video submission error:", error);
+        logger.error("Video submission error", error);
         return createErrorResponse("INTERNAL_ERROR", "Failed to submit video", 500);
       }
     },
@@ -132,6 +185,7 @@ export const videoRoutes = [
     method: "GET",
     pattern: "^\\/api\\/v1/videos/([^/]+)$",
     handler: async (request: Request, env: Env): Promise<Response> => {
+      const logger = createLogger(env);
       try {
         const url = new URL(request.url);
         const videoId = url.pathname.split("/").pop();
@@ -173,83 +227,12 @@ export const videoRoutes = [
           reviews: reviews.results,
         });
       } catch (error) {
-        console.error("Get video error:", error);
+        logger.error("Get video error", error);
         return createErrorResponse("INTERNAL_ERROR", "Failed to get video", 500);
       }
     },
   },
 ];
-
-// Helper: Extract YouTube video ID from URL
-function extractYouTubeId(url: string): string | null {
-  const regExp =
-    /(?:youtube\.com\/(?:[^/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S{11}(?:\S+|$))|youtu\.be\/([a-zA-Z0-9_-]{11}))/i;
-  const match = url.match(regExp);
-  return match ? (match[1] ?? match[0]) : null;
-}
-
-// Helper: Fetch YouTube metadata
-async function fetchYouTubeMetadata(videoId: string, env: Env): Promise<any> {
-  const cached = await env.KV_CACHE.get(`youtube:meta:${videoId}`, { type: "json" });
-  if (cached) return cached;
-
-  // Dev fallback: without a real YouTube Data API key, return synthetic metadata
-  // so the local loop (submit -> queue -> watch -> reward) can be exercised.
-  if (!env.YOUTUBE_API_KEY || env.YOUTUBE_API_KEY === "placeholder") {
-    return {
-      title: "Test Video",
-      description: "",
-      thumbnailUrl: null,
-      durationSeconds: 600,
-    };
-  }
-
-  const response = await fetch(
-    `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${videoId}&key=${env.YOUTUBE_API_KEY}`,
-  );
-
-  if (!response.ok) {
-    throw new Error("YouTube API error");
-  }
-
-  const data = (await response.json()) as any;
-  const video = data.items?.[0];
-
-  if (!video) {
-    return {
-      title: "YouTube Video",
-      description: "",
-      thumbnailUrl: null,
-      durationSeconds: 0,
-    };
-  }
-
-  const meta = {
-    title: video.snippet?.title ?? "",
-    description: video.snippet?.description ?? "",
-    thumbnailUrl: video.snippet?.thumbnails?.medium?.url ?? null,
-    durationSeconds: parseDuration(video.contentDetails?.duration),
-  };
-
-  // Cache for 24 hours
-  await env.KV_CACHE.put(`youtube:meta:${videoId}`, JSON.stringify(meta), {
-    expirationTtl: 86400,
-  });
-
-  return meta;
-}
-
-function parseDuration(duration: string | undefined): number | null {
-  if (!duration) return null;
-  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-  if (!match) return 0;
-
-  const hours = parseInt(match[1] || "0", 10);
-  const minutes = parseInt(match[2] || "0", 10);
-  const seconds = parseInt(match[3] || "0", 10);
-
-  return hours * 3600 + minutes * 60 + seconds;
-}
 
 export const reviewRoutes = [
   {
@@ -259,6 +242,12 @@ export const reviewRoutes = [
       try {
         const userId = await requireAuth(request, env);
         const db = new Database(env);
+        const { limit, offset } = getPagination(request);
+
+        const totalResult = await db.query(
+          `SELECT COUNT(*) as count FROM reviews WHERE reviewer_id = ? AND status IN ('assigned', 'in_progress', 'overdue')`,
+          [userId],
+        );
 
         const result = await db.query(
           `SELECT
@@ -280,11 +269,16 @@ export const reviewRoutes = [
            JOIN videos v ON r.video_id = v.id
            JOIN users u ON r.submitter_id = u.id
            WHERE r.reviewer_id = ? AND r.status IN ('assigned', 'in_progress', 'overdue')
-           ORDER BY r.assigned_at DESC LIMIT 20`,
-          [userId],
+           ORDER BY r.assigned_at DESC LIMIT ? OFFSET ?`,
+          [userId, limit, offset],
         );
 
-        return createResponse(result.results);
+        return createResponse({
+          items: result.results,
+          total: totalResult.results[0]?.count ?? 0,
+          limit,
+          offset,
+        });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
@@ -339,12 +333,10 @@ export const reviewRoutes = [
           return createErrorResponse("NOT_FOUND", "Review not found", 404);
         }
 
-        // Ensure user is authorized (reviewer or submitter)
         if (review.reviewerId !== userId && review.submitterId !== userId) {
           return createErrorResponse("FORBIDDEN", "Access denied", 403);
         }
 
-        // Fetch review answers if completed
         let answers: any[] = [];
         if (review.status === "completed" || review.status === "in_progress") {
           const answerResult = await db.query(
@@ -354,7 +346,6 @@ export const reviewRoutes = [
           answers = answerResult.results;
         }
 
-        // Fetch community questions for creating the review form
         const questions = await db.query(
           "SELECT * FROM review_questions ORDER BY order_index ASC",
           [],
@@ -399,15 +390,30 @@ export const reviewRoutes = [
       try {
         const userId = await requireAuth(request, env);
         const url = new URL(request.url);
-        const reviewId = url.pathname.split("/")[4]; // /api/v1/reviews/:id/start
+        const reviewId = url.pathname.split("/")[4];
 
         const db = new Database(env);
         const now = new Date().toISOString();
+
+        const review = await db.querySingle(
+          "SELECT submitter_id, video_id FROM reviews WHERE id = ?",
+          [reviewId],
+        );
 
         await db.execute(
           "UPDATE reviews SET status = 'in_progress', started_at = ? WHERE id = ? AND reviewer_id = ?",
           [now, reviewId, userId],
         );
+
+        if (review) {
+          await notifyUser(
+            db,
+            review.submitter_id,
+            "REVIEW_STARTED",
+            "Review Started",
+            `A review of your video has been started.`,
+          );
+        }
 
         return createResponse({ message: "Review started" });
       } catch (error: any) {
@@ -442,13 +448,11 @@ export const reviewRoutes = [
         const db = new Database(env);
         const now = new Date().toISOString();
 
-        // Update review
         await db.execute(
           "UPDATE reviews SET status = 'completed', completed_at = ?, score = ?, feedback_text = ? WHERE id = ? AND reviewer_id = ?",
           [now, body.score ?? null, body.feedbackText ?? null, reviewId, userId],
         );
 
-        // Persist per-question review answers
         const answers = Array.isArray(body?.answers) ? body.answers : [];
         if (answers.length > 0) {
           await db.execute("DELETE FROM review_answers WHERE review_id = ?", [reviewId]);
@@ -533,3 +537,61 @@ export const reviewRoutes = [
     },
   },
 ];
+
+// Helper: Extract YouTube video ID from URL
+function extractYouTubeId(url: string): string | null {
+  const regExp =
+    /(?:youtube\.com\/(?:[^/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S{11}(?:\S+|$))|youtu\.be\/([a-zA-Z0-9_-]{11}))/i;
+  const match = url.match(regExp);
+  return match ? (match[1] ?? match[0]) : null;
+}
+
+// Helper: Fetch YouTube metadata
+async function fetchYouTubeMetadata(videoId: string, env: Env): Promise<any> {
+  const cached = await env.KV_CACHE.get(`youtube:meta:${videoId}`, { type: "json" });
+  if (cached) return cached;
+
+  if (!env.YOUTUBE_API_KEY || env.YOUTUBE_API_KEY === "placeholder") {
+    throw new Error("YOUTUBE_API_KEY not configured");
+  }
+
+  const response = await fetch(
+    `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${videoId}&key=${env.YOUTUBE_API_KEY}`,
+  );
+
+  if (!response.ok) {
+    throw new Error("YouTube API error");
+  }
+
+  const data = (await response.json()) as any;
+  const video = data.items?.[0];
+
+  if (!video) {
+    throw new Error("YouTube video not found or unavailable");
+  }
+
+  const meta = {
+    title: video.snippet?.title ?? "",
+    description: video.snippet?.description ?? "",
+    thumbnailUrl: video.snippet?.thumbnails?.medium?.url ?? null,
+    durationSeconds: parseDuration(video.contentDetails?.duration),
+  };
+
+  await env.KV_CACHE.put(`youtube:meta:${videoId}`, JSON.stringify(meta), {
+    expirationTtl: 86400,
+  });
+
+  return meta;
+}
+
+function parseDuration(duration: string | undefined): number | null {
+  if (!duration) return null;
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+
+  const hours = parseInt(match[1] || "0", 10);
+  const minutes = parseInt(match[2] || "0", 10);
+  const seconds = parseInt(match[3] || "0", 10);
+
+  return hours * 3600 + minutes * 60 + seconds;
+}

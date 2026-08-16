@@ -26,6 +26,13 @@ function hueFromId(id: string): number {
   return hash;
 }
 
+function getPagination(request: Request): { limit: number; offset: number } {
+  const { searchParams } = new URL(request.url);
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)));
+  const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10));
+  return { limit, offset };
+}
+
 export const feedRoutes = [
   {
     method: "GET",
@@ -34,6 +41,14 @@ export const feedRoutes = [
       try {
         const userId = await requireAuth(request, env);
         const db = new Database(env);
+        const { limit, offset } = getPagination(request);
+
+        const totalResult = await db.query(
+          `SELECT COUNT(*) as count FROM videos v
+            WHERE v.status = 'active' AND v.user_id != ?
+           `,
+          [userId],
+        );
 
         const result = await db.query(
           `SELECT v.id, v.title, v.duration_seconds, v.status, v.created_at, v.user_id,
@@ -44,11 +59,11 @@ export const feedRoutes = [
            LEFT JOIN watch_sessions ws ON ws.video_id = v.id AND ws.watcher_id = ?
            WHERE v.status = 'active' AND v.user_id != ?
            ORDER BY v.created_at DESC
-           LIMIT 30`,
-          [userId, userId],
+           LIMIT ? OFFSET ?`,
+          [userId, userId, limit, offset],
         );
 
-        const tasks = result.results.map((v: any) => {
+        const items = result.results.map((v: any) => {
           const owner = v.display_name ?? "Creator";
           const status: "pending" | "watching" | "verified" | "expired" =
             v.watch_status === "claimed"
@@ -72,7 +87,12 @@ export const feedRoutes = [
           };
         });
 
-        return createResponse(tasks);
+        return createResponse({
+          items,
+          total: totalResult.results[0]?.count ?? 0,
+          limit,
+          offset,
+        });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
@@ -89,6 +109,12 @@ export const feedRoutes = [
       try {
         const userId = await requireAuth(request, env);
         const db = new Database(env);
+        const { limit, offset } = getPagination(request);
+
+        const totalResult = await db.query(
+          `SELECT COUNT(*) as count FROM videos v WHERE v.user_id = ?`,
+          [userId],
+        );
 
         const result = await db.query(
           `SELECT v.id, v.title, v.status, v.created_at,
@@ -97,17 +123,13 @@ export const feedRoutes = [
            FROM videos v
            WHERE v.user_id = ?
            ORDER BY v.created_at DESC
-           LIMIT 30`,
-          [userId],
+           LIMIT ? OFFSET ?`,
+          [userId, limit, offset],
         );
 
-        const submissions = result.results.map((v: any) => {
+        const items = result.results.map((v: any) => {
           const status =
-            v.status === "completed"
-              ? "completed"
-              : v.status === "pending"
-                ? "queued"
-                : "active";
+            v.status === "completed" ? "completed" : v.status === "pending" ? "queued" : "active";
           return {
             id: v.id,
             title: v.title ?? "Untitled video",
@@ -120,7 +142,12 @@ export const feedRoutes = [
           };
         });
 
-        return createResponse(submissions);
+        return createResponse({
+          items,
+          total: totalResult.results[0]?.count ?? 0,
+          limit,
+          offset,
+        });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
@@ -137,17 +164,23 @@ export const feedRoutes = [
       try {
         const userId = await requireAuth(request, env);
         const db = new Database(env);
+        const { limit, offset } = getPagination(request);
+
+        const totalResult = await db.query(
+          `SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0`,
+          [userId],
+        );
 
         const result = await db.query(
           `SELECT id, type, title, message, created_at
            FROM notifications
            WHERE user_id = ? AND is_read = 0
            ORDER BY created_at DESC
-           LIMIT 20`,
-          [userId],
+           LIMIT ? OFFSET ?`,
+          [userId, limit, offset],
         );
 
-        const activity = result.results.map((n: any) => ({
+        const items = result.results.map((n: any) => ({
           id: n.id,
           who: "You",
           what: n.title ?? n.message ?? "New activity",
@@ -155,7 +188,12 @@ export const feedRoutes = [
           points: "",
         }));
 
-        return createResponse(activity);
+        return createResponse({
+          items,
+          total: totalResult.results[0]?.count ?? 0,
+          limit,
+          offset,
+        });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);

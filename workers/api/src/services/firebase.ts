@@ -1,4 +1,5 @@
 import type { Env } from "../types";
+import { createLogger } from "../lib/logger";
 
 function b64urlDecode(s: string): Uint8Array {
   const b64 = s.replace(/-/g, "+").replace(/_/g, "/");
@@ -64,7 +65,9 @@ async function verifyDevToken(
   idToken: string,
   env: Env,
 ): Promise<{ uid: string; email: string | null; emailVerified: boolean } | null> {
+  const logger = createLogger(env);
   if (env.ENVIRONMENT !== "development") return null;
+  logger.warn("[firebase] Dev token verification active - only safe in development");
   try {
     const seg = idToken.split(".")[0];
     if (!seg) return null;
@@ -106,6 +109,7 @@ async function verifyRealIdToken(
   idToken: string,
   env: Env,
 ): Promise<{ uid: string; email: string | null; emailVerified: boolean }> {
+  const logger = createLogger(env);
   const parts = idToken.split(".");
   if (parts.length !== 3) throw new Error("AUTH_TOKEN_INVALID");
   const [headerB64, payloadB64, sigB64] = parts;
@@ -125,12 +129,7 @@ async function verifyRealIdToken(
     false,
     ["verify"],
   );
-  const valid = await crypto.subtle.verify(
-    { name: "RSASSA-PKCS1-v1_5" },
-    key,
-    sig,
-    data,
-  );
+  const valid = await crypto.subtle.verify({ name: "RSASSA-PKCS1-v1_5" }, key, sig, data);
   if (!valid) throw new Error("AUTH_TOKEN_INVALID");
 
   const payload = JSON.parse(new TextDecoder().decode(b64urlDecode(payloadB64))) as any;
@@ -138,10 +137,7 @@ async function verifyRealIdToken(
   if (payload.aud !== projectId) throw new Error("AUTH_TOKEN_INVALID");
   if (payload.iss !== `https://securetoken.google.com/${projectId}`)
     throw new Error("AUTH_TOKEN_INVALID");
-  if (
-    typeof payload.exp !== "number" ||
-    payload.exp < Math.floor(Date.now() / 1000)
-  )
+  if (typeof payload.exp !== "number" || payload.exp < Math.floor(Date.now() / 1000))
     throw new Error("AUTH_TOKEN_INVALID");
   if (!payload.sub) throw new Error("AUTH_TOKEN_INVALID");
 
@@ -156,6 +152,7 @@ export async function verifyFirebaseToken(
   idToken: string,
   env: Env,
 ): Promise<{ uid: string; email: string | null; emailVerified: boolean }> {
+  const logger = createLogger(env);
   // In development, accept the dev token (no real Firebase project required).
   if (env.ENVIRONMENT === "development") {
     const dev = await verifyDevToken(idToken, env);
@@ -165,20 +162,19 @@ export async function verifyFirebaseToken(
   return await verifyRealIdToken(idToken, env);
 }
 
-export async function signOutFromFirebase(idToken: string): Promise<void> {
+export async function signOutFromFirebase(idToken: string, env: Env): Promise<void> {
+  const logger = createLogger(env);
   try {
     await fetch(`https://oauth2.googleapis.com/revoke?token=${idToken}`, {
       method: "POST",
     });
   } catch (error) {
-    console.error("Firebase signout error:", error);
+    logger.error("Firebase signout error", error);
   }
 }
 
 export async function getFirebasePublicKey(kid?: string): Promise<any> {
-  const response = await fetch(
-    "https://www.googleapis.com/robot/v1/security?types=ID_TOKEN",
-  );
+  const response = await fetch("https://www.googleapis.com/robot/v1/security?types=ID_TOKEN");
   const keys = await response.json();
   return keys;
 }

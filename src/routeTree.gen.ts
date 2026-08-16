@@ -21,6 +21,8 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as QueueRouteImport } from './routes/queue'
 import { Route as ReviewsRouteImport } from './routes/reviews'
 import { Route as RulesRouteImport } from './routes/rules'
+import { Route as SearchRouteImport } from './routes/search'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SubmitRouteImport } from './routes/submit'
 import { Route as AuthSigninRouteImport } from './routes/auth/signin'
 import { Route as CommunitiesCommunityIdRouteImport } from './routes/communities/$communityId'
@@ -86,6 +88,16 @@ const RulesRoute = RulesRouteImport.update({
   path: '/rules',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SubmitRoute = SubmitRouteImport.update({
   id: '/submit',
   path: '/submit',
@@ -120,6 +132,8 @@ export interface FileRoutesByFullPath {
   '/queue': typeof QueueRoute
   '/reviews': typeof ReviewsRouteWithChildren
   '/rules': typeof RulesRoute
+  '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/submit': typeof SubmitRoute
   '/auth/signin': typeof AuthSigninRoute
   '/communities/$communityId': typeof CommunitiesCommunityIdRoute
@@ -138,6 +152,8 @@ export interface FileRoutesByTo {
   '/queue': typeof QueueRoute
   '/reviews': typeof ReviewsRouteWithChildren
   '/rules': typeof RulesRoute
+  '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/submit': typeof SubmitRoute
   '/auth/signin': typeof AuthSigninRoute
   '/communities/$communityId': typeof CommunitiesCommunityIdRoute
@@ -157,6 +173,8 @@ export interface FileRoutesById {
   '/queue': typeof QueueRoute
   '/reviews': typeof ReviewsRouteWithChildren
   '/rules': typeof RulesRoute
+  '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/submit': typeof SubmitRoute
   '/auth/signin': typeof AuthSigninRoute
   '/communities/$communityId': typeof CommunitiesCommunityIdRoute
@@ -177,6 +195,8 @@ export interface FileRouteTypes {
     | '/queue'
     | '/reviews'
     | '/rules'
+    | '/search'
+    | '/settings'
     | '/submit'
     | '/auth/signin'
     | '/communities/$communityId'
@@ -195,6 +215,8 @@ export interface FileRouteTypes {
     | '/queue'
     | '/reviews'
     | '/rules'
+    | '/search'
+    | '/settings'
     | '/submit'
     | '/auth/signin'
     | '/communities/$communityId'
@@ -213,6 +235,8 @@ export interface FileRouteTypes {
     | '/queue'
     | '/reviews'
     | '/rules'
+    | '/search'
+    | '/settings'
     | '/submit'
     | '/auth/signin'
     | '/communities/$communityId'
@@ -232,6 +256,8 @@ export interface RootRouteChildren {
   QueueRoute: typeof QueueRoute
   ReviewsRoute: typeof ReviewsRouteWithChildren
   RulesRoute: typeof RulesRoute
+  SearchRoute: typeof SearchRoute
+  SettingsRoute: typeof SettingsRoute
   SubmitRoute: typeof SubmitRoute
   AuthSigninRoute: typeof AuthSigninRoute
 }
@@ -322,6 +348,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RulesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/submit': {
       id: '/submit'
       path: '/submit'
@@ -389,6 +429,8 @@ const rootRouteChildren: RootRouteChildren = {
   QueueRoute: QueueRoute,
   ReviewsRoute: ReviewsRouteWithChildren,
   RulesRoute: RulesRoute,
+  SearchRoute: SearchRoute,
+  SettingsRoute: SettingsRoute,
   SubmitRoute: SubmitRoute,
   AuthSigninRoute: AuthSigninRoute,
 }

@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Award, Flame, Lock, Settings2, Youtube } from "lucide-react";
+import { useState, useEffect } from "react";
 import { PageHeader, Shell, StatCard } from "@/components/page-parts";
 import {
   useMyProfile,
@@ -9,8 +10,12 @@ import {
   useBadges,
   useCurrentMember,
   useActivity,
+  useYouTubeStatus,
+  useConnectYouTube,
+  useDisconnectYouTube,
 } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -32,13 +37,31 @@ export const Route = createFileRoute("/profile")({
 });
 
 function Profile() {
-  const { data: profile } = useMyProfile();
-  const { data: xp } = useXp();
-  const { data: credits } = useCredits();
-  const { data: streaks } = useStreaks();
-  const { data: badges = [] } = useBadges();
-  const { data: member } = useCurrentMember();
-  const { data: activity = [] } = useActivity();
+  const { data: profile, isLoading: profileLoading, isError: profileError } = useMyProfile();
+  const { data: xp, isLoading: xpLoading, isError: xpError } = useXp();
+  const { data: credits, isLoading: creditsLoading, isError: creditsError } = useCredits();
+  const { data: streaks, isLoading: streaksLoading, isError: streaksError } = useStreaks();
+  const { data: badges = [], isLoading: badgesLoading, isError: badgesError } = useBadges();
+  const { data: member, isLoading: memberLoading, isError: memberError } = useCurrentMember();
+  const { data: activity = [], isLoading: activityLoading, isError: activityError } = useActivity();
+  const { data: youtubeStatus, isLoading: ytLoading, isError: ytError } = useYouTubeStatus();
+  const connectYouTube = useConnectYouTube();
+  const disconnectYouTube = useDisconnectYouTube();
+
+  const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+
+  useEffect(() => {
+    if (connectYouTube.isSuccess) {
+      toast.success("Opening YouTube authorization...");
+    }
+  }, [connectYouTube.isSuccess]);
+
+  useEffect(() => {
+    if (disconnectYouTube.isSuccess) {
+      toast.success("YouTube account disconnected");
+      setShowDisconnectDialog(false);
+    }
+  }, [disconnectYouTube.isSuccess]);
 
   const currentUser = member ?? {
     id: "",
@@ -56,7 +79,10 @@ function Profile() {
     trustScore: 0,
   };
 
-  const xpPct = 62;
+  const currentXP = xp?.totalXp ?? 0;
+  const xpToNextLevel = xp?.xpToNextLevel ?? 250;
+  const xpProgress = xp ? Math.max(0, Math.min(xpToNextLevel, currentXP)) : 0;
+  const xpPct = xp ? Math.round((xpProgress / Math.max(xpToNextLevel, 1)) * 100) : null;
   const level = xp?.currentLevel ?? currentUser.level;
   const balance = credits?.balance ?? 0;
   const streak = streaks?.currentStreak ?? currentUser.streak;
@@ -67,7 +93,53 @@ function Profile() {
         month: "short",
         year: "numeric",
       })
-    : "Aug 2026";
+    : null;
+  const loading =
+    profileLoading ||
+    xpLoading ||
+    creditsLoading ||
+    streaksLoading ||
+    badgesLoading ||
+    memberLoading ||
+    activityLoading ||
+    ytLoading;
+
+  if (loading) {
+    return (
+      <Shell>
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="text-center">
+            <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <p className="text-sm text-muted-foreground">Loading your profile...</p>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  const error =
+    profileError ||
+    xpError ||
+    creditsError ||
+    streaksError ||
+    badgesError ||
+    memberError ||
+    activityError ||
+    ytError;
+  if (error) {
+    return (
+      <Shell>
+        <PageHeader eyebrow="" title="Your profile" description="" />
+        <div className="mt-6 surface p-6 text-center text-destructive">
+          <p className="text-sm">Failed to load profile data. Please try again later.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {(error as unknown as Error).message}
+          </p>
+        </div>
+      </Shell>
+    );
+  }
+
   const initials = displayName
     .split(" ")
     .map((p) => p[0])
@@ -75,19 +147,22 @@ function Profile() {
     .join("")
     .toUpperCase();
 
+  const youtubeConnected = youtubeStatus?.connected ?? false;
+  const youtubeChannelId = youtubeStatus?.channelId ?? null;
+
   return (
     <Shell>
       <PageHeader
-        eyebrow={`Member since ${memberSince}`}
+        eyebrow={memberSince ? `Member since ${memberSince}` : ""}
         title="Your profile"
         description="Your trust score decides how much of the squad's attention you can receive each week."
         action={
-          <button
-            type="button"
+          <Link
+            to="/settings"
             className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium"
           >
             <Settings2 className="size-4" /> Settings
-          </button>
+          </Link>
         }
       />
 
@@ -113,11 +188,14 @@ function Profile() {
             <div className="flex items-center justify-between text-sm">
               <span>Level {level}</span>
               <span className="text-muted-foreground">
-                {xpPct}% to level {level + 1}
+                {xpPct !== null ? `${xpPct}% to level ${level + 1}` : "Loading XP..."}
               </span>
             </div>
             <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-secondary">
-              <div className="h-full bg-accent" style={{ width: `${xpPct}%` }} />
+              <div
+                className="h-full bg-accent transition-all"
+                style={{ width: `${xpPct ?? 0}%` }}
+              />
             </div>
           </div>
 
@@ -152,6 +230,37 @@ function Profile() {
               icon={<Flame className="size-4" />}
             />
           </div>
+
+          <section className="surface p-6">
+            <div className="flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-3xl">
+                <Youtube className="size-5 text-accent" /> YouTube
+              </h2>
+              {youtubeConnected ? (
+                <button
+                  type="button"
+                  onClick={() => setShowDisconnectDialog(true)}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10"
+                >
+                  Disconnect
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => connectYouTube.mutate()}
+                  disabled={connectYouTube.isPending}
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {connectYouTube.isPending ? "Connecting..." : "Connect YouTube"}
+                </button>
+              )}
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {youtubeConnected
+                ? `Connected${youtubeChannelId ? ` as ${youtubeChannelId}` : ""}. Subscription verification is active.`
+                : "Connect your YouTube account to enable subscription verification and earn rewards."}
+            </p>
+          </section>
 
           <section className="surface p-6">
             <h2 className="flex items-center gap-2 text-3xl">
@@ -196,6 +305,34 @@ function Profile() {
           </section>
         </div>
       </div>
+
+      {showDisconnectDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="surface max-w-md p-6">
+            <h3 className="text-xl font-semibold">Disconnect YouTube?</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              This will stop subscription verification. You can reconnect anytime.
+            </p>
+            <div className="mt-4 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDisconnectDialog(false)}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => disconnectYouTube.mutate()}
+                disabled={disconnectYouTube.isPending}
+                className="rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+              >
+                {disconnectYouTube.isPending ? "Disconnecting..." : "Disconnect"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Shell>
   );
 }

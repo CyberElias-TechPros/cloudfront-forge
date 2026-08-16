@@ -17,6 +17,9 @@ import apiClientService, {
   type SubmissionDTO,
   type ActivityItem,
   type Member,
+  type PaginatedResponse,
+  type NotificationPreferences,
+  type UserPermissions,
 } from "@/lib/api-client";
 
 const queryKeys = {
@@ -33,9 +36,11 @@ const queryKeys = {
   leaderboard: ["gamification", "leaderboard"] as const,
   profile: ["users", "me", "profile"] as const,
   notifications: ["notifications"] as const,
+  notificationPreferences: ["notifications", "preferences"] as const,
   adminMetrics: ["admin", "metrics"] as const,
   adminReports: (status: string) => ["admin", "reports", status] as const,
   adminUsers: (status: string) => ["admin", "users", status] as const,
+  userPermissions: ["auth", "permissions"] as const,
 };
 
 function mapCommunity(c: {
@@ -82,7 +87,7 @@ export function useCommunities() {
     queryFn: async (): Promise<Community[]> => {
       try {
         const data = await apiClientService.communities.list();
-        return data.map(mapCommunity);
+        return data.items.map(mapCommunity);
       } catch (error) {
         console.warn("[useCommunities] API unavailable:", error);
         return [];
@@ -160,7 +165,7 @@ export function useMissionAssignments() {
     queryFn: async () => {
       try {
         const data = await apiClientService.missions.assignments();
-        return data.map(mapMissionAssignment);
+        return data.items.map(mapMissionAssignment);
       } catch (error) {
         console.warn("[useMissionAssignments] API unavailable:", error);
         return [];
@@ -196,7 +201,7 @@ export function useMissions() {
     queryKey: queryKeys.missions,
     queryFn: async () => {
       try {
-        const data = (await apiClientService.missions.list()) as unknown as Array<{
+        const data = (await apiClientService.missions.list()) as PaginatedResponse<{
           id: string;
           title: string;
           description?: string | null;
@@ -205,7 +210,7 @@ export function useMissions() {
           creditReward?: number;
           timeEstimateMinutes?: number;
         }>;
-        return data.map(mapMission);
+        return data.items.map(mapMission);
       } catch (error) {
         console.warn("[useMissions] API unavailable:", error);
         return [];
@@ -240,7 +245,8 @@ export function useReviews() {
     queryKey: queryKeys.reviews,
     queryFn: async () => {
       try {
-        return await apiClientService.reviews.list();
+        const data = await apiClientService.reviews.list();
+        return data.items as Review[];
       } catch (error) {
         console.warn("[useReviews] API unavailable:", error);
         return [];
@@ -321,9 +327,7 @@ export function useReview(reviewId: string) {
             type: String(q.questionType ?? q.question_type ?? q.type ?? "rating"),
           })),
           answers: (raw.answers ?? []).map((a) => {
-            const q = (raw.questions ?? []).find(
-              (x) => String(x.id) === String(a.questionId),
-            );
+            const q = (raw.questions ?? []).find((x) => String(x.id) === String(a.questionId));
             const qType = String(q?.questionType ?? q?.question_type ?? q?.type ?? "rating");
             let value: string | number | boolean = "";
             if (typeof a.ratingValue === "number") {
@@ -428,10 +432,10 @@ export function useLeaderboard() {
     queryFn: async () => {
       try {
         const data = await apiClientService.gamification.leaderboard();
-        return data;
+        return data.items;
       } catch (error) {
         console.warn("[useLeaderboard] API unavailable:", error);
-        return [] as unknown as LeaderboardEntry[];
+        return [] as LeaderboardEntry[];
       }
     },
   });
@@ -467,11 +471,45 @@ export function useNotifications() {
     queryKey: queryKeys.notifications,
     queryFn: async () => {
       try {
-        return await apiClientService.notifications.list();
+        const data = await apiClientService.notifications.list();
+        return data.items;
       } catch (error) {
         console.warn("[useNotifications] API unavailable, using empty data:", error);
         return [];
       }
+    },
+  });
+}
+
+export function useNotificationPreferences() {
+  return useQuery({
+    queryKey: queryKeys.notificationPreferences,
+    queryFn: async () => {
+      try {
+        return await apiClientService.notifications.preferences();
+      } catch (error) {
+        console.warn("[useNotificationPreferences] API unavailable:", error);
+        return {
+          emailEnabled: true,
+          pushEnabled: true,
+          whatsappEnabled: false,
+          inAppEnabled: true,
+          missionReminders: true,
+          reviewRequests: true,
+          communityUpdates: true,
+        } as NotificationPreferences;
+      }
+    },
+  });
+}
+
+export function useUpdateNotificationPreferences() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<NotificationPreferences>) =>
+      apiClientService.notifications.updatePreferences(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notificationPreferences });
     },
   });
 }
@@ -489,8 +527,6 @@ export function useMyProfile() {
     },
   });
 }
-
-// Mock admin reports removed: useAdminReports now returns real API data (or [] on error).
 
 export function useAdminMetrics() {
   return useQuery({
@@ -548,7 +584,7 @@ export function useResolveReport() {
         status: args.status,
         ...(args.notes ? { resolutionNotes: args.notes } : {}),
       }),
-    onSuccess: (_data, variables) => {
+    onSuccess: (_data, _variables) => {
       void queryClient.invalidateQueries({
         queryKey: ["admin", "reports"],
       });
@@ -591,12 +627,27 @@ export function useCurrentMember() {
   });
 }
 
+export function useUserPermissions() {
+  return useQuery({
+    queryKey: queryKeys.userPermissions,
+    queryFn: async (): Promise<UserPermissions> => {
+      try {
+        return await apiClientService.auth.permissions();
+      } catch (error) {
+        console.warn("[useUserPermissions] API unavailable:", error);
+        return { userId: "", role: "member", permissions: ["read"] };
+      }
+    },
+  });
+}
+
 export function useQueueTasks() {
   return useQuery({
     queryKey: ["feed", "queue"],
     queryFn: async (): Promise<QueueTask[]> => {
       try {
-        return await apiClientService.feed.queue();
+        const data = await apiClientService.feed.queue();
+        return data.items;
       } catch (error) {
         console.warn("[useQueueTasks] API unavailable, using empty data:", error);
         return [];
@@ -610,7 +661,8 @@ export function useSubmissions() {
     queryKey: ["feed", "submissions"],
     queryFn: async (): Promise<SubmissionDTO[]> => {
       try {
-        return await apiClientService.feed.submissions();
+        const data = await apiClientService.feed.submissions();
+        return data.items;
       } catch (error) {
         console.warn("[useSubmissions] API unavailable, using empty data:", error);
         return [];
@@ -652,11 +704,60 @@ export function useActivity() {
     queryKey: ["feed", "activity"],
     queryFn: async (): Promise<ActivityItem[]> => {
       try {
-        return await apiClientService.feed.activity();
+        const data = await apiClientService.feed.activity();
+        return data.items;
       } catch (error) {
         console.warn("[useActivity] API unavailable, using empty data:", error);
         return [];
       }
+    },
+  });
+}
+
+export function useYouTubeStatus() {
+  return useQuery({
+    queryKey: ["youtube", "status"],
+    queryFn: async () => {
+      return await apiClientService.youtube.status();
+    },
+  });
+}
+
+export function useConnectYouTube() {
+  return useMutation({
+    mutationFn: async () => {
+      const result = await apiClientService.youtube.authorize();
+      if (!result.authUrl) {
+        throw new Error("Missing auth URL from backend");
+      }
+      return result.authUrl;
+    },
+    onSuccess: (authUrl) => {
+      window.open(authUrl, "_blank", "width=500,height=700");
+    },
+  });
+}
+
+export function useDisconnectYouTube() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      return await apiClientService.youtube.disconnect();
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["youtube", "status"] });
+    },
+  });
+}
+
+export function useSearch(query?: string) {
+  return useQuery({
+    queryKey: ["search", query],
+    queryFn: async () => {
+      if (!query) {
+        return { communities: [], videos: [] };
+      }
+      return await apiClientService.search.search(query);
     },
   });
 }

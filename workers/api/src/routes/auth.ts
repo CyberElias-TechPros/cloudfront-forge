@@ -2,8 +2,17 @@ import type { Env } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { UserService } from "../services/user";
 import { requireAuth } from "../middleware/auth";
+import { getUserPermissions } from "../middleware/permissions";
 import { paginationSchema } from "../middleware/validation";
+import { Database } from "../lib/database";
 import { z } from "zod";
+
+const registerSchema = z.object({
+  firebaseUid: z.string().min(1),
+  email: z.string().email().nullable().optional(),
+  displayName: z.string().min(1).nullable().optional(),
+  photoUrl: z.string().url().nullable().optional(),
+});
 
 const updateUserSchema = z.object({
   displayName: z.string().min(1).optional(),
@@ -16,8 +25,15 @@ export const authRoutes = [
     path: "/api/v1/auth/register",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
-        const body = (await request.json().catch(() => ({}))) as any;
-        const { firebaseUid, email, displayName, photoUrl } = body;
+        const body = registerSchema.safeParse(await request.json().catch(() => ({})));
+        if (!body.success) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            body.error.errors.map((e) => e.message).join(", "),
+            400,
+          );
+        }
+        const { firebaseUid, email, displayName, photoUrl } = body.data;
 
         if (!firebaseUid) {
           return createErrorResponse("VALIDATION_ERROR", "Firebase UID is required", 400);
@@ -55,8 +71,9 @@ export const authRoutes = [
         }
 
         return createResponse(user);
-      } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        if (message === "AUTH_required" || message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch user", 500);
@@ -69,25 +86,25 @@ export const authRoutes = [
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
         const userId = await requireAuth(request, env);
-        const body = (await request.json().catch(() => ({}))) as any;
-
-        const validation = updateUserSchema.safeParse(body);
-        if (!validation.success) {
+        const parsedBody = updateUserSchema.safeParse(await request.json().catch(() => ({})));
+        if (!parsedBody.success) {
           return createErrorResponse(
             "VALIDATION_ERROR",
-            validation.error.errors.map((e) => e.message).join(", "),
+            parsedBody.error.errors.map((e) => e.message).join(", "),
             400,
           );
         }
+        const { displayName } = parsedBody.data;
 
         const userService = new UserService(env);
         await userService.updateUser(userId, {
-          display_name: body.displayName,
+          display_name: displayName,
         });
 
         return createResponse({ message: "Profile updated successfully" });
-      } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        if (message === "AUTH_required" || message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to update profile", 500);
@@ -100,17 +117,25 @@ export const authRoutes = [
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
         const { searchParams } = new URL(request.url);
-        const userId = searchParams.get("userId") || (await requireAuth(request, env));
+        const targetUserId = searchParams.get("userId") || (await requireAuth(request, env));
+        const permissions = await getUserPermissions(targetUserId, env);
 
-        // TODO: fetch user permissions from database
-        const permissions = ["read", "write"];
+        const db = new Database(env);
+        const adminRow = await db.querySingle("SELECT role FROM admin_users WHERE user_id = ?", [
+          targetUserId,
+        ]);
 
-        return createResponse({ userId, permissions });
-      } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        return createResponse({
+          userId: targetUserId,
+          role: adminRow?.role ?? "member",
+          permissions,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        if (message === "AUTH_required" || message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
-        return createResponse({ permissions: ["read"] });
+        return createResponse({ permissions: ["read"], role: "member" });
       }
     },
   },

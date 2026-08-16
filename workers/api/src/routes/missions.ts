@@ -4,6 +4,13 @@ import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { z } from "zod";
 
+function getPagination(request: Request): { limit: number; offset: number } {
+  const { searchParams } = new URL(request.url);
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)));
+  const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10));
+  return { limit, offset };
+}
+
 const createMissionSchema = z.object({
   title: z.string().min(5).max(200),
   description: z.string().max(1000),
@@ -26,20 +33,32 @@ export const missionRoutes = [
         const userId = await requireAuth(request, env);
         const db = new Database(env);
         const now = new Date().toISOString();
+        const { limit, offset } = getPagination(request);
+
+        const totalResult = await db.query(
+          `SELECT COUNT(*) as count FROM missions m
+           WHERE m.is_active = 1 AND m.valid_from <= ?`,
+          [now],
+        );
 
         const result = await db.query(
           `SELECT m.*, 
-             CASE WHEN ma.id IS NOT NULL THEN 1 ELSE 0 END as is_assigned,
-             CASE WHEN ma.status = 'completed' THEN 1 ELSE 0 END as is_completed
-           FROM missions m
-           LEFT JOIN mission_assignments ma ON m.id = ma.mission_id AND ma.user_id = ?
-           WHERE m.is_active = 1 AND m.valid_from <= ?
-           ORDER BY m.xp_reward DESC, m.created_at DESC
-           LIMIT 20`,
-          [userId, now],
+              CASE WHEN ma.id IS NOT NULL THEN 1 ELSE 0 END as is_assigned,
+              CASE WHEN ma.status = 'completed' THEN 1 ELSE 0 END as is_completed
+            FROM missions m
+            LEFT JOIN mission_assignments ma ON m.id = ma.mission_id AND ma.user_id = ?
+            WHERE m.is_active = 1 AND m.valid_from <= ?
+            ORDER BY m.xp_reward DESC, m.created_at DESC
+            LIMIT ? OFFSET ?`,
+          [userId, now, limit, offset],
         );
 
-        return createResponse(result.results);
+        return createResponse({
+          items: result.results,
+          total: totalResult.results[0]?.count ?? 0,
+          limit,
+          offset,
+        });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
@@ -110,7 +129,6 @@ export const missionRoutes = [
         const db = new Database(env);
         const now = new Date().toISOString();
 
-        // Check if already assigned
         const existing = await db.querySingle(
           "SELECT * FROM mission_assignments WHERE mission_id = ? AND user_id = ? AND status IN ('assigned', 'in_progress')",
           [missionId, userId],
@@ -120,13 +138,24 @@ export const missionRoutes = [
           return createResponse(existing);
         }
 
-        const result = await db.execute(
+        const mission = await db.querySingle(
+          "SELECT title FROM missions WHERE id = ?",
+          [missionId],
+        );
+
+        await db.execute(
           "INSERT INTO mission_assignments (id, mission_id, user_id, assigned_at, status) VALUES (?, ?, ?, ?, ?)",
           [crypto.randomUUID(), missionId, userId, now, "assigned"],
         );
 
-        if (!result.success) {
-          return createErrorResponse("DATABASE_ERROR", "Failed to assign mission", 500);
+        if (mission) {
+          await notifyUser(
+            db,
+            userId,
+            "MISSION_ASSIGNED",
+            "New Mission Assigned",
+            `You have been assigned the mission "${mission.title}".`,
+          );
         }
 
         return createResponse({ message: "Mission assigned" });
@@ -146,6 +175,13 @@ export const missionRoutes = [
       try {
         const userId = await requireAuth(request, env);
         const db = new Database(env);
+        const { limit, offset } = getPagination(request);
+
+        const totalResult = await db.query(
+          `SELECT COUNT(*) as count FROM mission_assignments ma
+           WHERE ma.user_id = ? AND ma.status IN ('assigned', 'in_progress')`,
+          [userId],
+        );
 
         const result = await db.query(
           `SELECT ma.*, m.title, m.description, m.difficulty, m.xp_reward, m.credit_reward, m.time_estimate_minutes,
@@ -154,10 +190,16 @@ export const missionRoutes = [
             JOIN missions m ON ma.mission_id = m.id
             WHERE ma.user_id = ? AND ma.status IN ('assigned', 'in_progress')
             ORDER BY ma.assigned_at ASC
-            LIMIT 20`,          [userId],
+            LIMIT ? OFFSET ?`,
+          [userId, limit, offset],
         );
 
-        return createResponse(result.results);
+        return createResponse({
+          items: result.results,
+          total: totalResult.results[0]?.count ?? 0,
+          limit,
+          offset,
+        });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
@@ -182,7 +224,6 @@ export const missionRoutes = [
         const db = new Database(env);
         const now = new Date().toISOString();
 
-        // Get mission details before completing
         const assignment = await db.querySingle(
           "SELECT ma.*, m.xp_reward, m.credit_reward FROM mission_assignments ma JOIN missions m ON ma.mission_id = m.id WHERE ma.id = ? AND ma.user_id = ?",
           [assignmentId, userId],
@@ -197,13 +238,11 @@ export const missionRoutes = [
           [now, assignmentId],
         );
 
-        // Award XP
         const xpResult = await db.execute(
           "INSERT INTO xp_transactions (id, user_id, amount, type, description, created_at) VALUES (?, ?, ?, ?, ?, ?)",
           [crypto.randomUUID(), userId, assignment.xp_reward, "mission", "Completed mission", now],
         );
 
-        // Update user XP
         const xpAccount = await db.querySingle("SELECT * FROM xp_accounts WHERE user_id = ?", [
           userId,
         ]);
@@ -219,7 +258,6 @@ export const missionRoutes = [
           );
         }
 
-        // Award credits
         const creditResult = await db.execute(
           "INSERT INTO credit_transactions (id, user_id, amount, type, description, created_at) VALUES (?, ?, ?, ?, ?, ?)",
           [
@@ -248,7 +286,6 @@ export const missionRoutes = [
           );
         }
 
-        // Create notification
         await db.execute(
           "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)",
           [
@@ -275,3 +312,11 @@ export const missionRoutes = [
     },
   },
 ];
+
+async function notifyUser(db: Database, userId: string, type: string, title: string, message: string): Promise<void> {
+  const now = new Date().toISOString();
+  await db.execute(
+    `INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+    [db.uuid(), userId, type, title, message, now],
+  );
+}

@@ -13,6 +13,9 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SiteFooter, SiteHeader } from "../components/site-chrome";
 import { AuthProvider, RequireAuth } from "../hooks/useAuth";
+import { validateFrontendEnv } from "../lib/env-validation";
+
+validateFrontendEnv();
 
 function NotFoundComponent() {
   return (
@@ -131,9 +134,14 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
   const pathname = router.state?.location?.pathname ?? "/";
-  const isPublic =
-    pathname === "/" || pathname === "/rules" || pathname.startsWith("/auth/");
-  const outlet = isPublic ? <Outlet /> : <RequireAuth><Outlet /></RequireAuth>;
+  const isPublic = pathname === "/" || pathname === "/rules" || pathname.startsWith("/auth/");
+  const outlet = isPublic ? (
+    <Outlet />
+  ) : (
+    <RequireAuth>
+      <Outlet />
+    </RequireAuth>
+  );
 
   return (
     <QueryClientProvider client={queryClient}>

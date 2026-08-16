@@ -15,28 +15,44 @@ apiClient.interceptors.request.use(async (config) => {
   return config;
 });
 
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const message =
+      error.response?.data?.error?.message || error.message || "An unexpected error occurred";
+    return Promise.reject(new Error(message));
+  },
+);
+
 import { getIdToken } from "./firebase";
 
 const getToken = async (): Promise<string | null> => {
   return await getIdToken();
 };
 
+export function apiResponse<T>(response: { data: { success: boolean; data?: T } }): T {
+  if (!response.data.success || !response.data.data) {
+    throw new Error("Invalid API response structure");
+  }
+  return response.data.data;
+}
+
 export const api = {
   get: async <T>(url: string): Promise<T> => {
     const response = await apiClient.get(url);
-    return response.data.data as T;
+    return apiResponse<T>(response);
   },
   post: async <T, D = Record<string, unknown>>(url: string, data?: D): Promise<T> => {
     const response = await apiClient.post(url, data);
-    return response.data.data as T;
+    return apiResponse<T>(response);
   },
   put: async <T, D = Record<string, unknown>>(url: string, data?: D): Promise<T> => {
     const response = await apiClient.put(url, data);
-    return response.data.data as T;
+    return apiResponse<T>(response);
   },
   delete: async <T>(url: string): Promise<T> => {
     const response = await apiClient.delete(url);
-    return response.data.data as T;
+    return apiResponse<T>(response);
   },
 };
 

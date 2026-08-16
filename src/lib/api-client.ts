@@ -243,6 +243,34 @@ export interface AdminMetrics {
   pendingReports: number;
 }
 
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface NotificationPreferences {
+  emailEnabled: boolean;
+  pushEnabled: boolean;
+  whatsappEnabled: boolean;
+  inAppEnabled: boolean;
+  missionReminders: boolean;
+  reviewRequests: boolean;
+  communityUpdates: boolean;
+}
+
+export interface UserPermissions {
+  userId: string;
+  role: string;
+  permissions: string[];
+}
+
+export interface SearchResult {
+  communities: unknown[];
+  videos: unknown[];
+}
+
 const getData = async <T>(url: string): Promise<T> => {
   const response = await apiClient.get(url);
   return response.data.data as T;
@@ -267,10 +295,11 @@ export const apiClientService = {
       photoUrl?: string | null;
     }) => postData<UserProfile>("/api/v1/auth/register", data),
     me: () => getData<UserProfile>("/api/v1/auth/me"),
+    permissions: () => getData<UserPermissions>("/api/v1/auth/permissions"),
   },
 
   communities: {
-    list: () => getData<Community[]>("/api/v1/communities"),
+    list: () => getData<PaginatedResponse<Community>>("/api/v1/communities"),
     get: (communityId: string) => getData<CommunityDetail>(`/api/v1/communities/${communityId}`),
     create: (data: CreateCommunityInput) =>
       postData<CreateCommunityResult>("/api/v1/communities", data),
@@ -282,8 +311,9 @@ export const apiClientService = {
   },
 
   missions: {
-    list: () => getData<Mission[]>("/api/v1/missions"),
-    assignments: () => getData<MissionAssignment[]>("/api/v1/missions/assignments"),
+    list: () => getData<PaginatedResponse<Mission>>("/api/v1/missions"),
+    assignments: () =>
+      getData<PaginatedResponse<MissionAssignment>>("/api/v1/missions/assignments"),
     assign: (missionId: string) =>
       postData<{ message: string }>(`/api/v1/missions/${missionId}/assign`),
     complete: (assignmentId: string) =>
@@ -293,13 +323,13 @@ export const apiClientService = {
   },
 
   videos: {
-    list: () => getData<unknown[]>("/api/v1/videos"),
+    list: () => getData<PaginatedResponse<unknown>>("/api/v1/videos"),
     create: (data: { youtubeUrl: string; communityId?: string }) =>
       postData<{ message: string; videoId: string }>("/api/v1/videos", data),
   },
 
   reviews: {
-    list: () => getData<Review[]>("/api/v1/reviews"),
+    list: () => getData<PaginatedResponse<Review>>("/api/v1/reviews"),
     get: (reviewId: string) => getData<Review>(`/api/v1/reviews/${reviewId}`),
     start: (reviewId: string) => postData<{ message: string }>(`/api/v1/reviews/${reviewId}/start`),
     complete: (
@@ -317,11 +347,14 @@ export const apiClientService = {
     xp: () => getData<XpSummary>("/api/v1/xp"),
     streaks: () => getData<StreakInfo>("/api/v1/streaks"),
     badges: () => getData<unknown[]>("/api/v1/badges"),
-    leaderboard: () => getData<LeaderboardEntry[]>("/api/v1/leaderboards"),
+    leaderboard: () => getData<PaginatedResponse<LeaderboardEntry>>("/api/v1/leaderboards"),
   },
 
   notifications: {
-    list: () => getData<Notification[]>("/api/v1/notifications"),
+    list: () => getData<PaginatedResponse<Notification>>("/api/v1/notifications"),
+    preferences: () => getData<NotificationPreferences>("/api/v1/notifications/preferences"),
+    updatePreferences: (data: Partial<NotificationPreferences>) =>
+      putData<{ message: string }>("/api/v1/notifications/preferences", data),
   },
 
   watch: {
@@ -337,6 +370,13 @@ export const apiClientService = {
       ),
   },
 
+  youtube: {
+    authorize: () => getData<{ authUrl: string }>("/api/v1/youtube/oauth/authorize"),
+    status: () =>
+      getData<{ connected: boolean; channelId?: string | null }>("/api/v1/youtube/status"),
+    disconnect: () => postData<{ message: string }>("/api/v1/youtube/disconnect", {}),
+  },
+
   users: {
     profile: () => getData<UserProfile>("/api/v1/users/me/profile"),
     member: () => getData<CurrentMember>("/api/v1/users/me/member"),
@@ -345,9 +385,13 @@ export const apiClientService = {
   },
 
   feed: {
-    queue: () => getData<QueueTask[]>("/api/v1/queue"),
-    submissions: () => getData<SubmissionDTO[]>("/api/v1/submissions"),
-    activity: () => getData<ActivityItem[]>("/api/v1/activity"),
+    queue: () => getData<PaginatedResponse<QueueTask>>("/api/v1/queue"),
+    submissions: () => getData<PaginatedResponse<SubmissionDTO>>("/api/v1/submissions"),
+    activity: () => getData<PaginatedResponse<ActivityItem>>("/api/v1/activity"),
+  },
+
+  search: {
+    search: (q: string) => getData<SearchResult>(`/api/v1/search?q=${encodeURIComponent(q)}`),
   },
 
   admin: {
@@ -355,8 +399,10 @@ export const apiClientService = {
     users: (status = "active") => getData<UserProfile[]>(`/api/v1/admin/users?status=${status}`),
     reports: (status = "pending") =>
       getData<AdminReport[]>(`/api/v1/admin/reports?status=${status}`),
-    resolveReport: (reportId: string, data: { status: "resolved" | "dismissed"; resolutionNotes?: string }) =>
-      postData<{ message: string }>(`/api/v1/admin/reports/${reportId}/resolve`, data),
+    resolveReport: (
+      reportId: string,
+      data: { status: "resolved" | "dismissed"; resolutionNotes?: string },
+    ) => postData<{ message: string }>(`/api/v1/admin/reports/${reportId}/resolve`, data),
     createReport: (data: {
       reportedUserId: string;
       resourceType: "video" | "review" | "comment" | "user" | "community";

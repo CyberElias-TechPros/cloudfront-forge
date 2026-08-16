@@ -12,6 +12,13 @@ import {
 
 import type { User as FirebaseUser } from "firebase/auth";
 
+if (
+  import.meta.env.PROD &&
+  (import.meta.env.DEV === true || import.meta.env["VITE_USE_DEV_AUTH"] === "true")
+) {
+  throw new Error("Dev auth is not allowed in production");
+}
+
 interface Profile {
   id: string;
   firebaseUid: string;
@@ -52,10 +59,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
       if (user) {
-        fetchProfile(user);
+        try {
+          const token = await user.getIdToken(true);
+          if (token) {
+            localStorage.setItem("authToken", token);
+          }
+        } catch (e) {
+          console.warn("Failed to get ID token:", e);
+        }
+        await fetchProfile(user);
       } else {
         setProfile(null);
       }
@@ -81,7 +96,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchProfile(devUser)
       .catch((e) => console.error("Dev profile fetch failed:", e))
       .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firebaseUser]);
 
   const signIn = async () => {
@@ -127,6 +141,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Ensure auth token is attached after user state stabilizes
+  useEffect(() => {
+    const handleAuthState = async () => {
+      if (firebaseUser) {
+        try {
+          const user = auth.currentUser;
+          if (user) {
+            const token = await user.getIdToken();
+            if (token) {
+              // Store token so api interceptor can pick it up
+              localStorage.setItem("authToken", token);
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to get ID token:", e);
+        }
+      }
+    };
+    if (loading) return;
+    handleAuthState();
+    const interval = setInterval(handleAuthState, 30000);
+    return () => clearInterval(interval);
+  }, [firebaseUser, loading]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -153,7 +191,6 @@ export const useAuth = () => {
 
 export const RequireAuth = ({ children }: { children: ReactNode }) => {
   const { user, loading } = useAuth();
-  const location = window.location.pathname;
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;

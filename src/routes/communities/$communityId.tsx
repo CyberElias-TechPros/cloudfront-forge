@@ -5,7 +5,7 @@ import { useCommunity } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/communities/$communityId")({
-  head: ({ params }) => {
+  head: () => {
     return {
       meta: [
         { title: "Community — LoopSquad" },

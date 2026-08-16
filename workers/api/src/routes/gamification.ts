@@ -6,6 +6,13 @@ import { calculateLevel, calculateWeightedScore } from "../lib/utils";
 
 const db = (env: Env) => new Database(env);
 
+function getPagination(request: Request): { limit: number; offset: number } {
+  const { searchParams } = new URL(request.url);
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)));
+  const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10));
+  return { limit, offset };
+}
+
 export const gamificationRoutes = [
   {
     method: "GET",
@@ -184,7 +191,7 @@ export const gamificationRoutes = [
       try {
         const { searchParams } = new URL(request.url);
         const timeframe = searchParams.get("timeframe") ?? "weekly";
-        const limit = parseInt(searchParams.get("limit") ?? "20", 10);
+        const { limit, offset } = getPagination(request);
 
         const database = db(env);
 
@@ -194,6 +201,11 @@ export const gamificationRoutes = [
         } else if (timeframe === "monthly") {
           dateFilter = "AND xp.created_at >= datetime('now', '-30 days')";
         }
+
+        const totalResult = await database.query(
+          `SELECT COUNT(*) as count FROM users u WHERE u.deleted_at IS NULL`,
+          [],
+        );
 
         const result = await database.query(
           `
@@ -208,17 +220,22 @@ export const gamificationRoutes = [
           LEFT JOIN reputation_accounts r ON r.user_id = u.id
           WHERE u.deleted_at IS NULL
            ORDER BY weighted_score DESC
-           LIMIT ?
+           LIMIT ? OFFSET ?
          `,
-           [limit],
-         );
+          [limit, offset],
+        );
 
-        const ranked = result.results.map((row: Record<string, unknown>, index: number) => ({
+        const items = result.results.map((row: Record<string, unknown>, index: number) => ({
           ...row,
-          rank: index + 1,
+          rank: offset + index + 1,
         }));
 
-        return createResponse(ranked);
+        return createResponse({
+          items,
+          total: totalResult.results[0]?.count ?? 0,
+          limit,
+          offset,
+        });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);

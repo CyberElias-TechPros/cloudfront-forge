@@ -1,9 +1,10 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Flame, Menu, Trophy, Zap, LogIn, LogOut } from "lucide-react";
+import { Flame, Menu, Trophy, Zap, LogIn, LogOut, Search } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { useCurrentMember } from "@/hooks/use-api";
+import { useCurrentMember, useUserPermissions } from "@/hooks/use-api";
+import { Input } from "@/components/ui/input";
 
 const links = [
   { to: "/dashboard", label: "Dashboard" },
@@ -18,14 +19,18 @@ const links = [
   { to: "/leaderboard", label: "Leaderboard" },
   { to: "/profile", label: "Profile" },
   { to: "/rules", label: "Rules" },
+  { to: "/settings", label: "Settings" },
 ];
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
   const { user, loading, signIn, signOut } = useAuth();
   const { data: member } = useCurrentMember();
-  const visibleLinks = links.filter((l) => l.to !== "/admin" || member?.isAdmin);
+  const { data: permissionsData } = useUserPermissions();
+  const isAdmin = permissionsData?.role === "admin" || permissionsData?.role === "super_admin";
+  const visibleLinks = links.filter((l) => l.to !== "/admin" || isAdmin);
 
   const handleSignIn = async () => {
     try {
@@ -42,6 +47,13 @@ export function SiteHeader() {
       navigate({ to: "/" });
     } catch (error) {
       console.error("Sign out error:", error);
+    }
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate({ to: "/search", search: { q: searchQuery.trim() } });
     }
   };
 
@@ -80,6 +92,19 @@ export function SiteHeader() {
             </Link>
           ))}
         </nav>
+
+        <form onSubmit={handleSearch} className="ml-4 hidden lg:block">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-9 w-48 pl-9 lg:w-64"
+            />
+          </div>
+        </form>
 
         <div className="ml-auto flex items-center gap-2">
           {loading ? (

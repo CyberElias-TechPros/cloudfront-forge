@@ -36,7 +36,7 @@ export const Route = createFileRoute("/queue")({
 const filters = ["All", "Pending", "In progress", "Verified", "Expired"] as const;
 
 function Queue() {
-  const { data: tasks = [] } = useQueueTasks();
+  const { data: tasks = [], isLoading, isError, error } = useQueueTasks();
   const watch = useWatch();
   const [activeId, setActiveId] = useState<string | null>(null);
   const active = tasks.find((t) => t.id === activeId) ?? tasks[0];
@@ -54,14 +54,28 @@ function Queue() {
   const handleClaim = async () => {
     if (!active) return;
     try {
-      await watch.mutateAsync({
+      const result = (await watch.mutateAsync({
         videoId: active.id,
         watchSeconds: elapsed,
         subscribed,
         commented,
-      });
+      })) as {
+        status: string;
+        claimable: boolean;
+        xpAwarded: number;
+        creditsAwarded: number;
+        subReason?: string;
+      };
       setClaimedIds((ids) => [...ids, active.id]);
-      toast.success(`Claimed +${active.reward} points!`);
+      if (watch.isError) {
+        toast.error("Watch claim failed. Please try again.");
+      } else if (result.xpAwarded > 0 && result.creditsAwarded > 0) {
+        toast.success(`Claimed +${active.reward} points! (${result.status})`);
+      } else if (result.subReason) {
+        toast.info(`Watch recorded: ${result.subReason}`);
+      } else {
+        toast.success(`Claimed +${active.reward} points!`);
+      }
     } catch (error) {
       console.error("Watch claim error:", error);
       toast.error("Could not claim right now. Try again.");
@@ -85,7 +99,9 @@ function Queue() {
 
   const pct = Math.round((elapsed / (active?.requiredSec ?? 1)) * 100);
   const watchDone = elapsed >= (active?.requiredSec ?? 0);
-  const claimable = watchDone && subscribed && commented;
+  // Use the watch hook's status if available, otherwise compute from subs/comment/duration
+  const hookStatus = (watch.status as string) ?? "started";
+  const claimable = hookStatus === "claimed" || (watchDone && subscribed && commented);
 
   const shown = tasks.filter((t) =>
     filter === "All"
@@ -100,6 +116,38 @@ function Queue() {
   );
 
   if (!active) {
+    if (isLoading) {
+      return (
+        <Shell>
+          <PageHeader
+            eyebrow="Fair rotation"
+            title="Watch Queue"
+            description="The timer only counts while the video is playing and in focus. Random attention checks keep it honest."
+          />
+          <div className="flex min-h-[50vh] items-center justify-center">
+            <div className="text-center">
+              <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+              <p className="text-sm text-muted-foreground">Loading queue...</p>
+            </div>
+          </div>
+        </Shell>
+      );
+    }
+    if (isError) {
+      return (
+        <Shell>
+          <PageHeader
+            eyebrow="Fair rotation"
+            title="Watch Queue"
+            description="The timer only counts while the video is playing and in focus. Random attention checks keep it honest."
+          />
+          <div className="mt-6 surface p-6 text-center text-destructive">
+            <p className="text-sm">Failed to load watch queue. Please try again later.</p>
+            <p className="mt-1 text-xs text-muted-foreground">{(error as Error).message}</p>
+          </div>
+        </Shell>
+      );
+    }
     return (
       <Shell>
         <PageHeader
@@ -195,7 +243,9 @@ function Queue() {
                 ? "Claimed"
                 : watch.isPending
                   ? "Claiming…"
-                  : `Claim +${active.reward} points`}
+                  : claimable
+                    ? `Claim +${active.reward} points`
+                    : `${hookStatus === "verified" ? "Watch verified" : hookStatus === "started" ? "Start watching" : "Claim unavailable"}`}
             </button>
 
             <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">

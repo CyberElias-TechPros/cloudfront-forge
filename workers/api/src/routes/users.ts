@@ -3,7 +3,9 @@ import { createResponse, createErrorResponse } from "../middleware/errorHandler"
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { paginationSchema } from "../middleware/validation";
+import { sanitize } from "../lib/sanitize";
 import { z } from "zod";
+import { createLogger } from "../lib/logger";
 
 const updateProfileSchema = z.object({
   displayName: z.string().min(1).optional(),
@@ -28,6 +30,7 @@ export const userRoutes = [
     method: "GET",
     pattern: "^\\/api\\/v1/users/([^/]+)$",
     handler: async (request: Request, env: Env): Promise<Response> => {
+      const logger = createLogger(env);
       try {
         const url = new URL(request.url);
         const path = url.pathname;
@@ -58,7 +61,7 @@ export const userRoutes = [
           profile: profile,
         });
       } catch (error) {
-        console.error("Get user error:", error);
+        logger.error("Get user error", error);
         return createErrorResponse("INTERNAL_ERROR", "Failed to get user", 500);
       }
     },
@@ -116,6 +119,7 @@ export const userRoutes = [
     method: "PUT",
     path: "/api/v1/users/me/profile",
     handler: async (request: Request, env: Env): Promise<Response> => {
+      const logger = createLogger(env);
       try {
         const userId = await requireAuth(request, env);
         const body = (await request.json().catch(() => ({}))) as any;
@@ -139,6 +143,9 @@ export const userRoutes = [
 
         const now = new Date().toISOString();
 
+        const sanitizedDisplayName = body.displayName ? sanitize(body.displayName) : null;
+        const sanitizedBio = body.bio ? sanitize(body.bio) : null;
+
         if (existingProfile) {
           await db.execute(
             `UPDATE creator_profiles SET bio = ?, country = ?, language = ?, 
@@ -146,7 +153,7 @@ export const userRoutes = [
              looking_for = ?, public_profile = ?, updated_at = ?
              WHERE user_id = ?`,
             [
-              body.bio ?? existingProfile.bio,
+              sanitizedBio ?? existingProfile.bio,
               body.country ?? existingProfile.country,
               body.language ?? existingProfile.language,
               body.experienceLevel ?? existingProfile.experience_level,
@@ -168,7 +175,7 @@ export const userRoutes = [
             [
               crypto.randomUUID(),
               userId,
-              body.bio ?? null,
+              sanitizedBio ?? null,
               body.country ?? null,
               body.language ?? null,
               body.experienceLevel ?? null,
@@ -248,33 +255,25 @@ export const userRoutes = [
           return createErrorResponse("NOT_FOUND", "User not found", 404);
         }
 
-        const profile = await db.querySingle(
-          "SELECT * FROM creator_profiles WHERE user_id = ?",
-          [userId],
-        );
+        const profile = await db.querySingle("SELECT * FROM creator_profiles WHERE user_id = ?", [
+          userId,
+        ]);
         const channel = await db.querySingle(
           "SELECT * FROM youtube_channels WHERE user_id = ? ORDER BY created_at DESC",
           [userId],
         );
-        const xp = await db.querySingle(
-          "SELECT * FROM xp_accounts WHERE user_id = ?",
-          [userId],
-        );
+        const xp = await db.querySingle("SELECT * FROM xp_accounts WHERE user_id = ?", [userId]);
         const reputation = await db.querySingle(
           "SELECT * FROM reputation_accounts WHERE user_id = ?",
           [userId],
         );
-        const adminRow = await db.querySingle(
-          "SELECT role FROM admin_users WHERE user_id = ?",
-          [userId],
-        );
-        const isAdmin = !!(
-          adminRow && ["super_admin", "admin"].includes(adminRow.role)
-        );
-        const streaks = await db.query(
-          "SELECT current_streak FROM streaks WHERE user_id = ?",
-          [userId],
-        );
+        const adminRow = await db.querySingle("SELECT role FROM admin_users WHERE user_id = ?", [
+          userId,
+        ]);
+        const isAdmin = !!(adminRow && ["super_admin", "admin"].includes(adminRow.role));
+        const streaks = await db.query("SELECT current_streak FROM streaks WHERE user_id = ?", [
+          userId,
+        ]);
 
         const maxStreak = streaks.results.reduce(
           (max: number, s: any) => Math.max(max, s.current_streak ?? 0),

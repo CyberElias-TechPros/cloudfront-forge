@@ -2,7 +2,16 @@ import type { Env } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
+import { sanitize } from "../lib/sanitize";
 import { z } from "zod";
+import { createLogger } from "../lib/logger";
+
+function getPagination(request: Request): { limit: number; offset: number } {
+  const { searchParams } = new URL(request.url);
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "50", 10)));
+  const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10));
+  return { limit, offset };
+}
 
 const createNotificationSchema = z.object({
   type: z.string().min(1),
@@ -29,24 +38,32 @@ export const notificationRoutes = [
         const userId = await requireAuth(request, env);
         const { searchParams } = new URL(request.url);
         const isRead = searchParams.get("isRead");
-        const limit = parseInt(searchParams.get("limit") ?? "50", 10);
+        const { limit, offset } = getPagination(request);
 
         const db = new Database(env);
-        let result;
 
+        const countQuery = `SELECT COUNT(*) as count FROM notifications WHERE user_id = ? ${isRead === "false" ? "AND is_read = 0" : ""}`;
+        const countResult = await db.query(countQuery, [userId]);
+
+        let result;
         if (isRead === "false") {
           result = await db.query(
-            "SELECT * FROM notifications WHERE user_id = ? AND is_read = 0 ORDER BY created_at DESC LIMIT ?",
-            [userId, limit],
+            "SELECT * FROM notifications WHERE user_id = ? AND is_read = 0 ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            [userId, limit, offset],
           );
         } else {
           result = await db.query(
-            "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
-            [userId, limit],
+            "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            [userId, limit, offset],
           );
         }
 
-        return createResponse(result.results);
+        return createResponse({
+          items: result.results,
+          total: countResult.results[0]?.count ?? 0,
+          limit,
+          offset,
+        });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
@@ -60,6 +77,7 @@ export const notificationRoutes = [
     method: "POST",
     path: "/api/v1/notifications",
     handler: async (request: Request, env: Env): Promise<Response> => {
+      const logger = createLogger(env);
       try {
         const userId = await requireAuth(request, env);
         const body = (await request.json().catch(() => ({}))) as any;
@@ -82,9 +100,9 @@ export const notificationRoutes = [
           [
             crypto.randomUUID(),
             userId,
-            body.type,
-            body.title,
-            body.message,
+            sanitize(body.type),
+            sanitize(body.title),
+            sanitize(body.message),
             body.data ? JSON.stringify(body.data) : null,
             now,
           ],
@@ -173,7 +191,6 @@ export const notificationRoutes = [
         const db = new Database(env);
         const now = new Date().toISOString();
 
-        // Check if preferences exist
         const existing = await db.querySingle(
           "SELECT * FROM notification_preferences WHERE user_id = ?",
           [userId],

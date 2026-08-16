@@ -2,7 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AlertTriangle, CheckCircle2, Settings2, Users, XCircle } from "lucide-react";
 import { PageHeader, Shell, StatCard } from "@/components/page-parts";
 import { cn } from "@/lib/utils";
-import { useAdminReports, useAdminMetrics, useResolveReport, useAdminUsers, useCurrentMember } from "@/hooks/use-api";
+import {
+  useAdminReports,
+  useAdminMetrics,
+  useResolveReport,
+  useAdminUsers,
+  useCurrentMember,
+  useUserPermissions,
+} from "@/hooks/use-api";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -24,12 +31,14 @@ export const Route = createFileRoute("/admin")({
 });
 
 function Admin() {
-  const { data: member, isLoading: memberLoading } = useCurrentMember();
+  const { isLoading: memberLoading } = useCurrentMember();
+  const { data: permissionsData } = useUserPermissions();
   const flagsQuery = useAdminReports("pending");
   const statsQuery = useAdminMetrics();
   const resolveReportMutation = useResolveReport();
   const usersQuery = useAdminUsers("active");
   const users = usersQuery.data ?? [];
+  const isAdmin = permissionsData?.role === "admin" || permissionsData?.role === "super_admin";
 
   if (memberLoading) {
     return (
@@ -39,7 +48,7 @@ function Admin() {
     );
   }
 
-  if (!member?.isAdmin) {
+  if (!isAdmin) {
     return (
       <Shell>
         <div className="py-16 text-center">

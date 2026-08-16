@@ -18,8 +18,6 @@ import {
   useJoinCommunity,
   useCurrentMember,
 } from "@/hooks/use-api";
-import type { Community } from "@/lib/api-client";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -60,7 +58,7 @@ function Communities() {
   const [description, setDescription] = useState("");
   const [maxMembers, setMaxMembers] = useState("25");
 
-  const { data: communities, isLoading } = useCommunities();
+  const { data: communities, isLoading, isError, error } = useCommunities();
   const createCommunity = useCreateCommunity();
   const joinCommunity = useJoinCommunity();
   const { data: member } = useCurrentMember();
@@ -275,6 +273,11 @@ function Communities() {
         {isLoading ? (
           <div className="surface flex items-center justify-center py-12 text-sm text-muted-foreground">
             Loading communities...
+          </div>
+        ) : isError ? (
+          <div className="surface p-6 text-center text-destructive">
+            <p className="text-sm">Failed to load communities. Please try again later.</p>
+            <p className="mt-1 text-xs text-muted-foreground">{(error as Error).message}</p>
           </div>
         ) : null}
         {!isLoading && filtered.length === 0 ? (

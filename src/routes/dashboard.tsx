@@ -29,20 +29,63 @@ export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
 });
 
-const quests = [
-  { label: "Watch 3 squad videos", done: 2, total: 3, reward: 50 },
-  { label: "Subscribe to 2 new channels", done: 2, total: 2, reward: 30 },
-  { label: "Leave 3 genuine comments", done: 1, total: 3, reward: 40 },
-  { label: "Keep your streak alive", done: 1, total: 1, reward: 25 },
-];
+interface Quest {
+  label: string;
+  done: number;
+  total: number;
+  reward: number;
+}
+
+const quests: Quest[] = [];
 
 function Dashboard() {
-  const { data: xp } = useXp();
-  const { data: streaks } = useStreaks();
-  const { data: member } = useCurrentMember();
-  const { data: tasks = [] } = useQueueTasks();
-  const { data: submissions = [] } = useSubmissions();
-  const { data: activity = [] } = useActivity();
+  const { data: xp, isLoading: xpLoading, isError: xpError } = useXp();
+  const { data: streaks, isLoading: streaksLoading, isError: streaksError } = useStreaks();
+  const { data: member, isLoading: memberLoading, isError: memberError } = useCurrentMember();
+  const { data: tasks = [], isLoading: tasksLoading, isError: tasksError } = useQueueTasks();
+  const {
+    data: submissions = [],
+    isLoading: submissionsLoading,
+    isError: submissionsError,
+  } = useSubmissions();
+  const { data: activity = [], isLoading: activityLoading, isError: activityError } = useActivity();
+
+  const loading =
+    xpLoading ||
+    streaksLoading ||
+    memberLoading ||
+    tasksLoading ||
+    submissionsLoading ||
+    activityLoading;
+
+  if (loading) {
+    return (
+      <Shell>
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="text-center">
+            <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <p className="text-sm text-muted-foreground">Loading your dashboard...</p>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  const error =
+    xpError || streaksError || memberError || tasksError || submissionsError || activityError;
+  if (error) {
+    return (
+      <Shell>
+        <PageHeader eyebrow="" title="Dashboard" description="" />
+        <div className="mt-6 surface p-6 text-center text-destructive">
+          <p className="text-sm">Failed to load dashboard data. Please try again later.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {(error as unknown as Error).message}
+          </p>
+        </div>
+      </Shell>
+    );
+  }
 
   const currentUser = member ?? {
     id: "",
@@ -62,6 +105,19 @@ function Dashboard() {
 
   const points = xp?.totalXp ?? currentUser.points;
   const streak = streaks?.currentStreak ?? currentUser.streak;
+
+  if (loading) {
+    return (
+      <Shell>
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="text-center">
+            <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <p className="text-sm text-muted-foreground">Loading your dashboard...</p>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
 
   return (
     <Shell>

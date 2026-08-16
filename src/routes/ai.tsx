@@ -102,11 +102,8 @@ export default function AiAssistant() {
       setMessages([...optimistic, { role: "assistant", content: res.reply }]);
       setActiveId(res.conversationId);
       loadConversations();
-    } catch (err: any) {
-      const msg =
-        err?.response?.data?.error?.message ||
-        err?.message ||
-        "Something went wrong. Try again.";
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
       setError(msg);
       setMessages(messages);
     } finally {
@@ -134,9 +131,7 @@ export default function AiAssistant() {
           </button>
           <div className="mt-3 flex-1 space-y-1 overflow-y-auto">
             {conversations.length === 0 ? (
-              <p className="px-2 py-4 text-xs text-muted-foreground">
-                No saved conversations yet.
-              </p>
+              <p className="px-2 py-4 text-xs text-muted-foreground">No saved conversations yet.</p>
             ) : (
               conversations.map((c) => (
                 <div
@@ -177,8 +172,8 @@ export default function AiAssistant() {
               <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
                 <Sparkles className="size-8 text-accent" />
                 <p className="mt-3 max-w-sm text-sm">
-                  Start by asking something like “How do I grow my YouTube watch time
-                  organically?” or “Explain how peer reviews work on LoopSquad.”
+                  Start by asking something like “How do I grow my YouTube watch time organically?”
+                  or “Explain how peer reviews work on LoopSquad.”
                 </p>
               </div>
             ) : (
@@ -188,8 +183,7 @@ export default function AiAssistant() {
                   <div
                     key={i}
                     className={
-                      "flex items-start gap-3 " +
-                      (m.role === "user" ? "flex-row-reverse" : "")
+                      "flex items-start gap-3 " + (m.role === "user" ? "flex-row-reverse" : "")
                     }
                   >
                     <span className="grid size-8 shrink-0 place-items-center rounded-full bg-secondary text-accent">

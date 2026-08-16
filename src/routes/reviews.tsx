@@ -59,7 +59,6 @@ function Reviews() {
 
   const filtered = filter === "all" ? reviews : reviews.filter((r) => r.status === filter);
 
-  const assigned = reviews.filter((r) => r.status === "assigned");
   const inProgress = reviews.filter((r) => r.status === "in_progress");
   const completed = reviews.filter((r) => r.status === "completed");
   const overdue = reviews.filter((r) => r.status === "overdue");
@@ -398,29 +397,6 @@ function ReviewDialogContent({
         </Button>
       </DialogFooter>
     </DialogContent>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  hint,
-  icon,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  icon?: React.ReactNode;
-}) {
-  return (
-    <div className="surface p-5">
-      <div className="flex items-center justify-between">
-        <p className="text-xs uppercase tracking-widest text-muted-foreground">{label}</p>
-        {icon ? <span className="text-accent">{icon}</span> : null}
-      </div>
-      <p className="mt-3 font-display text-4xl leading-none">{value}</p>
-      {hint ? <p className="mt-2 text-xs text-muted-foreground">{hint}</p> : null}
-    </div>
   );
 }
 

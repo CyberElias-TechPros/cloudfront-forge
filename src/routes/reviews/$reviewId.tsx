@@ -3,10 +3,9 @@ import { ArrowLeft, Star } from "lucide-react";
 import { PageHeader, Shell } from "@/components/page-parts";
 import { useReview } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/reviews/$reviewId")({
-  head: ({ params }) => {
+  head: () => {
     return {
       meta: [{ title: "Review — LoopSquad" }],
     };

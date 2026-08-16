@@ -5,15 +5,22 @@ export interface Env {
   KV_CACHE: KVNamespace;
   ASSETS_BUCKET: R2Bucket;
   FIREBASE_PROJECT_ID: string;
-  FIREBASE_CLIENT_EMAIL: string;
-  FIREBASE_PRIVATE_KEY: string;
   YOUTUBE_API_KEY: string;
   AI_PROVIDER: string;
   AI_API_KEY: string;
   AI_MODEL: string;
-  JWT_SECRET: string;
-  ENCRYPTION_KEY: string;
   ENVIRONMENT: string;
+  CORS_ORIGINS: string;
+  YOUTUBE_OAUTH_CLIENT_ID?: string;
+  YOUTUBE_OAUTH_CLIENT_SECRET?: string;
+  YOUTUBE_OAUTH_REDIRECT_URI?: string;
+  REQUIRED_WATCH_SEC?: string;
+  REWARD_XP?: string;
+  REWARD_CREDITS?: string;
+  RATE_LIMIT_MAX_REQUESTS?: string;
+  AUTH_RATE_LIMIT_MAX_REQUESTS?: string;
+  RATE_LIMIT_WINDOW?: string;
+  AUTH_RATE_LIMIT_WINDOW?: string;
 }
 
 export interface User {

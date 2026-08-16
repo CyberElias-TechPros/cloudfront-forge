@@ -5,7 +5,6 @@ import { signInWithGoogle, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth/signin")({
   beforeLoad: async () => {
@@ -25,7 +24,7 @@ function SignIn() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
-          const token = await user.getIdToken();
+          await user.getIdToken();
           await api.post("/api/v1/auth/register", {
             firebaseUid: user.uid,
             email: user.email,

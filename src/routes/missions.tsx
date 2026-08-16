@@ -50,9 +50,9 @@ function Missions() {
     "all" | "assigned" | "in_progress" | "completed" | "expired"
   >("all");
 
-  const { data: missionAssignments = [], isLoading } = useMissionAssignments();
+  const { data: missionAssignments = [], isLoading, isError, error } = useMissionAssignments();
   const completeMission = useCompleteMission();
-  const { data: member } = useCurrentMember();
+  const { data: member, isLoading: memberLoading, isError: memberError } = useCurrentMember();
   const { data: availableMissions = [] } = useMissions();
   const assignMission = useAssignMission();
 
@@ -63,11 +63,38 @@ function Missions() {
     try {
       await assignMission.mutateAsync(missionId);
       toast.success("Mission accepted! It's now in your list.");
-    } catch (error) {
-      console.error("Accept error:", error);
+    } catch (err) {
+      console.error("Accept error:", err);
       toast.error("Could not accept this mission right now.");
     }
   };
+
+  if (isLoading || memberLoading) {
+    return (
+      <Shell>
+        <PageHeader eyebrow="" title="Missions" description="" />
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="text-center">
+            <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <p className="text-sm text-muted-foreground">Loading missions...</p>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  const missionError = isError ? error : memberError;
+  if (missionError) {
+    return (
+      <Shell>
+        <PageHeader eyebrow="" title="Missions" description="" />
+        <div className="mt-6 surface p-6 text-center text-destructive">
+          <p className="text-sm">Failed to load missions. Please try again later.</p>
+          <p className="mt-1 text-xs text-muted-foreground">{(missionError as Error).message}</p>
+        </div>
+      </Shell>
+    );
+  }
 
   const currentUser = member ?? {
     id: "",
@@ -171,10 +198,7 @@ function Missions() {
           <h2 className="mb-3 text-2xl">Discover missions</h2>
           <div className="space-y-3">
             {discover.map((m: Mission) => (
-              <article
-                key={m.id}
-                className="surface flex items-center justify-between gap-4 p-5"
-              >
+              <article key={m.id} className="surface flex items-center justify-between gap-4 p-5">
                 <div className="flex items-center gap-4">
                   <Thumb hue={330} label={m.category} />
                   <div>
@@ -189,9 +213,7 @@ function Missions() {
                       >
                         {m.difficulty}
                       </span>
-                      <span className="text-muted-foreground">
-                        ~{m.estimatedTimeMins} min
-                      </span>
+                      <span className="text-muted-foreground">~{m.estimatedTimeMins} min</span>
                       <span className="text-muted-foreground">
                         +{m.reward.xp} XP
                         {m.reward.credits > 0 ? ` · +${m.reward.credits} credits` : ""}

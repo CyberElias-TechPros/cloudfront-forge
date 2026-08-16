@@ -8,14 +8,32 @@ import {
 } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: import.meta.env["VITE_FIREBASE_API_KEY"] || "AIzaSyAqcPLTHaIujDMj_lXUxM9bang2AGW6AVA",
-  authDomain: import.meta.env["VITE_FIREBASE_AUTH_DOMAIN"] || "creator-loop-ring.firebaseapp.com",
-  projectId: import.meta.env["VITE_FIREBASE_PROJECT_ID"] || "creator-loop-ring",
-  storageBucket: import.meta.env["VITE_FIREBASE_STORAGE_BUCKET"] || "creator-loop-ring.firebasestorage.app",
-  messagingSenderId: import.meta.env["VITE_FIREBASE_MESSAGING_SENDER_ID"] || "365634472671",
-  appId: import.meta.env["VITE_FIREBASE_APP_ID"] || "1:365634472671:web:cfbd912ccc8563edf7b76a",
-  measurementId: import.meta.env["VITE_FIREBASE_MEASUREMENT_ID"] || "G-DB32W6M1R8",
+  apiKey: import.meta.env["VITE_FIREBASE_API_KEY"],
+  authDomain: import.meta.env["VITE_FIREBASE_AUTH_DOMAIN"],
+  projectId: import.meta.env["VITE_FIREBASE_PROJECT_ID"],
+  storageBucket: import.meta.env["VITE_FIREBASE_STORAGE_BUCKET"],
+  messagingSenderId: import.meta.env["VITE_FIREBASE_MESSAGING_SENDER_ID"],
+  appId: import.meta.env["VITE_FIREBASE_APP_ID"],
+  measurementId: import.meta.env["VITE_FIREBASE_MEASUREMENT_ID"],
 };
+
+function validateFirebaseConfig() {
+  const required = [
+    "VITE_FIREBASE_API_KEY",
+    "VITE_FIREBASE_AUTH_DOMAIN",
+    "VITE_FIREBASE_PROJECT_ID",
+    "VITE_FIREBASE_STORAGE_BUCKET",
+    "VITE_FIREBASE_MESSAGING_SENDER_ID",
+    "VITE_FIREBASE_APP_ID",
+  ] as const;
+
+  const missing = required.filter((key) => !import.meta.env[key]);
+  if (missing.length > 0) {
+    throw new Error(`Missing required Firebase environment variables: ${missing.join(", ")}`);
+  }
+}
+
+validateFirebaseConfig();
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);

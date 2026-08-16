@@ -1,6 +1,7 @@
 import type { Env } from "../types";
 import { Database } from "../lib/database";
 import { verifyFirebaseToken } from "../services/firebase";
+import { createLogger } from "../lib/logger";
 
 interface AuthResult {
   userId: string;
@@ -10,6 +11,7 @@ interface AuthResult {
 }
 
 export async function authMiddleware(request: Request, env: Env): Promise<AuthResult> {
+  const logger = createLogger(env);
   const authHeader = request.headers.get("Authorization");
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -27,12 +29,13 @@ export async function authMiddleware(request: Request, env: Env): Promise<AuthRe
       isAuthenticated: true,
     };
   } catch (error) {
-    console.error("Auth middleware error:", error);
+    logger.error("Auth middleware error", error);
     return { userId: "", email: null, emailVerified: false, isAuthenticated: false };
   }
 }
 
 export async function requireAuth(request: Request, env: Env): Promise<string> {
+  const logger = createLogger(env);
   const auth = await authMiddleware(request, env);
 
   if (!auth.isAuthenticated) {
@@ -71,6 +74,7 @@ export async function optionalAuth(request: Request, env: Env): Promise<string |
 }
 
 export async function requireAdmin(request: Request, env: Env): Promise<string> {
+  const logger = createLogger(env);
   const userId = await requireAuth(request, env);
   const db = new Database(env);
 

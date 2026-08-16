@@ -1,13 +1,16 @@
 name = "creatorloop-api"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
-account_id = "c567f93a5269d713595b68c75f8f33c5"
 
 [vars]
 ENVIRONMENT = "production"
 FIREBASE_PROJECT_ID = "creator-loop-ring"
 AI_PROVIDER = "nvidia"
 AI_MODEL = "meta/llama-3.1-8b-instruct"
+CORS_ORIGINS = "https://loop.freegameplay.site"
+YOUTUBE_OAUTH_CLIENT_ID = ""
+YOUTUBE_OAUTH_CLIENT_SECRET = ""
+YOUTUBE_OAUTH_REDIRECT_URI = "https://creatorloop-api.autumn-surf-21ec.workers.dev/api/v1/youtube/oauth/callback"
 
 # D1 Database
 [[d1_databases]]
@@ -23,6 +26,9 @@ tag = "002_watch_sessions"
 
 [[migrations]]
 tag = "003_reputation_columns"
+
+[[migrations]]
+tag = "004_youtube_oauth"
 
 # KV Namespaces
 [[kv_namespaces]]
