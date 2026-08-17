@@ -1,10 +1,11 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, type FirebaseApp } from "firebase/app";
 import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
   signOut,
   onAuthStateChanged,
+  type Auth,
 } from "firebase/auth";
 
 const firebaseConfig = {
@@ -17,32 +18,61 @@ const firebaseConfig = {
   measurementId: import.meta.env["VITE_FIREBASE_MEASUREMENT_ID"],
 };
 
-function validateFirebaseConfig() {
-  const required = [
-    "VITE_FIREBASE_API_KEY",
-    "VITE_FIREBASE_AUTH_DOMAIN",
-    "VITE_FIREBASE_PROJECT_ID",
-    "VITE_FIREBASE_STORAGE_BUCKET",
-    "VITE_FIREBASE_MESSAGING_SENDER_ID",
-    "VITE_FIREBASE_APP_ID",
-  ] as const;
+const REQUIRED_FIREBASE_ENV_VARS = [
+  "VITE_FIREBASE_API_KEY",
+  "VITE_FIREBASE_AUTH_DOMAIN",
+  "VITE_FIREBASE_PROJECT_ID",
+  "VITE_FIREBASE_STORAGE_BUCKET",
+  "VITE_FIREBASE_MESSAGING_SENDER_ID",
+  "VITE_FIREBASE_APP_ID",
+] as const;
 
-  const missing = required.filter((key) => !import.meta.env[key]);
+let app: FirebaseApp | null = null;
+let authInstance: Auth | null = null;
+let configError: string | null = null;
+
+function initFirebase(): void {
+  if (app) return;
+  // Never initialize Firebase during SSR (Node). Auth is browser-only.
+  if (typeof window === "undefined") return;
+  const missing = REQUIRED_FIREBASE_ENV_VARS.filter((key) => !import.meta.env[key]);
   if (missing.length > 0) {
-    throw new Error(`Missing required Firebase environment variables: ${missing.join(", ")}`);
+    configError = `Firebase is not configured. Missing env vars: ${missing.join(", ")}`;
+    console.warn(configError);
+    return;
+  }
+  try {
+    app = initializeApp(firebaseConfig);
+    authInstance = getAuth(app);
+  } catch (error) {
+    configError =
+      "Firebase initialization failed: " + (error instanceof Error ? error.message : String(error));
+    console.error(configError);
   }
 }
 
-validateFirebaseConfig();
+initFirebase();
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
+export const auth: Auth | null = authInstance;
+export const googleProvider: GoogleAuthProvider | null = authInstance
+  ? new GoogleAuthProvider()
+  : null;
+
+function assertAuthConfigured(): Auth {
+  if (!authInstance || !googleProvider) {
+    throw new Error(configError ?? "Firebase auth is not available");
+  }
+  return authInstance;
+}
 
 export const signInWithGoogle = async () => {
+  const firebaseAuth = assertAuthConfigured();
+  if (!googleProvider) {
+    throw new Error("Google sign-in is not available: Firebase is not configured");
+  }
+  const provider = googleProvider;
   try {
-    const result = await signInWithPopup(auth, googleProvider);
-    return result;
+    return await signInWithPopup(firebaseAuth, provider);
   } catch (error) {
     console.error("Sign in error:", error);
     throw error;
@@ -50,8 +80,9 @@ export const signInWithGoogle = async () => {
 };
 
 export const signOutUser = async () => {
+  const firebaseAuth = assertAuthConfigured();
   try {
-    await signOut(auth);
+    await signOut(firebaseAuth);
   } catch (error) {
     console.error("Sign out error:", error);
     throw error;
@@ -63,8 +94,12 @@ import { getDevSession, mintDevToken, devEnabled } from "./dev-auth";
 
 export const getCurrentUser = (): Promise<User | null> => {
   return new Promise((resolve, reject) => {
+    if (!authInstance) {
+      resolve(null);
+      return;
+    }
     const unsubscribe = onAuthStateChanged(
-      auth,
+      authInstance,
       (user) => {
         unsubscribe();
         resolve(user);
@@ -76,7 +111,7 @@ export const getCurrentUser = (): Promise<User | null> => {
 
 export const getIdToken = async (): Promise<string | null> => {
   try {
-    const user = auth.currentUser;
+    const user = authInstance?.currentUser;
     if (user) {
       return await user.getIdToken();
     }

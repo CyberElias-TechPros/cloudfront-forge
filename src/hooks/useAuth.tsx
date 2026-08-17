@@ -59,6 +59,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
       if (user) {
@@ -143,10 +147,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Ensure auth token is attached after user state stabilizes
   useEffect(() => {
+    if (!auth) return;
+    const firebaseAuth = auth;
     const handleAuthState = async () => {
       if (firebaseUser) {
         try {
-          const user = auth.currentUser;
+          const user = firebaseAuth.currentUser;
           if (user) {
             const token = await user.getIdToken();
             if (token) {

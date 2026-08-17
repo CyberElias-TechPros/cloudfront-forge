@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/auth/signin")({
   beforeLoad: async () => {
-    const user = auth.currentUser;
+    const user = auth?.currentUser;
     if (user) {
       throw redirect({ to: "/dashboard" });
     }
@@ -21,6 +21,7 @@ function SignIn() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
