@@ -18,5 +18,7 @@ export function validateFrontendEnv(): void {
   if (import.meta.env.DEV) {
     throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
   }
-  console.warn(`Missing environment variables (auth features will be degraded): ${missing.join(", ")}`);
+  console.warn(
+    `Missing environment variables (auth features will be degraded): ${missing.join(", ")}`,
+  );
 }

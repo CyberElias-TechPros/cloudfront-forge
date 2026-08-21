@@ -31,23 +31,38 @@ let app: FirebaseApp | null = null;
 let authInstance: Auth | null = null;
 let configError: string | null = null;
 
+function validateFirebaseConfig(): string | null {
+  const missing = REQUIRED_FIREBASE_ENV_VARS.filter((key) => {
+    const value = import.meta.env[key];
+    return !value || value.includes("placeholder") || value.includes("your-");
+  });
+
+  if (missing.length > 0) {
+    return `Firebase is not properly configured. Missing or placeholder env vars: ${missing.join(", ")}. See FIREBASE_SETUP.md for configuration instructions.`;
+  }
+  return null;
+}
+
 function initFirebase(): void {
   if (app) return;
   // Never initialize Firebase during SSR (Node). Auth is browser-only.
   if (typeof window === "undefined") return;
-  const missing = REQUIRED_FIREBASE_ENV_VARS.filter((key) => !import.meta.env[key]);
-  if (missing.length > 0) {
-    configError = `Firebase is not configured. Missing env vars: ${missing.join(", ")}`;
+
+  const validationError = validateFirebaseConfig();
+  if (validationError) {
+    configError = validationError;
     console.warn(configError);
     return;
   }
+
   try {
     app = initializeApp(firebaseConfig);
     authInstance = getAuth(app);
+    console.debug("Firebase initialized successfully");
   } catch (error) {
     configError =
       "Firebase initialization failed: " + (error instanceof Error ? error.message : String(error));
-    console.error(configError);
+    console.error(configError, error);
   }
 }
 
@@ -74,7 +89,15 @@ export const signInWithGoogle = async () => {
   try {
     return await signInWithPopup(firebaseAuth, provider);
   } catch (error) {
-    console.error("Sign in error:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("Sign in error:", errorMessage);
+    // Re-throw with more context for user-facing error handling
+    if (errorMessage.includes("popup-closed-by-user")) {
+      throw new Error("Sign-in cancelled");
+    }
+    if (errorMessage.includes("operation-not-allowed")) {
+      throw new Error("Google sign-in is not enabled. Check Firebase Console configuration.");
+    }
     throw error;
   }
 };

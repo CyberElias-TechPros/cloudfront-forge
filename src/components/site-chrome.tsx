@@ -6,20 +6,40 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCurrentMember, useUserPermissions } from "@/hooks/use-api";
 import { Input } from "@/components/ui/input";
 
-const links = [
-  { to: "/dashboard", label: "Dashboard" },
-  { to: "/queue", label: "Watch Queue" },
-  { to: "/submit", label: "Submit Video" },
-  { to: "/communities", label: "Communities" },
-  { to: "/missions", label: "Missions" },
-  { to: "/reviews", label: "Reviews" },
-  { to: "/ai", label: "AI" },
-  { to: "/admin", label: "Admin" },
-  { to: "/gamification", label: "Gamification" },
-  { to: "/leaderboard", label: "Leaderboard" },
-  { to: "/profile", label: "Profile" },
-  { to: "/rules", label: "Rules" },
-  { to: "/settings", label: "Settings" },
+const navGroups = [
+  {
+    label: "Core",
+    links: [
+      { to: "/dashboard", label: "Dashboard" },
+      { to: "/queue", label: "Watch Queue" },
+      { to: "/submit", label: "Submit Video" },
+    ],
+  },
+  {
+    label: "Explore",
+    links: [
+      { to: "/communities", label: "Communities" },
+      { to: "/missions", label: "Missions" },
+      { to: "/reviews", label: "Reviews" },
+      { to: "/leaderboard", label: "Leaderboard" },
+      { to: "/gamification", label: "Gamification" },
+    ],
+  },
+  {
+    label: "Tools",
+    links: [
+      { to: "/ai", label: "AI Assistant" },
+      { to: "/admin", label: "Admin" },
+    ],
+  },
+  {
+    label: "Account",
+    links: [
+      { to: "/profile", label: "Profile" },
+      { to: "/settings", label: "Settings" },
+      { to: "/rules", label: "Rules" },
+    ],
+  },
 ];
 
 export function SiteHeader() {
@@ -30,7 +50,9 @@ export function SiteHeader() {
   const { data: member } = useCurrentMember();
   const { data: permissionsData } = useUserPermissions();
   const isAdmin = permissionsData?.role === "admin" || permissionsData?.role === "super_admin";
-  const visibleLinks = links.filter((l) => l.to !== "/admin" || isAdmin);
+  const visibleGroups = navGroups
+    .map((g) => ({ ...g, links: g.links.filter((l) => l.to !== "/admin" || isAdmin) }))
+    .filter((g) => g.links.length > 0);
 
   const handleSignIn = async () => {
     try {
@@ -80,20 +102,25 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <nav className="ml-4 hidden items-center gap-1 lg:flex">
-          {visibleLinks.map((l) => (
-            <Link
-              key={l.to}
-              to={l.to}
-              className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              activeProps={{ className: "bg-secondary text-foreground" }}
-            >
-              {l.label}
-            </Link>
+        <nav className="ml-4 hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto lg:flex [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {visibleGroups.map((group, gi) => (
+            <div key={group.label} className="flex shrink-0 items-center gap-1">
+              {gi > 0 && <span className="mx-2 h-5 w-px bg-border" aria-hidden="true" />}
+              {group.links.map((l) => (
+                <Link
+                  key={l.to}
+                  to={l.to}
+                  className="shrink-0 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  activeProps={{ className: "bg-secondary text-foreground" }}
+                >
+                  {l.label}
+                </Link>
+              ))}
+            </div>
           ))}
         </nav>
 
-        <form onSubmit={handleSearch} className="ml-4 hidden lg:block">
+        <form onSubmit={handleSearch} className="hidden lg:block">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -101,7 +128,7 @@ export function SiteHeader() {
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 w-48 pl-9 lg:w-64"
+              className="h-9 w-44 pl-9 xl:w-56"
             />
           </div>
         </form>
@@ -163,17 +190,26 @@ export function SiteHeader() {
       </div>
 
       <div className={cn("border-t border-border lg:hidden", open ? "block" : "hidden")}>
-        <nav className="mx-auto grid max-w-7xl gap-1 px-4 py-3">
-          {visibleLinks.map((l) => (
-            <Link
-              key={l.to}
-              to={l.to}
-              onClick={() => setOpen(false)}
-              className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
-              activeProps={{ className: "bg-secondary text-foreground" }}
-            >
-              {l.label}
-            </Link>
+        <nav className="mx-auto max-w-7xl px-4 py-3">
+          {visibleGroups.map((group) => (
+            <div key={group.label} className="mb-3 last:mb-0">
+              <p className="px-3 pb-1.5 pt-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                {group.label}
+              </p>
+              <div className="grid gap-1">
+                {group.links.map((l) => (
+                  <Link
+                    key={l.to}
+                    to={l.to}
+                    onClick={() => setOpen(false)}
+                    className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    activeProps={{ className: "bg-secondary text-foreground" }}
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
           ))}
           {!user && (
             <button

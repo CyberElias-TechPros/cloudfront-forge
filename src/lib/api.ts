@@ -11,6 +11,8 @@ apiClient.interceptors.request.use(async (config) => {
   const token = await getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  } else {
+    console.debug("[API] No authentication token available");
   }
   return config;
 });
@@ -18,8 +20,18 @@ apiClient.interceptors.request.use(async (config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    const status = error.response?.status;
     const message =
       error.response?.data?.error?.message || error.message || "An unexpected error occurred";
+
+    if (status === 401) {
+      console.warn("[API] Authentication required - user may not be logged in or token is invalid");
+    } else if (status === 403) {
+      console.warn("[API] Permission denied");
+    } else if (status >= 500) {
+      console.error("[API] Server error:", status, message);
+    }
+
     return Promise.reject(new Error(message));
   },
 );

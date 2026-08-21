@@ -1,0 +1,128 @@
+{
+  "provider": "omniroute",
+  "baseUrl": "http://localhost:20128/v1",
+  "freeCombos": [
+    {
+      "id": "auto",
+      "name": "Auto (Best Free When Available)",
+      "description": "Default auto-router. Uses free models when available, falls back to paid if needed."
+    },
+    {
+      "id": "auto/best-free",
+      "name": "Auto Best Free",
+      "description": "Routes to the best available free model across all free providers."
+    },
+    {
+      "id": "auto/coding:free",
+      "name": "Auto Coding Free",
+      "description": "Routes to the best available free coding model."
+    },
+    {
+      "id": "auto/cheap",
+      "name": "Auto Cheap",
+      "description": "Routes to the cheapest available model (often free)."
+    },
+    {
+      "id": "auto/offline",
+      "name": "Auto Offline",
+      "description": "Routes to offline/local free models (no upstream API calls)."
+    }
+  ],
+  "freeModels": {
+    "OpenCode Free (oc/*)": [
+      {
+        "id": "oc/big-pickle",
+        "name": "Big Pickle",
+        "context_length": 200000,
+        "capabilities": { "tool_calling": true, "reasoning": true, "thinking": true, "supportsThinking": true }
+      },
+      {
+        "id": "oc/deepseek-v4-flash-free",
+        "name": "DeepSeek V4 Flash Free",
+        "context_length": 1000000,
+        "max_output_tokens": 384000,
+        "capabilities": { "tool_calling": true, "reasoning": true, "thinking": true, "supportsThinking": true }
+      },
+      {
+        "id": "oc/mimo-v2.5-free",
+        "name": "MiMo v2.5 Free",
+        "context_length": 1048576,
+        "max_output_tokens": 131072,
+        "capabilities": { "vision": true, "tool_calling": true, "reasoning": true }
+      },
+      {
+        "id": "oc/hy3-free",
+        "name": "Hy3 Free",
+        "context_length": 200000,
+        "capabilities": { "tool_calling": true, "reasoning": true }
+      },
+      {
+        "id": "oc/nemotron-3-ultra-free",
+        "name": "Nemotron 3 Ultra Free",
+        "context_length": 200000,
+        "capabilities": { "tool_calling": true, "reasoning": true }
+      },
+      {
+        "id": "oc/north-mini-code-free",
+        "name": "North Mini Code Free",
+        "context_length": 200000,
+        "capabilities": { "tool_calling": true, "reasoning": true }
+      }
+    ],
+    "The Old LLM (tllm/*)": [
+      { "id": "tllm/GPT_5", "name": "GPT-5 (The Old LLM)" },
+      { "id": "tllm/GPT_5_1", "name": "GPT-5.1 (The Old LLM)" },
+      { "id": "tllm/GPT_5_2", "name": "GPT-5.2 (The Old LLM)" },
+      { "id": "tllm/GPT_5_3", "name": "GPT-5.3 (The Old LLM)" },
+      { "id": "tllm/GPT_5_4", "name": "GPT-5.4 (The Old LLM)" },
+      { "id": "tllm/GPT_o3_mini", "name": "o3-mini (The Old LLM)" },
+      { "id": "tllm/GPT_o4_mini", "name": "o4-mini (The Old LLM)" },
+      { "id": "tllm/gemini_3_pro", "name": "Gemini 3 Pro (The Old LLM)" },
+      { "id": "tllm/gemini_2_5_pro", "name": "Gemini 2.5 Pro (The Old LLM)" },
+      { "id": "tllm/gemini_2_0_flash", "name": "Gemini 2.0 Flash (The Old LLM)" },
+      { "id": "tllm/gemini_1_5_flash", "name": "Gemini 1.5 Flash (The Old LLM)" },
+      { "id": "tllm/gemini_3_flash", "name": "Gemini 3 Flash (The Old LLM)" },
+      { "id": "tllm/CLAUDE_4_6_OPUS", "name": "Claude 4.6 Opus (The Old LLM)" },
+      { "id": "tllm/CLAUDE_4_6_SONNET", "name": "Claude 4.6 Sonnet (The Old LLM)" },
+      { "id": "tllm/CLAUDE_4_5_HAIKU", "name": "Claude 4.5 Haiku (The Old LLM)" },
+      { "id": "tllm/claude_opus_4", "name": "Claude Opus 4 (The Old LLM)" },
+      { "id": "tllm/claude_sonnet_4", "name": "Claude Sonnet 4 (The Old LLM)" },
+      { "id": "tllm/claude_haiku_3_5", "name": "Claude Haiku 3.5 (The Old LLM)" },
+      { "id": "tllm/GPT_4o", "name": "GPT-4o (The Old LLM)" },
+      { "id": "tllm/openrouter_gpt_4_o", "name": "GPT-4o (The Old LLM)" },
+      { "id": "tllm/openrouter_gpt_4_o_mini", "name": "GPT-4o mini (The Old LLM)" },
+      { "id": "tllm/openrouter_grok_4", "name": "Grok 4 (The Old LLM)" },
+      { "id": "tllm/together_deepseek_v3", "name": "DeepSeek V3 (The Old LLM)" },
+      { "id": "tllm/openrouter_deepseek_r1", "name": "DeepSeek R1 (The Old LLM)" },
+      { "id": "tllm/sonar-pro", "name": "Sonar Pro (The Old LLM)" },
+      { "id": "tllm/deepseek_v4", "name": "DeepSeek V4 (The Old LLM)" }
+    ],
+    "DuckDuckGo AI Chat (ddgw/*)": [
+      { "id": "ddgw/gpt-5.4-mini", "name": "GPT-5.4 Mini", "capabilities": { "vision": true, "effort_tiers": ["none","low","medium","high","xhigh"] } },
+      { "id": "ddgw/gpt-5.4-nano", "name": "GPT-5.4 Nano", "capabilities": { "vision": true, "effort_tiers": ["none","low","medium","high","xhigh"] } },
+      { "id": "ddgw/claude-haiku-4-5", "name": "Claude Haiku 4.5", "capabilities": { "vision": true } },
+      { "id": "ddgw/mistral-small-2603", "name": "Mistral Small 4" },
+      { "id": "ddgw/tinfoil/gpt-oss-120b", "name": "gpt-oss 120B" },
+      { "id": "ddgw/tinfoil/gemma4-31b", "name": "Gemma 4 31B" }
+    ],
+    "Felo (felo/*)": [
+      { "id": "felo/felo-chat", "name": "Felo Chat" },
+      { "id": "felo/felo-search", "name": "Felo Search" },
+      { "id": "felo/felo-scholar", "name": "Felo Scholar" },
+      { "id": "felo/felo-social", "name": "Felo Social" },
+      { "id": "felo/felo-document", "name": "Felo Document" }
+    ],
+    "Chipotle Pepper AI": [
+      { "id": "pepper/pepper-1", "name": "Pepper (Chipotle AI)" }
+    ],
+    "MiMoCode": [
+      { "id": "mcode/mimo-auto", "name": "MiMo Auto" }
+    ],
+    "Veo AI Free (veoaifree-web/veo-free)": [
+      { "id": "veoaifree-web/veo", "name": "VEO 3.1", "type": "video" },
+      { "id": "veo-free/veo", "name": "VEO 3.1", "type": "video" },
+      { "id": "veoaifree-web/seedance", "name": "Seedance", "type": "video" },
+      { "id": "veo-free/seedance", "name": "Seedance", "type": "video" }
+    ]
+  }
+}

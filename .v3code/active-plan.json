@@ -1,0 +1,26 @@
+{
+  "threadId": "vscode-chat-session://local/MDg0Y2VjMDMtZDY3YS00NGUzLWE4OGItNTk5ODhiZTEyODY0",
+  "updatedAt": 1787088431336,
+  "todos": [
+    {
+      "id": "gate",
+      "content": "Gate auth-backed hooks (useCurrentMember/useUserPermissions) so anonymous visitors stop hitting 401s",
+      "status": "in_progress"
+    },
+    {
+      "id": "validate",
+      "content": "Harden env-validation to reject placeholder-shaped Firebase values",
+      "status": "pending"
+    },
+    {
+      "id": "verify",
+      "content": "Verify build + tests",
+      "status": "pending"
+    },
+    {
+      "id": "report",
+      "content": "Report platform-side fixes: real Firebase keys in deploy env, AdSense snippet cleanup",
+      "status": "pending"
+    }
+  ]
+}

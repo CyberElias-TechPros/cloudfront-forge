@@ -95,7 +95,7 @@ function Queue() {
       setElapsed((e) => Math.min(e + 1, active.requiredSec));
     }, 1000);
     return () => clearInterval(id);
-  }, [playing, active?.requiredSec]);
+  }, [playing, active]);
 
   const pct = Math.round((elapsed / (active?.requiredSec ?? 1)) * 100);
   const watchDone = elapsed >= (active?.requiredSec ?? 0);
