@@ -28,7 +28,7 @@ function SignIn() {
 
   useEffect(() => {
     const unsubscribe = watchAuthState(
-      (user) => {
+      (_user) => {
         console.debug("Authentication successful, redirecting to dashboard");
         navigate({ to: "/dashboard" });
       },
