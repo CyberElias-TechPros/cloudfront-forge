@@ -623,15 +623,11 @@ export function useCurrentMember() {
   return useQuery({
     queryKey: ["users", "me", "member"],
     queryFn: async (): Promise<Member> => {
-      try {
-        const data = await apiClientService.users.member();
-        return currentMemberFromApi(data);
-      } catch (error) {
-        console.warn("[useCurrentMember] API unavailable:", error);
-        throw error;
-      }
+      const data = await apiClientService.users.member();
+      return currentMemberFromApi(data);
     },
     retry: shouldRetryAuth,
+    enabled: typeof window !== "undefined" && !!localStorage.getItem("authToken"),
   });
 }
 
@@ -647,6 +643,7 @@ export function useUserPermissions() {
       }
     },
     retry: shouldRetryAuth,
+    enabled: typeof window !== "undefined" && !!localStorage.getItem("authToken"),
   });
 }
 

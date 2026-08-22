@@ -38,8 +38,7 @@ export class YouTubeService {
       client_id: clientId,
       redirect_uri: redirectUri,
       response_type: "code",
-      scope:
-        "https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.analytics.readonly",
+      scope: "https://www.googleapis.com/auth/youtube.readonly",
       access_type: "offline",
       state,
       prompt: "consent",
@@ -179,7 +178,7 @@ export class YouTubeService {
         tokens.accessToken,
         tokens.refreshToken,
         expiresAt,
-        "https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.analytics.readonly",
+        "https://www.googleapis.com/auth/youtube.readonly",
         now,
         now,
       ],

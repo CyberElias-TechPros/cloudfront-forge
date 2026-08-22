@@ -12,6 +12,7 @@ import {
   useNotificationPreferences,
   useUpdateNotificationPreferences,
 } from "@/hooks/use-api";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -205,14 +206,14 @@ function Settings() {
                 <p className="text-sm font-medium">Dark mode</p>
                 <p className="text-xs text-muted-foreground">Use dark theme across the app</p>
               </div>
-              <Switch checked={true} onCheckedChange={() => {}} />
+              <Switch checked={true} onCheckedChange={() => toast.info("Dark mode setting coming soon")} />
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">Public profile</p>
                 <p className="text-xs text-muted-foreground">Allow others to see your profile</p>
               </div>
-              <Switch checked={true} onCheckedChange={() => {}} />
+              <Switch checked={true} onCheckedChange={() => toast.info("Public profile setting coming soon")} />
             </div>
           </CardContent>
         </Card>
