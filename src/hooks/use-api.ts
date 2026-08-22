@@ -43,6 +43,13 @@ const queryKeys = {
   userPermissions: ["auth", "permissions"] as const,
 };
 
+function shouldRetryAuth(failureCount: number, error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (msg.includes("429") || msg.includes("Too many requests") || msg.includes("RATE_LIMITED")) return false;
+  if (msg.includes("401") || msg.includes("Authentication required") || msg.includes("AUTH_REQUIRED")) return false;
+  return failureCount < 1;
+}
+
 function mapCommunity(c: {
   id: string;
   name: string;
@@ -624,6 +631,7 @@ export function useCurrentMember() {
         throw error;
       }
     },
+    retry: shouldRetryAuth,
   });
 }
 
@@ -638,6 +646,7 @@ export function useUserPermissions() {
         return { userId: "", role: "member", permissions: ["read"] };
       }
     },
+    retry: shouldRetryAuth,
   });
 }
 

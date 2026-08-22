@@ -5,6 +5,7 @@ export interface RateLimitOptions {
   maxRequests?: number;
   windowSeconds?: number;
   failClosed?: boolean;
+  keyPrefix?: string;
 }
 
 export async function rateLimitMiddleware(
@@ -20,7 +21,8 @@ export async function rateLimitMiddleware(
   } = options;
 
   const ip = getIP(request);
-  const key = `rate_limit:${ip}`;
+  const prefix = options.keyPrefix || "general";
+  const key = `rate_limit:${prefix}:${ip}`;
 
   try {
     const current = await env.KV_CACHE.get(key, { type: "json" });

@@ -76,9 +76,14 @@ export default {
 
       const isAuthEndpoint = path.startsWith("/api/v1/auth/");
       const rateLimited = await rateLimitMiddleware(request, env, {
-        maxRequests: isAuthEndpoint ? parseInt(env.AUTH_RATE_LIMIT_MAX_REQUESTS || "5", 10) : parseInt(env.RATE_LIMIT_MAX_REQUESTS || "100", 10),
-        windowSeconds: isAuthEndpoint ? parseInt(env.AUTH_RATE_LIMIT_WINDOW || "60", 10) : parseInt(env.RATE_LIMIT_WINDOW || "60", 10),
+        maxRequests: isAuthEndpoint
+          ? parseInt(env.AUTH_RATE_LIMIT_MAX_REQUESTS || "30", 10)
+          : parseInt(env.RATE_LIMIT_MAX_REQUESTS || "100", 10),
+        windowSeconds: isAuthEndpoint
+          ? parseInt(env.AUTH_RATE_LIMIT_WINDOW || "60", 10)
+          : parseInt(env.RATE_LIMIT_WINDOW || "60", 10),
         failClosed: isAuthEndpoint || path.startsWith("/api/v1/admin/"),
+        keyPrefix: isAuthEndpoint ? "auth" : "general",
       });
       if (!rateLimited) {
         return createErrorResponse("RATE_LIMITED", "Too many requests", 429, corsHeaders);
