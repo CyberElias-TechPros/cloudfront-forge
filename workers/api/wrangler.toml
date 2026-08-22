@@ -1,6 +1,7 @@
 name = "creatorloop-api"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
+account_id = "c567f93a5269d713595b68c75f8f33c5"
 
 [vars]
 ENVIRONMENT = "production"
