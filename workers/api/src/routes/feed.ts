@@ -33,6 +33,19 @@ function getPagination(request: Request): { limit: number; offset: number } {
   return { limit, offset };
 }
 
+function extractVideoId(url: string | null): string | null {
+  if (!url) return null;
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+    /youtube\.com\/watch\?.*v=([^&\n?#]+)/,
+  ];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m?.[1]) return m[1];
+  }
+  return null;
+}
+
 export const feedRoutes = [
   {
     method: "GET",
@@ -52,6 +65,7 @@ export const feedRoutes = [
 
         const result = await db.query(
           `SELECT v.id, v.title, v.duration_seconds, v.status, v.created_at, v.user_id,
+                  v.youtube_video_id, v.youtube_url,
                   u.display_name, u.photo_url,
                   ws.status AS watch_status
            FROM videos v
@@ -84,6 +98,8 @@ export const feedRoutes = [
             status,
             postedAgo: timeAgo(v.created_at),
             thumbHue: hueFromId(v.id),
+            youtubeVideoId: v.youtube_video_id ?? extractVideoId(v.youtube_url) ?? "",
+            youtubeUrl: v.youtube_url ?? "",
           };
         });
 

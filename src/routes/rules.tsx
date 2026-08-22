@@ -69,9 +69,9 @@ function Rules() {
   return (
     <Shell>
       <PageHeader
-        eyebrow="Squad constitution"
+        eyebrow="Squad constitution · Platform-wide"
         title="Fairness rules"
-        description="Everything is public: how points are earned, how cheating is caught, and what happens next."
+        description="These platform rules apply to all squads. Per-community custom rules are coming soon — for now every community uses these defaults."
       />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">

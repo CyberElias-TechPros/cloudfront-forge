@@ -139,25 +139,29 @@ function Dashboard() {
         <StatCard
           label="Points"
           value={points.toLocaleString()}
-          hint="+180 today"
+          hint={points > 0 ? `${points} total` : "Earn by watching"}
           icon={<Trophy className="size-4" />}
         />
         <StatCard
           label="Streak"
           value={`${streak} days`}
-          hint="1 day to Streak Keeper badge"
+          hint={streak > 0 ? "Keep it up!" : "Start watching to build streak"}
           icon={<Flame className="size-4" />}
         />
         <StatCard
           label="Give / Take ratio"
-          value={`${(currentUser.subsGiven / currentUser.subsReceived).toFixed(2)}`}
-          hint="Healthy — above 0.90"
+          value={`${(currentUser.subsGiven / Math.max(1, currentUser.subsReceived)).toFixed(2)}`}
+          hint={
+            currentUser.subsGiven / Math.max(1, currentUser.subsReceived) >= 0.9
+              ? "Healthy"
+              : "Watch more to improve"
+          }
           icon={<Users className="size-4" />}
         />
         <StatCard
           label="Trust score"
           value={`${currentUser.trustScore}%`}
-          hint="Top 10% of the squad"
+          hint={currentUser.trustScore >= 90 ? "Excellent" : "Build by verified watches"}
           icon={<Eye className="size-4" />}
         />
       </div>
@@ -170,27 +174,33 @@ function Dashboard() {
               resets in 4h 12m
             </span>
           </div>
-          <ul className="mt-5 space-y-4">
-            {quests.map((q) => {
-              const pct = Math.round((q.done / q.total) * 100);
-              return (
-                <li key={q.label}>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className={pct === 100 ? "text-success" : ""}>{q.label}</span>
-                    <span className="text-muted-foreground">
-                      {q.done}/{q.total} · +{q.reward} pts
-                    </span>
-                  </div>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-secondary">
-                    <div
-                      className={pct === 100 ? "h-full bg-success" : "h-full bg-primary"}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          {quests.length === 0 ? (
+            <p className="mt-5 text-sm text-muted-foreground">
+              No active quests — <Link to="/missions" className="underline">Browse missions</Link> to earn XP.
+            </p>
+          ) : (
+            <ul className="mt-5 space-y-4">
+              {quests.map((q) => {
+                const pct = Math.round((q.done / q.total) * 100);
+                return (
+                  <li key={q.label}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className={pct === 100 ? "text-success" : ""}>{q.label}</span>
+                      <span className="text-muted-foreground">
+                        {q.done}/{q.total} · +{q.reward} pts
+                      </span>
+                    </div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-secondary">
+                      <div
+                        className={pct === 100 ? "h-full bg-success" : "h-full bg-primary"}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
 
           <h3 className="mt-8 text-2xl">Next in your queue</h3>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">

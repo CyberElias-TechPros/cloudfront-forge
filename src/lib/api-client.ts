@@ -197,6 +197,8 @@ export interface QueueTask {
   status: "pending" | "watching" | "verified" | "expired";
   postedAgo: string;
   thumbHue: number;
+  youtubeVideoId: string;
+  youtubeUrl: string;
 }
 
 export interface SubmissionDTO {

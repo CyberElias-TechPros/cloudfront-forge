@@ -37,8 +37,6 @@ function Submit() {
   const submitVideo = useSubmitVideo();
   const [niche, setNiche] = useState("Tech");
   const [boost, setBoost] = useState("Standard");
-  const [target, setTarget] = useState(20);
-  const [minWatch, setMinWatch] = useState(3);
   const [link, setLink] = useState("");
 
   const handleSubmit = async (e: FormEvent) => {
@@ -115,41 +113,14 @@ function Submit() {
             </div>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2">
-            <div>
-              <label
-                htmlFor="target"
-                className="flex items-center justify-between text-sm font-medium"
-              >
-                Watch target <span className="text-muted-foreground">{target} members</span>
-              </label>
-              <input
-                id="target"
-                type="range"
-                min={5}
-                max={50}
-                value={target}
-                onChange={(e) => setTarget(Number(e.target.value))}
-                className="mt-3 w-full accent-[var(--primary)]"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="minwatch"
-                className="flex items-center justify-between text-sm font-medium"
-              >
-                Minimum watch <span className="text-muted-foreground">{minWatch} min</span>
-              </label>
-              <input
-                id="minwatch"
-                type="range"
-                min={1}
-                max={10}
-                value={minWatch}
-                onChange={(e) => setMinWatch(Number(e.target.value))}
-                className="mt-3 w-full accent-[var(--primary)]"
-              />
-            </div>
+          <div className="rounded-lg border border-border bg-secondary/30 p-4">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <Timer className="size-4 text-accent" /> Fixed by platform rules
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Every video requires <span className="font-medium text-foreground">3 min verified watch (180s)</span> — in-focus, not muted, with random attention checks. You don’t set this; the rules do (see <a href="/rules" className="underline">Fairness Rules</a>).
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">Target is automatically 20 watches per video.</p>
           </div>
 
           <div>

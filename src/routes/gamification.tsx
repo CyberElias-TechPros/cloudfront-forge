@@ -111,7 +111,7 @@ function Gamification() {
   const xpToNextLevel = xp?.xpToNextLevel ?? xpForNextLevel - xpForCurrentLevel;
   const xpProgress = Math.max(0, Math.min(xpToNextLevel, currentXP - xpForCurrentLevel));
   const xpPct = Math.round((xpProgress / xpToNextLevel) * 100);
-  const creditBalance = credits?.balance ?? 45;
+  const creditBalance = credits?.balance ?? 0;
   const streak = streaks?.currentStreak ?? currentUser.streak;
   const topMembers = leaderboard.length
     ? leaderboard

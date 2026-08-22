@@ -654,14 +654,10 @@ export function useQueueTasks() {
   return useQuery({
     queryKey: ["feed", "queue"],
     queryFn: async (): Promise<QueueTask[]> => {
-      try {
-        const data = await apiClientService.feed.queue();
-        return data.items;
-      } catch (error) {
-        console.warn("[useQueueTasks] API unavailable, using empty data:", error);
-        return [];
-      }
+      const data = await apiClientService.feed.queue();
+      return data.items;
     },
+    retry: shouldRetryAuth,
   });
 }
 
@@ -669,14 +665,10 @@ export function useSubmissions() {
   return useQuery({
     queryKey: ["feed", "submissions"],
     queryFn: async (): Promise<SubmissionDTO[]> => {
-      try {
-        const data = await apiClientService.feed.submissions();
-        return data.items;
-      } catch (error) {
-        console.warn("[useSubmissions] API unavailable, using empty data:", error);
-        return [];
-      }
+      const data = await apiClientService.feed.submissions();
+      return data.items;
     },
+    retry: shouldRetryAuth,
   });
 }
 
@@ -712,14 +704,10 @@ export function useActivity() {
   return useQuery({
     queryKey: ["feed", "activity"],
     queryFn: async (): Promise<ActivityItem[]> => {
-      try {
-        const data = await apiClientService.feed.activity();
-        return data.items;
-      } catch (error) {
-        console.warn("[useActivity] API unavailable, using empty data:", error);
-        return [];
-      }
+      const data = await apiClientService.feed.activity();
+      return data.items;
     },
+    retry: shouldRetryAuth,
   });
 }
 

@@ -92,10 +92,22 @@ function Queue() {
   useEffect(() => {
     if (!playing || !active) return;
     const id = setInterval(() => {
+      if (document.hidden) return;
       setElapsed((e) => Math.min(e + 1, active.requiredSec));
     }, 1000);
     return () => clearInterval(id);
   }, [playing, active]);
+
+  useEffect(() => {
+    const onVis = () => { if (document.hidden) setPlaying(false); };
+    const onBlur = () => setPlaying(false);
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, []);
 
   const pct = Math.round((elapsed / (active?.requiredSec ?? 1)) * 100);
   const watchDone = elapsed >= (active?.requiredSec ?? 0);
@@ -172,7 +184,20 @@ function Queue() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
         <section className="surface overflow-hidden">
-          <Thumb hue={active.thumbHue} label={active.niche} />
+          {active.youtubeVideoId ? (
+            <div className="relative aspect-video w-full overflow-hidden bg-black">
+              <iframe
+                src={`https://www.youtube.com/embed/${active.youtubeVideoId}?rel=0&modestbranding=1`}
+                title={active.title}
+                className="h-full w-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                loading="lazy"
+              />
+            </div>
+          ) : (
+            <Thumb hue={active.thumbHue} label={active.niche} />
+          )}
           <div className="p-6">
             <h2 className="text-3xl">{active.title}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
