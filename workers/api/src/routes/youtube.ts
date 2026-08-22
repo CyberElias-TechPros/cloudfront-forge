@@ -36,6 +36,52 @@ export const youtubeRoutes = [
     },
   },
   {
+    method: "GET",
+    path: "/api/v1/youtube/oauth/callback",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const url = new URL(request.url);
+        const code = url.searchParams.get("code") || undefined;
+        const state = url.searchParams.get("state") || undefined;
+
+        if (!code) {
+          return createErrorResponse("VALIDATION_ERROR", "Authorization code is required", 400);
+        }
+
+        const db = new Database(env);
+        const stateRow = state
+          ? await db.querySingle(
+              "SELECT user_id FROM youtube_oauth_states WHERE state = ? AND created_at >= datetime('now', '-10 minutes')",
+              [state],
+            )
+          : null;
+
+        if (!stateRow) {
+          return createErrorResponse("VALIDATION_ERROR", "Invalid or expired state", 400);
+        }
+
+        const tokens = await youtubeService(env).exchangeCodeForTokens(code);
+        await youtubeService(env).saveTokens(stateRow.user_id, tokens);
+
+        await db.execute("DELETE FROM youtube_oauth_states WHERE state = ?", [state]);
+
+        // Redirect to frontend settings with success - for Google OAuth popup flow
+        const frontendUrl = "https://loop.freegameplay.site/settings?youtube=connected";
+        return Response.redirect(frontendUrl, 302);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        const frontendErrorUrl = `https://loop.freegameplay.site/settings?youtube=error&reason=${encodeURIComponent(message)}`;
+        if (message === "YOUTUBE_OAUTH_NOT_CONFIGURED") {
+          return Response.redirect(frontendErrorUrl, 302);
+        }
+        if (message.includes("YOUTUBE_TOKEN_EXCHANGE_FAILED")) {
+          return Response.redirect(frontendErrorUrl, 302);
+        }
+        return Response.redirect(frontendErrorUrl, 302);
+      }
+    },
+  },
+  {
     method: "POST",
     path: "/api/v1/youtube/oauth/callback",
     handler: async (request: Request, env: Env): Promise<Response> => {
