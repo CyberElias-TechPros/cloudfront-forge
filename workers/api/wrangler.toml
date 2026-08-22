@@ -7,9 +7,8 @@ ENVIRONMENT = "production"
 FIREBASE_PROJECT_ID = "creator-loop-ring"
 AI_PROVIDER = "nvidia"
 AI_MODEL = "meta/llama-3.1-8b-instruct"
-CORS_ORIGINS = "https://loop.freegameplay.site"
-YOUTUBE_OAUTH_CLIENT_ID = ""
-YOUTUBE_OAUTH_CLIENT_SECRET = ""
+CORS_ORIGINS = "https://loop.freegameplay.site,https://cloudfront-forge.vercel.app"
+YOUTUBE_OAUTH_CLIENT_ID = "365634472671-dvmns559uga32703kf2l9vpgbmts38tl.apps.googleusercontent.com"
 YOUTUBE_OAUTH_REDIRECT_URI = "https://creatorloop-api.autumn-surf-21ec.workers.dev/api/v1/youtube/oauth/callback"
 
 # D1 Database
