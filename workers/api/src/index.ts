@@ -16,6 +16,7 @@ import { watchRoutes } from "./routes/watch";
 import { aiRoutes } from "./routes/ai";
 import { youtubeRoutes } from "./routes/youtube";
 import { searchRoutes } from "./routes/search";
+import { runAllJobs } from "./jobs";
 
 const SECURITY_HEADERS = new Headers({
   "X-Content-Type-Options": "nosniff",
@@ -46,6 +47,10 @@ function validateEnv(env: Env): void {
 }
 
 export default {
+  async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
+    await runAllJobs(env);
+  },
+
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     try {
       validateEnv(env);
