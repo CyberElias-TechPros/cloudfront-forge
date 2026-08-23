@@ -29,11 +29,13 @@ async function verifyYouTubeSubscription(
   videoChannelId: string,
   videoId: string,
   env: Env,
+  requiredWatchSec?: number,
 ): Promise<{ subscribed: boolean; watchVerified: boolean; watchSeconds: number; reason: string }> {
   const logger = createLogger(env);
   const youtube = new YouTubeService(env);
   const accessToken = await youtube.getValidAccessToken(watcherId);
-  const REQUIRED_WATCH_SEC = parseInt(env.REQUIRED_WATCH_SEC || "180", 10);
+  const REQUIRED_WATCH_SEC =
+    requiredWatchSec ?? parseInt(env.REQUIRED_WATCH_SEC || "180", 10);
   let watchVerified = false;
   let watchSeconds = 0;
 
@@ -112,12 +114,21 @@ export const watchRoutes = [
         const db = new Database(env);
 
         const video = await db.querySingle(
-          "SELECT id, user_id, channel_id FROM videos WHERE id = ?",
+          "SELECT id, user_id, channel_id, duration_seconds FROM videos WHERE id = ?",
           [videoId],
         );
         if (!video) {
           return createErrorResponse("NOT_FOUND", "Video not found", 404);
         }
+
+        // Short videos: require at most the full length, capped at REQUIRED_WATCH_SEC
+        const videoDuration =
+          typeof video.duration_seconds === "number" && video.duration_seconds > 0
+            ? video.duration_seconds
+            : null;
+        const requiredWatchSec = videoDuration
+          ? Math.min(REQUIRED_WATCH_SEC, videoDuration)
+          : REQUIRED_WATCH_SEC;
 
         const existing = await db.querySingle(
           "SELECT * FROM watch_sessions WHERE video_id = ? AND watcher_id = ?",
@@ -131,10 +142,17 @@ export const watchRoutes = [
           watchVerified,
           watchSeconds: verifiedWatchSeconds,
           reason: subReason,
-        } = await verifyYouTubeSubscription(db, watcherId, video.channel_id ?? "", videoId, env);
+        } = await verifyYouTubeSubscription(
+          db,
+          watcherId,
+          video.channel_id ?? "",
+          videoId,
+          env,
+          requiredWatchSec,
+        );
 
         const effectiveWatchSeconds = watchVerified ? verifiedWatchSeconds : watchSeconds;
-        const watchClaimable = effectiveWatchSeconds >= REQUIRED_WATCH_SEC && verifiedSubscribed && commented;
+        const watchClaimable = effectiveWatchSeconds >= requiredWatchSec && verifiedSubscribed && commented;
         const claimable = watchClaimable;
 
         if (existing) {
@@ -145,7 +163,7 @@ export const watchRoutes = [
               watchSeconds,
               verifiedSubscribed ? 1 : 0,
               commented ? 1 : 0,
-              claimable ? "claimed" : effectiveWatchSeconds >= REQUIRED_WATCH_SEC ? "verified" : "started",
+              claimable ? "claimed" : effectiveWatchSeconds >= requiredWatchSec ? "verified" : "started",
               claimable ? now : existing.verified_at,
               now,
               existing.id,
@@ -161,7 +179,7 @@ export const watchRoutes = [
               videoId,
               watcherId,
               watchSeconds,
-              claimable ? "claimed" : effectiveWatchSeconds >= REQUIRED_WATCH_SEC ? "verified" : "started",
+              claimable ? "claimed" : effectiveWatchSeconds >= requiredWatchSec ? "verified" : "started",
               verifiedSubscribed ? 1 : 0,
               commented ? 1 : 0,
               claimable ? now : null,
@@ -255,13 +273,13 @@ export const watchRoutes = [
         const status =
           claimable && effectiveSubscribed
             ? "claimed"
-            : effectiveWatchSeconds >= REQUIRED_WATCH_SEC
+            : effectiveWatchSeconds >= requiredWatchSec
               ? "verified"
               : "started";
 
         return createResponse({
           status,
-          claimable: effectiveSubscribed && effectiveWatchSeconds >= REQUIRED_WATCH_SEC,
+          claimable: effectiveSubscribed && effectiveWatchSeconds >= requiredWatchSec,
           xpAwarded,
           creditsAwarded,
           subReason,

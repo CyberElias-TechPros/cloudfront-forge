@@ -85,6 +85,8 @@ export const feedRoutes = [
               : v.watch_status === "verified"
                 ? "watching"
                 : "pending";
+          const REQUIRED_WATCH_SEC = parseInt(env.REQUIRED_WATCH_SEC || "180", 10);
+          const duration = typeof v.duration_seconds === "number" && v.duration_seconds > 0 ? v.duration_seconds : null;
           return {
             id: v.id,
             owner,
@@ -93,7 +95,7 @@ export const feedRoutes = [
             title: v.title ?? "Untitled video",
             niche: "Creator",
             durationSec: v.duration_seconds ?? 0,
-            requiredSec: 180,
+            requiredSec: duration ? Math.min(REQUIRED_WATCH_SEC, duration) : REQUIRED_WATCH_SEC,
             reward: 30,
             status,
             postedAgo: timeAgo(v.created_at),

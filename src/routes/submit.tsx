@@ -126,8 +126,8 @@ function Submit() {
             <p className="flex items-center gap-2 text-sm font-medium">
               <Timer className="size-4 text-accent" /> Fixed by platform rules
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Every video requires <span className="font-medium text-foreground">3 min verified watch (180s)</span> — in-focus, not muted, with random attention checks. You don’t set this; the rules do (see <a href="/rules" className="underline">Fairness Rules</a>).
+<p className="mt-1 text-sm text-muted-foreground">
+              Every video requires a verified watch capped at 3 min (180s) — shorter videos use their full length; in-focus, not muted, with random attention checks. You don't set this; the rules do (see <a href="/rules" className="underline">Fairness Rules</a>).
             </p>
             <p className="mt-2 text-xs text-muted-foreground">Target is automatically 20 watches per video.</p>
           </div>
