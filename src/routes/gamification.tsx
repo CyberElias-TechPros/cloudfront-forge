@@ -13,6 +13,8 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link } from "@tanstack/react-router";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/gamification")({
   head: () => ({
@@ -124,7 +126,7 @@ function Gamification() {
         title="Gamification"
         description="Your XP, credits, streak, and rewards all in one place."
         action={
-          <Button size="sm">
+          <Button size="sm" onClick={() => toast.success("Daily bonus claimed! +10 credits (coming soon — no credits added yet)")}>
             <Gift className="size-4 mr-2" />
             Claim daily login bonus
           </Button>
@@ -310,8 +312,8 @@ function Gamification() {
                   </p>
                 ) : null}
               </div>
-              <Button variant="ghost" size="sm" className="mt-3 w-full">
-                View full leaderboard
+              <Button variant="ghost" size="sm" className="mt-3 w-full" asChild>
+                <Link to="/leaderboard">View full leaderboard</Link>
               </Button>
             </CardContent>
           </Card>
@@ -369,7 +371,7 @@ function ShopItem({
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
       </div>
-      <Button variant="outline" size="sm">
+      <Button variant="outline" size="sm" onClick={() => toast.info(`${name} — shop purchases coming soon, no credits charged`)}>
         <Zap className="size-4 mr-1" />
         {cost}
       </Button>

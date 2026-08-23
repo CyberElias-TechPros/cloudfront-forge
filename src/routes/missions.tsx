@@ -6,6 +6,7 @@ import { PageHeader, Shell, Thumb } from "@/components/page-parts";
 import {
   useMissionAssignments,
   useCompleteMission,
+  useSkipMission,
   useCurrentMember,
   useMissions,
   useAssignMission,
@@ -52,6 +53,7 @@ function Missions() {
 
   const { data: missionAssignments = [], isLoading, isError, error } = useMissionAssignments();
   const completeMission = useCompleteMission();
+  const skipMission = useSkipMission();
   const { data: member, isLoading: memberLoading, isError: memberError } = useCurrentMember();
   const { data: availableMissions = [] } = useMissions();
   const assignMission = useAssignMission();
@@ -327,9 +329,18 @@ function Missions() {
                 ) : m.status === "expired" ? (
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground"
+                    onClick={async () => {
+                      try {
+                        await skipMission.mutateAsync(m.id);
+                        toast.success("Mission skipped");
+                      } catch {
+                        toast.error("Could not skip mission");
+                      }
+                    }}
+                    disabled={skipMission.isPending}
+                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground disabled:opacity-50"
                   >
-                    <RefreshCw className="size-3" /> Skip
+                    <RefreshCw className="size-3" /> {skipMission.isPending ? "Skipping..." : "Skip"}
                   </button>
                 ) : null}
                 <span className="text-xs text-muted-foreground">

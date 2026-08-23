@@ -322,11 +322,13 @@ export const apiClientService = {
       postData<{ message: string; xpAwarded: number; creditsAwarded: number }>(
         `/api/v1/missions/assignments/${assignmentId}/complete`,
       ),
+    skip: (assignmentId: string) =>
+      postData<{ message: string }>(`/api/v1/missions/assignments/${assignmentId}/skip`),
   },
 
   videos: {
     list: () => getData<PaginatedResponse<unknown>>("/api/v1/videos"),
-    create: (data: { youtubeUrl: string; communityId?: string }) =>
+    create: (data: { youtubeUrl: string; communityId?: string; title?: string }) =>
       postData<{ message: string; videoId: string }>("/api/v1/videos", data),
   },
 

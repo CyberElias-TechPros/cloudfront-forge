@@ -247,6 +247,17 @@ export function useCompleteMission() {
   });
 }
 
+export function useSkipMission() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (assignmentId: string) =>
+      apiClientService.missions.skip(assignmentId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.assignments });
+    },
+  });
+}
+
 export function useReviews() {
   return useQuery({
     queryKey: queryKeys.reviews,
@@ -672,7 +683,7 @@ export function useSubmissions() {
 export function useSubmitVideo() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { youtubeUrl: string; communityId?: string }) =>
+    mutationFn: (data: { youtubeUrl: string; communityId?: string; title?: string }) =>
       apiClientService.videos.create(data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["feed", "submissions"] });

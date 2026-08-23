@@ -311,6 +311,44 @@ export const missionRoutes = [
       }
     },
   },
+  {
+    method: "POST",
+    pattern: "^\\/api\\/v1/missions/assignments/([^/]+)/skip$",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const userId = await requireAuth(request, env);
+        const url = new URL(request.url);
+        const parts = url.pathname.split("/");
+        const assignmentId = parts[5];
+
+        const db = new Database(env);
+        const assignment = await db.querySingle(
+          "SELECT * FROM mission_assignments WHERE id = ? AND user_id = ?",
+          [assignmentId, userId],
+        );
+
+        if (!assignment) {
+          return createErrorResponse("NOT_FOUND", "Assignment not found", 404);
+        }
+
+        if (assignment.status === "completed" || assignment.status === "skipped") {
+          return createResponse({ message: "Already completed or skipped" });
+        }
+
+        await db.execute("UPDATE mission_assignments SET status = 'skipped', updated_at = ? WHERE id = ?", [
+          new Date().toISOString(),
+          assignmentId,
+        ]);
+
+        return createResponse({ message: "Mission skipped" });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to skip mission", 500);
+      }
+    },
+  },
 ];
 
 async function notifyUser(db: Database, userId: string, type: string, title: string, message: string): Promise<void> {

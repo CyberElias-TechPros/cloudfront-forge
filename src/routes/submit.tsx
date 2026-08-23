@@ -38,6 +38,7 @@ function Submit() {
   const [niche, setNiche] = useState("Tech");
   const [boost, setBoost] = useState("Standard");
   const [link, setLink] = useState("");
+  const [title, setTitle] = useState("");
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -46,9 +47,12 @@ function Submit() {
       return;
     }
     try {
-      await submitVideo.mutateAsync({ youtubeUrl: link });
+      const payload: { youtubeUrl: string; title?: string } = { youtubeUrl: link };
+      if (title.trim()) payload.title = title.trim();
+      await submitVideo.mutateAsync(payload as any);
       toast.success("Video submitted to the squad queue!");
       setLink("");
+      setTitle("");
     } catch (error) {
       console.error("Submit error:", error);
       toast.error("Could not submit right now. Check the link and try again.");
@@ -83,23 +87,28 @@ function Submit() {
 
           <div>
             <label htmlFor="title" className="text-sm font-medium">
-              Title shown to the squad
+              Title shown to the squad <span className="text-xs text-muted-foreground">(optional — auto-filled from YouTube if blank)</span>
             </label>
             <input
               id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               placeholder="Tecno Camon 40 — 3 weeks later, honest review"
               className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-3 text-sm outline-none placeholder:text-muted-foreground"
             />
           </div>
 
           <div>
-            <p className="text-sm font-medium">Niche</p>
+            <p className="text-sm font-medium">Niche <span className="text-xs text-muted-foreground">· coming soon — not saved yet</span></p>
             <div className="mt-2 flex flex-wrap gap-2">
               {niches.map((n) => (
                 <button
                   key={n}
                   type="button"
-                  onClick={() => setNiche(n)}
+                  onClick={() => {
+                    setNiche(n);
+                    toast.info("Niche filtering coming soon — selection not saved yet");
+                  }}
                   className={cn(
                     "rounded-full border border-border px-3 py-1.5 text-xs",
                     niche === n
@@ -124,13 +133,16 @@ function Submit() {
           </div>
 
           <div>
-            <p className="text-sm font-medium">Placement</p>
+            <p className="text-sm font-medium">Placement <span className="text-xs text-muted-foreground">· boosts coming soon</span></p>
             <div className="mt-2 grid gap-3 sm:grid-cols-3">
               {boosts.map((b) => (
                 <button
                   key={b.label}
                   type="button"
-                  onClick={() => setBoost(b.label)}
+                  onClick={() => {
+                    setBoost(b.label);
+                    if (b.cost > 0) toast.info(`${b.label} boost coming soon — no credits charged yet`);
+                  }}
                   className={cn(
                     "rounded-lg border border-border p-4 text-left",
                     boost === b.label ? "border-primary bg-secondary" : "bg-card",

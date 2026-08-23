@@ -15,6 +15,7 @@ function getPagination(request: Request): { limit: number; offset: number } {
 const submitVideoSchema = z.object({
   youtubeUrl: z.string().url(),
   communityId: z.string().uuid().optional(),
+  title: z.string().min(1).max(200).optional(),
 });
 
 const reviewSchema = z.object({
@@ -131,9 +132,10 @@ export const videoRoutes = [
         }
 
         const metadata = await fetchYouTubeMetadata(youtubeVideoId, env);
+        const finalTitle = validation.data.title?.trim() || metadata.title || "Untitled video";
 
         const videoId = db.uuid();
-        const communityId = body.communityId || null;
+        const communityId = validation.data.communityId || null;
 
         await db.execute(
           `INSERT INTO videos (id, user_id, community_id, youtube_video_id, youtube_url, title, description, thumbnail_url, duration_seconds, status, created_at, updated_at)
@@ -143,8 +145,8 @@ export const videoRoutes = [
             userId,
             communityId,
             youtubeVideoId,
-            body.youtubeUrl,
-            metadata.title,
+            validation.data.youtubeUrl,
+            finalTitle,
             metadata.description,
             metadata.thumbnailUrl,
             metadata.durationSeconds,
@@ -168,7 +170,7 @@ export const videoRoutes = [
         return createResponse({
           message: "Video submitted successfully",
           videoId: videoId,
-          title: metadata.title,
+          title: finalTitle,
           thumbnailUrl: metadata.thumbnailUrl,
         });
       } catch (error: any) {
