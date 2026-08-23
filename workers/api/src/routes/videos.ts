@@ -138,8 +138,8 @@ export const videoRoutes = [
         const communityId = validation.data.communityId || null;
 
         await db.execute(
-          `INSERT INTO videos (id, user_id, community_id, youtube_video_id, youtube_url, title, description, thumbnail_url, duration_seconds, status, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO videos (id, user_id, community_id, youtube_video_id, youtube_url, title, description, thumbnail_url, duration_seconds, channel_id, status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             videoId,
             userId,
@@ -150,6 +150,7 @@ export const videoRoutes = [
             metadata.description,
             metadata.thumbnailUrl,
             metadata.durationSeconds,
+            metadata.channelId,
             "active",
             now,
             now,
@@ -172,6 +173,7 @@ export const videoRoutes = [
           videoId: videoId,
           title: finalTitle,
           thumbnailUrl: metadata.thumbnailUrl,
+          channelId: metadata.channelId,
         });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
@@ -550,8 +552,8 @@ function extractYouTubeId(url: string): string | null {
 
 // Helper: Fetch YouTube metadata
 async function fetchYouTubeMetadata(videoId: string, env: Env): Promise<any> {
-  const cached = await env.KV_CACHE.get(`youtube:meta:${videoId}`, { type: "json" });
-  if (cached) return cached;
+  const cached = (await env.KV_CACHE.get<any>(`youtube:meta:${videoId}`, { type: "json" })) as any;
+  if (cached && cached.channelId) return cached;
 
   if (!env.YOUTUBE_API_KEY || env.YOUTUBE_API_KEY === "placeholder") {
     throw new Error("YOUTUBE_API_KEY not configured");
@@ -577,6 +579,8 @@ async function fetchYouTubeMetadata(videoId: string, env: Env): Promise<any> {
     description: video.snippet?.description ?? "",
     thumbnailUrl: video.snippet?.thumbnails?.medium?.url ?? null,
     durationSeconds: parseDuration(video.contentDetails?.duration),
+    channelId: video.snippet?.channelId ?? null,
+    channelTitle: video.snippet?.channelTitle ?? null,
   };
 
   await env.KV_CACHE.put(`youtube:meta:${videoId}`, JSON.stringify(meta), {
