@@ -8,11 +8,18 @@ import {
   ShieldAlert,
   UserPlus,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader, Shell, Thumb } from "@/components/page-parts";
 import { useQueueTasks, useWatch } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
+
+declare global {
+  interface Window {
+    YT: any;
+    onYouTubeIframeAPIReady: () => void;
+  }
+}
 
 export const Route = createFileRoute("/queue")({
   head: () => ({
@@ -46,6 +53,9 @@ function Queue() {
   const [commented, setCommented] = useState(false);
   const [claimedIds, setClaimedIds] = useState<string[]>([]);
   const [filter, setFilter] = useState<(typeof filters)[number]>("All");
+  const playerRef = useRef<any>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const [ytReady, setYtReady] = useState(false);
 
   const alreadyClaimed = active
     ? claimedIds.includes(active.id) || active.status === "verified"
@@ -108,6 +118,72 @@ function Queue() {
       window.removeEventListener("blur", onBlur);
     };
   }, []);
+
+  // Load YouTube IFrame API
+  useEffect(() => {
+    if (window.YT?.Player) {
+      setYtReady(true);
+      return;
+    }
+    if (document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+      const check = setInterval(() => {
+        if (window.YT?.Player) {
+          setYtReady(true);
+          clearInterval(check);
+        }
+      }, 300);
+      return () => clearInterval(check);
+    }
+    const tag = document.createElement("script");
+    tag.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(tag);
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      if (prev) try { prev(); } catch {}
+      setYtReady(true);
+    };
+    const fallback = setTimeout(() => {
+      if (window.YT?.Player) setYtReady(true);
+    }, 3000);
+    return () => clearTimeout(fallback);
+  }, []);
+
+  // Create YT player when video changes
+  useEffect(() => {
+    if (!active?.youtubeVideoId || !ytReady || !playerContainerRef.current) return;
+    if (playerRef.current?.destroy) {
+      try { playerRef.current.destroy(); } catch {}
+      playerRef.current = null;
+    }
+    try {
+      playerRef.current = new window.YT.Player(playerContainerRef.current, {
+        videoId: active.youtubeVideoId,
+        playerVars: { rel: 0, modestbranding: 1, playsinline: 1, origin: window.location.origin },
+        events: {
+          onStateChange: (e: any) => {
+            if (e.data === 1) setPlaying(true);
+            else if (e.data === 2 || e.data === 0) setPlaying(false);
+          },
+        },
+      });
+    } catch {}
+    return () => {
+      if (playerRef.current?.destroy) {
+        try { playerRef.current.destroy(); } catch {}
+        playerRef.current = null;
+      }
+    };
+  }, [active?.youtubeVideoId, ytReady]);
+
+  // Sync playing to player
+  useEffect(() => {
+    const p = playerRef.current;
+    if (!p?.playVideo || !p?.pauseVideo) return;
+    try {
+      if (playing) p.playVideo();
+      else p.pauseVideo();
+    } catch {}
+  }, [playing]);
 
   const pct = Math.round((elapsed / (active?.requiredSec ?? 1)) * 100);
   const watchDone = elapsed >= (active?.requiredSec ?? 0);
@@ -186,14 +262,18 @@ function Queue() {
         <section className="surface overflow-hidden">
           {active.youtubeVideoId ? (
             <div className="relative aspect-video w-full overflow-hidden bg-black">
-              <iframe
-                src={`https://www.youtube.com/embed/${active.youtubeVideoId}?rel=0&modestbranding=1`}
-                title={active.title}
-                className="h-full w-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                loading="lazy"
-              />
+              <div ref={playerContainerRef} className="h-full w-full" />
+              {!ytReady && (
+                <iframe
+                  key={active.youtubeVideoId}
+                  src={`https://www.youtube.com/embed/${active.youtubeVideoId}?rel=0&modestbranding=1&enablejsapi=1&origin=${typeof window !== "undefined" ? encodeURIComponent(window.location.origin) : ""}`}
+                  title={active.title}
+                  className="absolute inset-0 h-full w-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  loading="lazy"
+                />
+              )}
             </div>
           ) : (
             <Thumb hue={active.thumbHue} label={active.niche} />
@@ -247,14 +327,24 @@ function Queue() {
                 label="I subscribed"
                 done={subscribed}
                 disabled={!watchDone}
-                onClick={() => setSubscribed(true)}
+                onClick={() => {
+                  const url = active.youtubeUrl || (active.youtubeVideoId ? `https://www.youtube.com/watch?v=${active.youtubeVideoId}` : "");
+                  if (url) window.open(url, "_blank", "noopener");
+                  setSubscribed(true);
+                  toast.success("Opened video — please subscribe on YouTube, then return to claim");
+                }}
               />
               <ProofButton
                 icon={<MessageCircle className="size-4" />}
                 label="I left a comment"
                 done={commented}
                 disabled={!watchDone}
-                onClick={() => setCommented(true)}
+                onClick={() => {
+                  const url = active.youtubeUrl || (active.youtubeVideoId ? `https://www.youtube.com/watch?v=${active.youtubeVideoId}` : "");
+                  if (url) window.open(url, "_blank", "noopener");
+                  setCommented(true);
+                  toast.success("Opened video — leave a genuine comment on YouTube, then return to claim");
+                }}
               />
             </div>
 
