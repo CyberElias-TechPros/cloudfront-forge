@@ -53,8 +53,11 @@ function Queue() {
   const [commented, setCommented] = useState(false);
   const [claimedIds, setClaimedIds] = useState<string[]>([]);
   const [filter, setFilter] = useState<(typeof filters)[number]>("All");
+  const [subOpened, setSubOpened] = useState(false);
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
+  const lastSampleRef = useRef<number | null>(null);
+  const playerStateRef = useRef<number>(-1);
   const [ytReady, setYtReady] = useState(false);
 
   const alreadyClaimed = active
@@ -66,7 +69,7 @@ function Queue() {
     try {
       const result = (await watch.mutateAsync({
         videoId: active.id,
-        watchSeconds: elapsed,
+        watchSeconds: Math.round(elapsed),
         subscribed,
         commented,
       })) as {
@@ -97,14 +100,37 @@ function Queue() {
     setPlaying(false);
     setSubscribed(false);
     setCommented(false);
+    setSubOpened(false);
+    lastSampleRef.current = null;
   }, [activeId]);
 
+  // Watch time is sampled from the YouTube player's own clock so the platform
+  // timer matches real playback: buffering doesn't count and seeking doesn't credit.
   useEffect(() => {
     if (!playing || !active) return;
-    const id = setInterval(() => {
+    lastSampleRef.current = null;
+    const tick = () => {
       if (document.hidden) return;
-      setElapsed((e) => Math.min(e + 1, active.requiredSec));
-    }, 1000);
+      const p = playerRef.current;
+      if (p?.getCurrentTime) {
+        if (playerStateRef.current !== 1) return; // only credit while actually PLAYING
+        let cur = 0;
+        try { cur = p.getCurrentTime() ?? 0; } catch { return; }
+        const last = lastSampleRef.current;
+        if (last != null) {
+          const delta = cur - last;
+          // normal progression only: ignores seek jumps (forward or backward)
+          if (delta > 0.1 && delta <= 2) {
+            setElapsed((e) => Math.min(e + delta, active.requiredSec));
+          }
+        }
+        lastSampleRef.current = cur;
+      } else {
+        // YT IFrame API unavailable (fallback iframe): degrade to wall-clock ticking
+        setElapsed((e) => Math.min(e + 0.5, active.requiredSec));
+      }
+    };
+    const id = setInterval(tick, 500);
     return () => clearInterval(id);
   }, [playing, active]);
 
@@ -161,6 +187,7 @@ function Queue() {
         playerVars: { rel: 0, modestbranding: 1, playsinline: 1, origin: window.location.origin },
         events: {
           onStateChange: (e: any) => {
+            playerStateRef.current = e.data;
             if (e.data === 1) setPlaying(true);
             else if (e.data === 2 || e.data === 0) setPlaying(false);
           },
@@ -324,14 +351,22 @@ function Queue() {
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <ProofButton
                 icon={<UserPlus className="size-4" />}
-                label="I subscribed"
+                label={subOpened ? "I subscribed" : "Click here to subscribe"}
                 done={subscribed}
                 disabled={!watchDone}
                 onClick={() => {
-                  const url = active.youtubeUrl || (active.youtubeVideoId ? `https://www.youtube.com/watch?v=${active.youtubeVideoId}` : "");
-                  if (url) window.open(url, "_blank", "noopener");
-                  setSubscribed(true);
-                  toast.success("Opened video — please subscribe on YouTube, then return to claim");
+                  const url = active.creatorChannelId
+                    ? `https://www.youtube.com/channel/${active.creatorChannelId}?sub_confirmation=1`
+                    : active.youtubeUrl || (active.youtubeVideoId ? `https://www.youtube.com/watch?v=${active.youtubeVideoId}` : "");
+                  if (!url) return;
+                  window.open(url, "_blank", "noopener");
+                  if (!subOpened) {
+                    setSubOpened(true);
+                    toast.info("Channel opened — tap Subscribe on YouTube, then confirm here");
+                  } else {
+                    setSubscribed(true);
+                    toast.success("Marked subscribed — points only award after server-side verification via the YouTube API");
+                  }
                 }}
               />
               <ProofButton
@@ -454,5 +489,6 @@ function ProofButton({
 }
 
 function format(s: number) {
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  const t = Math.floor(s);
+  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
 }

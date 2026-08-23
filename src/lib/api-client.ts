@@ -199,6 +199,7 @@ export interface QueueTask {
   thumbHue: number;
   youtubeVideoId: string;
   youtubeUrl: string;
+  creatorChannelId?: string | null;
 }
 
 export interface SubmissionDTO {

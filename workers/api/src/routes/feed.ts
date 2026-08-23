@@ -65,7 +65,7 @@ export const feedRoutes = [
 
         const result = await db.query(
           `SELECT v.id, v.title, v.duration_seconds, v.status, v.created_at, v.user_id,
-                  v.youtube_video_id, v.youtube_url,
+                  v.youtube_video_id, v.youtube_url, v.channel_id,
                   u.display_name, u.photo_url,
                   ws.status AS watch_status
            FROM videos v
@@ -100,6 +100,7 @@ export const feedRoutes = [
             thumbHue: hueFromId(v.id),
             youtubeVideoId: v.youtube_video_id ?? extractVideoId(v.youtube_url) ?? "",
             youtubeUrl: v.youtube_url ?? "",
+            creatorChannelId: v.channel_id ?? null,
           };
         });
 
