@@ -1,10 +1,9 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { Flame, Menu, Trophy, Zap, LogIn, LogOut, Search } from "lucide-react";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Flame, Menu, Trophy, Zap, LogIn, LogOut, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentMember, useUserPermissions } from "@/hooks/use-api";
-import { Input } from "@/components/ui/input";
 
 const navGroups = [
   {
@@ -44,8 +43,9 @@ const navGroups = [
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { user, loading, signIn, signOut } = useAuth();
   const { data: member } = useCurrentMember();
   const { data: permissionsData } = useUserPermissions();
@@ -53,6 +53,9 @@ export function SiteHeader() {
   const visibleGroups = navGroups
     .map((g) => ({ ...g, links: g.links.filter((l) => l.to !== "/admin" || isAdmin) }))
     .filter((g) => g.links.length > 0);
+  const isActive = (to: string) => pathname === to || pathname.startsWith(`${to}/`);
+  const groupActive = (label: string) =>
+    visibleGroups.find((g) => g.label === label)?.links.some((l) => isActive(l.to)) ?? false;
 
   const handleSignIn = async () => {
     try {
@@ -69,13 +72,6 @@ export function SiteHeader() {
       navigate({ to: "/" });
     } catch (error) {
       console.error("Sign out error:", error);
-    }
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate({ to: "/search", search: { q: searchQuery.trim() } });
     }
   };
 
@@ -102,36 +98,48 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <nav className="ml-4 hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto lg:flex [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <nav className="ml-4 hidden items-center gap-0.5 lg:flex">
           {visibleGroups.map((group, gi) => (
-            <div key={group.label} className="flex shrink-0 items-center gap-1">
-              {gi > 0 && <span className="mx-2 h-5 w-px bg-border" aria-hidden="true" />}
-              {group.links.map((l) => (
-                <Link
-                  key={l.to}
-                  to={l.to}
-                  className="shrink-0 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                  activeProps={{ className: "bg-secondary text-foreground" }}
-                >
-                  {l.label}
-                </Link>
-              ))}
+            <div key={group.label} className="relative shrink-0">
+              {gi > 0 && <span className="absolute -left-0.5 top-1/2 h-5 w-px -translate-y-1/2 bg-border" aria-hidden="true" />}
+              <button
+                type="button"
+                onClick={() => setOpenGroup(openGroup === group.label ? null : group.label)}
+                className={cn(
+                  "flex items-center gap-1 rounded-md px-3 py-2 text-sm transition-colors",
+                  groupActive(group.label) || openGroup === group.label
+                    ? "bg-secondary text-foreground"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                )}
+              >
+                {group.label}
+                <ChevronDown
+                  className={cn("size-3.5 transition-transform", openGroup === group.label && "rotate-180")}
+                />
+              </button>
+              {openGroup === group.label && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setOpenGroup(null)} aria-hidden="true" />
+                  <div className="absolute left-0 top-full z-50 mt-1.5 w-48 rounded-lg border border-border bg-card p-1.5 shadow-lg">
+                    {group.links.map((l) => (
+                      <Link
+                        key={l.to}
+                        to={l.to}
+                        onClick={() => setOpenGroup(null)}
+                        className={cn(
+                          "block rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground",
+                          isActive(l.to) && "bg-secondary text-foreground",
+                        )}
+                      >
+                        {l.label}
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           ))}
         </nav>
-
-        <form onSubmit={handleSearch} className="hidden lg:block">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 w-44 pl-9 xl:w-56"
-            />
-          </div>
-        </form>
 
         <div className="ml-auto flex items-center gap-2">
           {loading ? (
