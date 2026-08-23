@@ -183,6 +183,40 @@ export const videoRoutes = [
           );
         }
 
+        // Auto-assign up to 3 reviewers (exclude submitter, prefer least-recently-reviewed)
+        const reviewers = await db.query(
+          `SELECT u.id FROM users u
+           WHERE u.id != ? AND u.deleted_at IS NULL
+             AND NOT EXISTS (
+               SELECT 1 FROM reviews r
+               WHERE r.reviewer_id = u.id AND r.video_id = ?
+                 AND r.status IN ('assigned','in_progress')
+             )
+           ORDER BY (
+             SELECT MAX(r2.assigned_at) FROM reviews r2 WHERE r2.reviewer_id = u.id
+           ) ASC NULLS FIRST
+           LIMIT 3`,
+          [userId, videoId],
+        );
+        for (const reviewer of reviewers.results) {
+          const nowISO = new Date().toISOString();
+          await db.execute(
+            `INSERT INTO reviews (id, video_id, reviewer_id, submitter_id, status, assigned_at, created_at)
+             VALUES (?, ?, ?, ?, 'assigned', ?, ?)`,
+            [crypto.randomUUID(), videoId, (reviewer as any).id, userId, nowISO, nowISO],
+          );
+          await db.execute(
+            `INSERT INTO notifications (id, user_id, type, title, message, created_at)
+             VALUES (?, ?, 'REVIEW_ASSIGNED', 'New Review Assigned', ?, ?)`,
+            [
+              crypto.randomUUID(),
+              (reviewer as any).id,
+              `A new video "${finalTitle}" needs your review.`,
+              nowISO,
+            ],
+          );
+        }
+
         return createResponse({
           message: "Video submitted successfully",
           videoId: videoId,
