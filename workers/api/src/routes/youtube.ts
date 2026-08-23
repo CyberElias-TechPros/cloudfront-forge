@@ -6,6 +6,22 @@ import { YouTubeService } from "../services/youtube";
 
 const youtubeService = (env: Env) => new YouTubeService(env);
 
+// Best-effort enrichment: resolve and persist which YouTube channel the user connected.
+async function enrichWithChannel(env: Env, userId: string): Promise<void> {
+  try {
+    const svc = youtubeService(env);
+    const accessToken = await svc.getValidAccessToken(userId);
+    if (!accessToken) return;
+    const channelId = await svc.getChannelId(accessToken);
+    if (channelId) {
+      await new Database(env).execute(
+        "UPDATE youtube_oauth_tokens SET channel_id = ?, updated_at = ? WHERE user_id = ?",
+        [channelId, new Date().toISOString(), userId],
+      );
+    }
+  } catch {}
+}
+
 export const youtubeRoutes = [
   {
     method: "GET",
@@ -62,6 +78,7 @@ export const youtubeRoutes = [
 
         const tokens = await youtubeService(env).exchangeCodeForTokens(code);
         await youtubeService(env).saveTokens(stateRow.user_id, tokens);
+        await enrichWithChannel(env, stateRow.user_id);
 
         await db.execute("DELETE FROM youtube_oauth_states WHERE state = ?", [state]);
 
@@ -109,6 +126,7 @@ export const youtubeRoutes = [
 
         const tokens = await youtubeService(env).exchangeCodeForTokens(code);
         await youtubeService(env).saveTokens(stateRow.user_id, tokens);
+        await enrichWithChannel(env, stateRow.user_id);
 
         await db.execute("DELETE FROM youtube_oauth_states WHERE state = ?", [state]);
 

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Youtube, Settings2, Bell, Shield } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader, Shell } from "@/components/page-parts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,12 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/settings")({
+  validateSearch: (search: Record<string, unknown>): { youtube?: string; reason?: string } => {
+    const out: { youtube?: string; reason?: string } = {};
+    if (typeof search["youtube"] === "string") out["youtube"] = search["youtube"];
+    if (typeof search["reason"] === "string") out["reason"] = search["reason"];
+    return out;
+  },
   head: () => ({
     meta: [
       { title: "Settings — LoopSquad" },
@@ -28,9 +35,12 @@ export const Route = createFileRoute("/settings")({
 });
 
 function Settings() {
-  const { data: youtubeStatus } = useYouTubeStatus();
+  const { data: youtubeStatus, refetch: refetchYoutubeStatus } = useYouTubeStatus();
   const connectYouTube = useConnectYouTube();
   const disconnectYouTube = useDisconnectYouTube();
+  const queryClient = useQueryClient();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
   const { data: preferences } = useNotificationPreferences();
   const updatePreferences = useUpdateNotificationPreferences();
 
@@ -49,6 +59,19 @@ function Settings() {
       setLocalPrefs(preferences);
     }
   }, [preferences]);
+
+  // Handle OAuth redirect back from Google (worker redirects here with ?youtube=connected|error)
+  useEffect(() => {
+    if (!search.youtube) return;
+    if (search.youtube === "connected") {
+      toast.success("YouTube account connected — subscription verification is now active");
+      void queryClient.invalidateQueries({ queryKey: ["youtube", "status"] });
+      void refetchYoutubeStatus();
+    } else if (search.youtube === "error") {
+      toast.error(`YouTube connection failed${search.reason ? `: ${decodeURIComponent(search.reason)}` : ""}`);
+    }
+    void navigate({ search: {}, replace: true });
+  }, [search.youtube]);
 
   const handlePreferenceChange = (key: string, value: boolean) => {
     setLocalPrefs((prev) => ({ ...prev, [key]: value }));
@@ -86,7 +109,7 @@ function Settings() {
               <div>
                 <p className="text-sm font-medium">
                   {youtubeConnected
-                    ? `Connected${youtubeChannelId ? ` as ${youtubeChannelId}` : ""}`
+                    ? `Connected${youtubeChannelId ? ` as ${String(youtubeChannelId).slice(0, 14)}…` : ""}`
                     : "Not connected"}
                 </p>
                 <p className="text-xs text-muted-foreground">
