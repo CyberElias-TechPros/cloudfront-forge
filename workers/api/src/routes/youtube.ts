@@ -6,6 +6,14 @@ import { YouTubeService } from "../services/youtube";
 
 const youtubeService = (env: Env) => new YouTubeService(env);
 
+const STATE_TTL_SEC = 600; // 10 minutes
+
+// First allowed CORS origin doubles as the canonical frontend origin for OAuth redirects.
+function frontendOrigin(env: Env): string {
+  const first = (env.CORS_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean)[0];
+  return first || "https://loop.freegameplay.site";
+}
+
 // Best-effort enrichment: resolve and persist which YouTube channel the user connected.
 async function enrichWithChannel(env: Env, userId: string): Promise<void> {
   try {
@@ -33,9 +41,16 @@ export const youtubeRoutes = [
         const authUrl = youtubeService(env).getAuthUrl(state);
 
         const db = new Database(env);
+        const nowEpoch = Math.floor(Date.now() / 1000);
+
+        // Opportunistic cleanup of expired states
+        await db.execute("DELETE FROM youtube_oauth_states WHERE expires_at IS NOT NULL AND expires_at < ?", [
+          nowEpoch,
+        ]);
+
         await db.execute(
-          "INSERT OR REPLACE INTO youtube_oauth_states (id, user_id, state, created_at) VALUES (?, ?, ?, ?)",
-          [crypto.randomUUID(), userId, state, new Date().toISOString()],
+          "INSERT INTO youtube_oauth_states (id, user_id, state, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
+          [crypto.randomUUID(), userId, state, new Date().toISOString(), nowEpoch + STATE_TTL_SEC],
         );
 
         return createResponse({ authUrl });
@@ -65,10 +80,11 @@ export const youtubeRoutes = [
         }
 
         const db = new Database(env);
+        const nowEpoch = Math.floor(Date.now() / 1000);
         const stateRow = state
           ? await db.querySingle(
-              "SELECT user_id FROM youtube_oauth_states WHERE state = ? AND created_at >= datetime('now', '-10 minutes')",
-              [state],
+              "SELECT user_id FROM youtube_oauth_states WHERE state = ? AND expires_at > ?",
+              [state, nowEpoch],
             )
           : null;
 
@@ -83,11 +99,11 @@ export const youtubeRoutes = [
         await db.execute("DELETE FROM youtube_oauth_states WHERE state = ?", [state]);
 
         // Redirect to frontend settings with success - for Google OAuth popup flow
-        const frontendUrl = "https://loop.freegameplay.site/settings?youtube=connected";
+        const frontendUrl = `${frontendOrigin(env)}/settings?youtube=connected`;
         return Response.redirect(frontendUrl, 302);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
-        const frontendErrorUrl = `https://loop.freegameplay.site/settings?youtube=error&reason=${encodeURIComponent(message)}`;
+        const frontendErrorUrl = `${frontendOrigin(env)}/settings?youtube=error&reason=${encodeURIComponent(message)}`;
         if (message === "YOUTUBE_OAUTH_NOT_CONFIGURED") {
           return Response.redirect(frontendErrorUrl, 302);
         }
@@ -113,10 +129,11 @@ export const youtubeRoutes = [
         }
 
         const db = new Database(env);
+        const nowEpoch = Math.floor(Date.now() / 1000);
         const stateRow = state
           ? await db.querySingle(
-              "SELECT user_id FROM youtube_oauth_states WHERE state = ? AND created_at >= datetime('now', '-10 minutes')",
-              [state],
+              "SELECT user_id FROM youtube_oauth_states WHERE state = ? AND expires_at > ?",
+              [state, nowEpoch],
             )
           : null;
 

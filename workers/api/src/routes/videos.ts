@@ -131,6 +131,21 @@ export const videoRoutes = [
           return createErrorResponse("VALIDATION_ERROR", "Invalid YouTube URL", 400);
         }
 
+        // Block duplicate active submissions of the same video
+        const duplicate = await db.querySingle(
+          "SELECT id, user_id FROM videos WHERE youtube_video_id = ? AND status = 'active'",
+          [youtubeVideoId],
+        );
+        if (duplicate) {
+          return createErrorResponse(
+            "CONFLICT",
+            duplicate.user_id === userId
+              ? "You already submitted this video"
+              : "This video is already in the queue",
+            409,
+          );
+        }
+
         const metadata = await fetchYouTubeMetadata(youtubeVideoId, env);
         const finalTitle = validation.data.title?.trim() || metadata.title || "Untitled video";
 

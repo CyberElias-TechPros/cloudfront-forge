@@ -1,6 +1,6 @@
 import type { Env } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireAdmin } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { z } from "zod";
 
@@ -73,7 +73,7 @@ export const missionRoutes = [
     path: "/api/v1/missions",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
-        await requireAuth(request, env);
+        await requireAdmin(request, env);
         const body = (await request.json().catch(() => ({}))) as any;
         const validation = createMissionSchema.safeParse(body);
 
@@ -110,6 +110,9 @@ export const missionRoutes = [
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        if (error.message === "FORBIDDEN") {
+          return createErrorResponse("FORBIDDEN", "Admin access required", 403);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to create mission", 500);
       }
