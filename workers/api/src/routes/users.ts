@@ -92,6 +92,21 @@ export const userRoutes = [
           userId,
         ]);
 
+        // Unified view: OAuth-connected channel takes priority over manual entries
+        const oauthToken = await db.querySingle(
+          "SELECT channel_id FROM youtube_oauth_tokens WHERE user_id = ?",
+          [userId],
+        );
+        const allChannels: any[] = [...(channels.results as any[])];
+        if (oauthToken?.channel_id && !allChannels.some((c) => c.channel_id === oauthToken.channel_id)) {
+          allChannels.unshift({
+            id: "__oauth_connected",
+            channel_id: oauthToken.channel_id,
+            channel_name: null,
+            source: "youtube_oauth",
+          });
+        }
+
         return createResponse({
           id: user.id,
           firebaseUid: user.firebase_uid,
@@ -104,7 +119,7 @@ export const userRoutes = [
           deletedAt: user.deleted_at,
           lastActive: user.last_active,
           profile: profile,
-          channels: channels.results,
+          channels: allChannels,
         });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
