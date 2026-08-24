@@ -283,6 +283,13 @@ export function useAnswerChallenge() {
   });
 }
 
+export function useAppealReport() {
+  return useMutation({
+    mutationFn: ({ reportId, reason }: { reportId: string; reason: string }) =>
+      apiClientService.reports.appeal(reportId, { reason }),
+  });
+}
+
 export function useDailyQuests() {
   return useQuery({
     queryKey: [...queryKeys.notifications, "daily-quests"],

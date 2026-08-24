@@ -13,6 +13,10 @@ const createReportSchema = z.object({
   description: z.string().max(1000).optional(),
 });
 
+const appealSchema = z.object({
+  reason: z.string().min(10).max(2000),
+});
+
 /** Apply a trust-score penalty on report (soft enforcement, capped at 0). */
 async function applyTrustPenalty(db: Database, userId: string): Promise<void> {
   const now = new Date().toISOString();
@@ -93,6 +97,127 @@ export const reportRoutes = [
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to submit report", 500);
+      }
+    },
+  },
+
+  // Submit appeal for a report you were named in
+  {
+    method: "POST",
+    pattern: "^\\/api\\/v1/reports/([^/]+)/appeal$",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const userId = await requireAuth(request, env);
+        const reportId = new URL(request.url).pathname.split("/")[4] ?? "";
+        const body = (await request.json().catch(() => ({}))) as { reason?: string };
+        const validation = appealSchema.safeParse(body);
+        if (!validation.success) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            validation.error.errors.map((e) => e.message).join(", "),
+            400,
+          );
+        }
+        const db = new Database(env);
+        const now = new Date().toISOString();
+
+        const report = await db.querySingle(
+          "SELECT id, reported_user_id, status FROM reports WHERE id = ?",
+          [reportId],
+        );
+        const r = report as Record<string, unknown> | null;
+        if (!r) return createErrorResponse("NOT_FOUND", "Report not found", 404);
+        if (r.reported_user_id !== userId) {
+          return createErrorResponse("FORBIDDEN", "You can only appeal reports filed against you", 403);
+        }
+        if (r.status === "dismissed") {
+          return createErrorResponse("BAD_REQUEST", "This report has already been dismissed", 400);
+        }
+
+        const existing = await db.querySingle(
+          "SELECT id FROM appeals WHERE report_id = ? AND user_id = ?",
+          [reportId, userId],
+        );
+        if (existing) {
+          return createErrorResponse("CONFLICT", "Appeal already submitted for this report", 409);
+        }
+
+        await db.execute(
+          `INSERT INTO appeals (id, report_id, user_id, reason, created_at) VALUES (?, ?, ?, ?, ?)`,
+          [crypto.randomUUID(), reportId, userId, validation.data.reason, now],
+        );
+
+        // Notify admins
+        const admins = await db.query(
+          "SELECT user_id FROM admin_users WHERE role IN ('super_admin', 'admin')",
+        );
+        for (const admin of admins.results) {
+          const adminId = (admin as any).user_id as string;
+          await db.execute(
+            "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'APPEAL_FILED', 'Report Appeal', ?, ?)",
+            [crypto.randomUUID(), adminId, `User filed an appeal on report ${reportId}`, now],
+          );
+          await notifyUserPush(env, adminId, "Report Appeal", `User filed an appeal on report ${reportId}`);
+        }
+
+        return createResponse({ message: "Appeal submitted" }, 201);
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to submit appeal", 500);
+      }
+    },
+  },
+
+  // Admin: review an appeal
+  {
+    method: "POST",
+    pattern: "^\\/api\\/v1/admin/appeals/([^/]+)$",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const adminId = await requireAuth(request, env);
+        const db = new Database(env);
+
+        // Verify admin role
+        const admin = await db.querySingle(
+          "SELECT role FROM admin_users WHERE user_id = ?",
+          [adminId],
+        );
+        const adminRole = (admin as { role?: string })?.role;
+        if (adminRole !== "super_admin" && adminRole !== "admin") {
+          return createErrorResponse("FORBIDDEN", "Admin access required", 403);
+        }
+
+        const appealId = new URL(request.url).pathname.split("/")[5] ?? "";
+        const body = (await request.json().catch(() => ({}))) as { status?: string; note?: string };
+        if (!body.status || !["accepted", "rejected"].includes(body.status)) {
+          return createErrorResponse("VALIDATION_ERROR", "status must be 'accepted' or 'rejected'", 400);
+        }
+
+        const appeal = await db.querySingle("SELECT id, report_id FROM appeals WHERE id = ?", [appealId]);
+        if (!appeal) return createErrorResponse("NOT_FOUND", "Appeal not found", 404);
+
+        const now = new Date().toISOString();
+        await db.execute(
+          "UPDATE appeals SET status = ?, reviewed_by = ?, reviewed_at = ?, note = ? WHERE id = ?",
+          [body.status, adminId, now, body.note ?? null, appealId],
+        );
+
+        // If accepted, dismiss the original report
+        if (body.status === "accepted") {
+          await db.execute("UPDATE reports SET status = 'dismissed', updated_at = ? WHERE id = ?", [
+            now,
+            (appeal as any).report_id,
+          ]);
+        }
+
+        return createResponse({ message: `Appeal ${body.status}` });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to review appeal", 500);
       }
     },
   },

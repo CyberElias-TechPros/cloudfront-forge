@@ -413,6 +413,8 @@ export const apiClientService = {
       description?: string;
       reportedUserId?: string;
     }) => postData<{ message: string }>("/api/v1/reports", data),
+    appeal: (reportId: string, data: { reason: string }) =>
+      postData<{ message: string }>(`/api/v1/reports/${reportId}/appeal`, data),
   },
 
   quests: {
