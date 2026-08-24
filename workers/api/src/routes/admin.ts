@@ -13,6 +13,58 @@ const createReportSchema = z.object({
 });
 
 export const adminRoutes = [
+  // Analytics funnel: submit → watch → claim conversion rates
+  {
+    method: "GET",
+    path: "/api/v1/admin/analytics",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        await requireAdmin(request, env);
+        const { searchParams } = new URL(request.url);
+        const days = Math.min(90, Math.max(1, parseInt(searchParams.get("days") ?? "30", 10)));
+        const db = new Database(env);
+        const since = new Date(Date.now() - days * 86_400_000).toISOString();
+
+        const counts = await db.query(
+          `SELECT event_type, COUNT(*) as count FROM analytics_events
+           WHERE created_at > ? GROUP BY event_type ORDER BY count DESC`,
+          [since],
+        );
+
+        const submits = counts.results.find((r: any) => r.event_type === "video_submitted")?.count ?? 0;
+        const claims = counts.results.find((r: any) => r.event_type === "watch_claimed")?.count ?? 0;
+        const reviews = counts.results.find((r: any) => r.event_type === "review_completed")?.count ?? 0;
+
+        const dailyTrend = await db.query(
+          `SELECT date(created_at) as day, event_type, COUNT(*) as count
+           FROM analytics_events WHERE created_at > ?
+           GROUP BY day, event_type ORDER BY day DESC`,
+          [since],
+        );
+
+        return createResponse({
+          period: `last ${days} days`,
+          totals: {
+            submits,
+            claims,
+            reviews,
+            claimRate: submits > 0 ? Math.round((claims / submits) * 100) : 0,
+          },
+          events: counts.results,
+          dailyTrend: dailyTrend.results,
+        });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        if (error.message === "FORBIDDEN") {
+          return createErrorResponse("FORBIDDEN", "Admin access required", 403);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to fetch analytics", 500);
+      }
+    },
+  },
+
   {
     method: "GET",
     path: "/api/v1/admin/users",

@@ -481,6 +481,13 @@ export const apiClientService = {
       reason: string;
       description: string;
     }) => postData<{ message: string; reportId: string }>("/api/v1/admin/reports", data),
+    analytics: (days = 30) =>
+      getData<{
+        period: string;
+        totals: { submits: number; claims: number; reviews: number; claimRate: number };
+        events: Array<{ event_type: string; count: number }>;
+        dailyTrend: Array<{ day: string; event_type: string; count: number }>;
+      }>(`/api/v1/admin/analytics?days=${days}`),
   },
 };
 

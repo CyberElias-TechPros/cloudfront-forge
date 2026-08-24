@@ -133,7 +133,8 @@ function Queue() {
   }, [activeId]);
 
   // Watch time is sampled from the YouTube player's own clock so the platform
-  // timer matches real playback: buffering doesn't count and seeking doesn't credit.
+  // timer matches real playback: buffering doesn't count, seeking doesn't credit,
+  // and playback rate >1.25x or muted playback halves the credit.
   useEffect(() => {
     if (!playing || !active) return;
     lastSampleRef.current = null;
@@ -149,7 +150,15 @@ function Queue() {
           const delta = cur - last;
           // normal progression only: ignores seek jumps (forward or backward)
           if (delta > 0.1 && delta <= 2) {
-            setElapsed((e) => Math.min(e + delta, active.requiredSec));
+            // Playback-rate guard: >1.25x stops crediting entirely
+            let rate = 1;
+            try { rate = p.getPlaybackRate?.() ?? 1; } catch { /* ignore */ }
+            if (rate > 1.25) return;
+            // Muted playback: credits at half speed
+            let muted = false;
+            try { muted = !!p.isMuted?.(); } catch { /* ignore */ }
+            const factor = muted ? 0.5 : 1;
+            setElapsed((e) => Math.min(e + delta * factor, active.requiredSec));
           }
         }
         lastSampleRef.current = cur;

@@ -6,6 +6,7 @@ import { YouTubeService } from "../services/youtube";
 import { z } from "zod";
 import { createLogger } from "../lib/logger";
 import { progressQuest } from "../lib/quests";
+import { trackEvent } from "../lib/analytics";
 
 function levelForXp(totalXp: number): number {
   return Math.max(1, Math.floor(totalXp / 250) + 1);
@@ -496,6 +497,9 @@ export const watchRoutes = [
 
           // Daily quest progress
           await progressQuest(env, watcherId, "watch_videos");
+
+          // Analytics funnel
+          await trackEvent(env, "watch_claimed", watcherId, "video", videoId);
 
           if (video.user_id && video.user_id !== watcherId) {
             await notifyUser(

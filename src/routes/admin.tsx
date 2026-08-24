@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AlertTriangle, CheckCircle2, Settings2, Users, XCircle } from "lucide-react";
+import { AlertTriangle, BarChart3, CheckCircle2, Settings2, Users, XCircle } from "lucide-react";
 import { PageHeader, Shell, StatCard } from "@/components/page-parts";
 import { cn } from "@/lib/utils";
 import {
@@ -9,6 +9,7 @@ import {
   useAdminUsers,
   useCurrentMember,
   useUserPermissions,
+  useAdminAnalytics,
 } from "@/hooks/use-api";
 
 export const Route = createFileRoute("/admin")({
@@ -35,6 +36,7 @@ function Admin() {
   const { data: permissionsData } = useUserPermissions();
   const flagsQuery = useAdminReports("pending");
   const statsQuery = useAdminMetrics();
+  const analyticsQuery = useAdminAnalytics();
   const resolveReportMutation = useResolveReport();
   const usersQuery = useAdminUsers("active");
   const users = usersQuery.data ?? [];
@@ -111,6 +113,28 @@ function Admin() {
           icon={<Users className="size-4" />}
         />
       </div>
+
+      {/* Analytics funnel */}
+      {analyticsQuery.data && (
+        <div className="mt-6 surface p-6">
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <BarChart3 className="size-4" /> Funnel — {analyticsQuery.data.period}
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-4">
+            {[
+              { label: "Videos submitted", value: analyticsQuery.data.totals.submits },
+              { label: "Watch claims", value: analyticsQuery.data.totals.claims },
+              { label: "Reviews done", value: analyticsQuery.data.totals.reviews },
+              { label: "Claim rate", value: `${analyticsQuery.data.totals.claimRate}%` },
+            ].map((s) => (
+              <div key={s.label} className="rounded-lg border border-border bg-card p-4">
+                <p className="text-xs text-muted-foreground">{s.label}</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums">{s.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <section className="surface p-6">

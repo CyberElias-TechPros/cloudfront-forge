@@ -270,6 +270,14 @@ export function useCreateReport() {
   });
 }
 
+export function useAdminAnalytics(days = 30) {
+  return useQuery({
+    queryKey: ["admin", "analytics", days],
+    queryFn: () => apiClientService.admin.analytics(days),
+    refetchInterval: 300_000,
+  });
+}
+
 export function useAttentionChallenge() {
   return useMutation({
     mutationFn: (videoId: string) => apiClientService.watch.challenge(videoId),

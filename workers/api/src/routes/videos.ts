@@ -4,6 +4,7 @@ import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { notifyUserPush } from "../lib/push";
 import { progressQuest } from "../lib/quests";
+import { trackEvent } from "../lib/analytics";
 import { z } from "zod";
 import { createLogger } from "../lib/logger";
 
@@ -189,6 +190,9 @@ export const videoRoutes = [
 
         // Daily quest progress
         await progressQuest(env, userId, "submit_video");
+
+        // Analytics funnel
+        await trackEvent(env, "video_submitted", userId, "video", videoId);
 
         // Auto-assign up to 3 reviewers (exclude submitter, prefer least-recently-reviewed)
         const reviewers = await db.query(
@@ -516,6 +520,9 @@ export const reviewRoutes = [
 
         // Daily quest progress
         await progressQuest(env, userId, "give_reviews");
+
+        // Analytics funnel
+        await trackEvent(env, "review_completed", userId, "review", reviewId);
 
         const answers = Array.isArray(body?.answers) ? body.answers : [];
         if (answers.length > 0) {
