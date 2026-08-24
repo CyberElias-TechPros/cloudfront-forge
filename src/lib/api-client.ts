@@ -376,11 +376,16 @@ export const apiClientService = {
       watchSeconds: number;
       subscribed: boolean;
       commented: boolean;
+      sessionToken?: string;
     }) =>
       postData<{ status: string; claimable: boolean; xpAwarded: number; creditsAwarded: number }>(
         "/api/v1/watch",
         data,
       ),
+    start: (videoId: string) =>
+      postData<{ sessionToken: string | null; enabled: boolean }>("/api/v1/watch/start", { videoId }),
+    heartbeat: (sessionToken: string, playerTime: number) =>
+      postData<{ ok: boolean }>("/api/v1/watch/heartbeat", { sessionToken, playerTime }),
     challenge: (videoId: string) =>
       postData<{ challengeId: string; question: string; ttlSec: number }>(
         "/api/v1/watch/challenge",

@@ -799,6 +799,7 @@ export function useWatch() {
       watchSeconds: number;
       subscribed: boolean;
       commented: boolean;
+      sessionToken?: string;
     }) => apiClientService.watch.submit(data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["feed", "queue"] });

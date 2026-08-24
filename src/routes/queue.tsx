@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useQueueTasks, useWatch, useCreateReport, useAttentionChallenge, useAnswerChallenge } from "@/hooks/use-api";
+import { apiClientService } from "@/lib/api-client";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -77,6 +78,7 @@ function Queue() {
   const [activeChallenge, setActiveChallenge] = useState<{ id: string; question: string } | null>(null);
   const [challengeAnswer, setChallengeAnswer] = useState("");
   const [attentionVoided, setAttentionVoided] = useState(false);
+  const sessionTokenRef = useRef<string | null>(null);
 
   const alreadyClaimed = active
     ? claimedIds.includes(active.id) || active.status === "verified"
@@ -90,6 +92,7 @@ function Queue() {
         watchSeconds: Math.round(elapsed),
         subscribed,
         commented,
+        ...(sessionTokenRef.current ? { sessionToken: sessionTokenRef.current } : {}),
       })) as {
         status: string;
         claimable: boolean;
@@ -126,6 +129,7 @@ function Queue() {
     setActiveChallenge(null);
     setAttentionVoided(false);
     setChallengeAnswer("");
+    sessionTokenRef.current = null;
   }, [activeId]);
 
   // Watch time is sampled from the YouTube player's own clock so the platform
@@ -177,6 +181,32 @@ function Queue() {
       );
     }
   }, [elapsed, active, attentionVoided]);
+
+  // Signed watch session: request a token on first play, then send heartbeats every 30s
+  useEffect(() => {
+    if (!playing || !active) return;
+    let cancelled = false;
+    const loopId = setInterval(async () => {
+      if (cancelled) return;
+      if (!sessionTokenRef.current) {
+        try {
+          const res = await apiClientService.watch.start(active.id);
+          if (!cancelled && res.enabled && res.sessionToken) {
+            sessionTokenRef.current = res.sessionToken;
+          }
+        } catch {
+          /* soft-fail */
+        }
+      }
+      if (sessionTokenRef.current && !cancelled) {
+        const p = playerRef.current;
+        let pt = 0;
+        try { pt = p?.getCurrentTime?.() ?? 0; } catch { /* ignore */ }
+        apiClientService.watch.heartbeat(sessionTokenRef.current, pt).catch(() => {});
+      }
+    }, 30_000);
+    return () => { cancelled = true; clearInterval(loopId); };
+  }, [playing, active]);
 
   useEffect(() => {
     const onVis = () => { if (document.hidden) setPlaying(false); };
