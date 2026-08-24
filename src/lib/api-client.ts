@@ -357,10 +357,16 @@ export const apiClientService = {
   },
 
   notifications: {
-    list: () => getData<PaginatedResponse<Notification>>("/api/v1/notifications"),
+    list: (isRead?: boolean) =>
+      getData<PaginatedResponse<Notification>>(
+        isRead === undefined ? "/api/v1/notifications" : `/api/v1/notifications?isRead=${isRead}`,
+      ),
+    unreadCount: () => getData<PaginatedResponse<Notification>>("/api/v1/notifications?isRead=false&limit=1"),
     preferences: () => getData<NotificationPreferences>("/api/v1/notifications/preferences"),
     updatePreferences: (data: Partial<NotificationPreferences>) =>
       putData<{ message: string }>("/api/v1/notifications/preferences", data),
+    markRead: (id: string) => postData<{ message: string }>(`/api/v1/notifications/${id}/read`),
+    markAllRead: () => postData<{ message: string }>("/api/v1/notifications/read-all"),
   },
 
   watch: {

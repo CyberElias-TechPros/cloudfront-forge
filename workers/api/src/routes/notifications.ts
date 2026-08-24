@@ -124,6 +124,25 @@ export const notificationRoutes = [
 
   {
     method: "POST",
+    path: "/api/v1/notifications/read-all",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const userId = await requireAuth(request, env);
+        const db = new Database(env);
+        await db.execute("UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0", [
+          userId,
+        ]);
+        return createResponse({ message: "All notifications marked as read" });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to mark all as read", 500);
+      }
+    },
+  },
+  {
+    method: "POST",
     pattern: "^\\/api\\/v1/notifications/([^/]+)/read$",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {

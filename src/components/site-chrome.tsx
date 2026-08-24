@@ -1,9 +1,9 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Flame, Menu, Trophy, Zap, LogIn, LogOut, ChevronDown } from "lucide-react";
+import { Flame, Menu, Trophy, Zap, LogIn, LogOut, ChevronDown, Bell } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { useCurrentMember, useUserPermissions } from "@/hooks/use-api";
+import { useCurrentMember, useUserPermissions, useUnreadNotificationCount } from "@/hooks/use-api";
 
 const navGroups = [
   {
@@ -49,6 +49,7 @@ export function SiteHeader() {
   const { user, loading, signIn, signOut } = useAuth();
   const { data: member } = useCurrentMember();
   const { data: permissionsData } = useUserPermissions();
+  const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const isAdmin = permissionsData?.role === "admin" || permissionsData?.role === "super_admin";
   const visibleGroups = navGroups
     .map((g) => ({ ...g, links: g.links.filter((l) => l.to !== "/admin" || isAdmin) }))
@@ -154,6 +155,18 @@ export function SiteHeader() {
                 <Trophy className="size-4 text-accent" />
                 {member?.points ?? 0} pts
               </span>
+              <Link
+                to="/notifications"
+                className="relative grid size-9 place-items-center rounded-md border border-border hover:bg-secondary"
+                title="Notifications"
+              >
+                <Bell className="size-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -right-1 -top-1 grid min-w-4 place-items-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-4 text-white">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </Link>
               <Link
                 to="/profile"
                 className="grid size-9 place-items-center rounded-full bg-accent text-sm font-semibold text-accent-foreground"

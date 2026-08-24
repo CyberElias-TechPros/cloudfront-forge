@@ -499,6 +499,41 @@ export function useNotifications() {
   });
 }
 
+export function useUnreadNotificationCount() {
+  return useQuery({
+    queryKey: [...queryKeys.notifications, "unread-count"],
+    queryFn: async () => {
+      try {
+        const data = await apiClientService.notifications.unreadCount();
+        return data.total ?? 0;
+      } catch {
+        return 0;
+      }
+    },
+    refetchInterval: 60_000,
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiClientService.notifications.markAllRead(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
+    },
+  });
+}
+
+export function useMarkNotificationRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClientService.notifications.markRead(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
+    },
+  });
+}
+
 export function useNotificationPreferences() {
   return useQuery({
     queryKey: queryKeys.notificationPreferences,
