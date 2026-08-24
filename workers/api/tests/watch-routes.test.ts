@@ -4,8 +4,15 @@ import { watchRoutes } from "../src/routes/watch";
 describe("watch routes", () => {
   it("submit watch endpoint exists", () => {
     expect(watchRoutes).toBeDefined();
-    expect(watchRoutes.length).toBe(1);
-    expect(watchRoutes[0].path).toBe("/api/v1/watch");
-    expect(watchRoutes[0].method).toBe("POST");
+    expect(watchRoutes.length).toBeGreaterThanOrEqual(1);
+    const claim = watchRoutes.find((r) => r.path === "/api/v1/watch" && r.method === "POST");
+    expect(claim).toBeDefined();
+  });
+
+  it("has start and heartbeat endpoints", () => {
+    const start = watchRoutes.find((r) => r.path === "/api/v1/watch/start");
+    expect(start).toBeDefined();
+    const hb = watchRoutes.find((r) => r.path === "/api/v1/watch/heartbeat");
+    expect(hb).toBeDefined();
   });
 });
