@@ -2,6 +2,7 @@ import { Database } from "../lib/database";
 import type { Env } from "../types";
 import { createLogger } from "../lib/logger";
 import { sweepOverdueMissions, sweepOverdueReviews, sweepStreakReset } from "./sweeps";
+import { sendWeeklyDigests } from "./digest";
 
 export type JobFn = (db: Database) => Promise<number>;
 
@@ -46,11 +47,20 @@ export async function runAllJobs(env: Env): Promise<void> {
   const logger = createLogger(env);
   const db = new Database(env);
   logger.info("cron sweep starting");
+
   const results = await Promise.all(
     JOBS.map((j) => logRun(db, j.name, () => j.run(db))),
   );
   for (const r of results) {
     logger.info(`sweep ${r.job}: ${r.ok ? "ok" : "FAIL"} (${r.processed} rows)`);
   }
+
+  // Weekly digest every Sunday
+  const dow = new Date().getUTCDay();
+  if (dow === 0) {
+    const sent = await logRun(db, "weekly-digest", () => sendWeeklyDigests(env));
+    logger.info(`sweep weekly-digest: ${sent.ok ? "ok" : "FAIL"} (${sent.processed} emails)`);
+  }
+
   logger.info("cron sweep finished");
 }
