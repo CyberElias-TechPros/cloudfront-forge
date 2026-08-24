@@ -36,6 +36,7 @@ const navGroups = [
     links: [
       { to: "/profile", label: "Profile" },
       { to: "/settings", label: "Settings" },
+      { to: "/notifications", label: "Notifications" },
       { to: "/rules", label: "Rules" },
     ],
   },
@@ -185,7 +186,7 @@ export function SiteHeader() {
                 type="button"
                 onClick={handleSignOut}
                 className="grid size-9 place-items-center rounded-md border border-border hover:bg-secondary"
-                title="Sign Out"
+                aria-label="Sign Out"
               >
                 <LogOut className="size-4" />
               </button>
