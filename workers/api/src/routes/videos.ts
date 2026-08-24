@@ -16,6 +16,7 @@ const submitVideoSchema = z.object({
   youtubeUrl: z.string().url(),
   communityId: z.string().uuid().optional(),
   title: z.string().min(1).max(200).optional(),
+  magicWord: z.string().min(2).max(30).optional(),
 });
 
 const reviewSchema = z.object({
@@ -153,8 +154,8 @@ export const videoRoutes = [
         const communityId = validation.data.communityId || null;
 
         await db.execute(
-          `INSERT INTO videos (id, user_id, community_id, youtube_video_id, youtube_url, title, description, thumbnail_url, duration_seconds, channel_id, status, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO videos (id, user_id, community_id, youtube_video_id, youtube_url, title, description, thumbnail_url, duration_seconds, channel_id, magic_word, status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             videoId,
             userId,
@@ -166,6 +167,7 @@ export const videoRoutes = [
             metadata.thumbnailUrl,
             metadata.durationSeconds,
             metadata.channelId,
+            validation.data.magicWord?.trim() || null,
             "active",
             now,
             now,

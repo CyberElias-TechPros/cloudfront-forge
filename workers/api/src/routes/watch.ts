@@ -114,7 +114,7 @@ export const watchRoutes = [
         const db = new Database(env);
 
         const video = await db.querySingle(
-          "SELECT id, user_id, channel_id, duration_seconds FROM videos WHERE id = ?",
+          "SELECT id, user_id, channel_id, duration_seconds, magic_word FROM videos WHERE id = ?",
           [videoId],
         );
         if (!video) {
@@ -151,8 +151,29 @@ export const watchRoutes = [
           requiredWatchSec,
         );
 
+        // Magic-word comment verification: if creator set a word, verify comment via API
+        let verifiedCommented = commented;
+        const magicWord = video.magic_word as string | null;
+        if (magicWord && commented) {
+          try {
+            const svc = new YouTubeService(env);
+            const accessToken = await svc.getValidAccessToken(watcherId);
+            if (accessToken) {
+              verifiedCommented = await svc.verifyMagicWordComment(
+                accessToken,
+                videoId,
+                magicWord,
+              );
+            } else {
+              verifiedCommented = false;
+            }
+          } catch {
+            verifiedCommented = false;
+          }
+        }
+
         const effectiveWatchSeconds = watchVerified ? verifiedWatchSeconds : watchSeconds;
-        const watchClaimable = effectiveWatchSeconds >= requiredWatchSec && verifiedSubscribed && commented;
+        const watchClaimable = effectiveWatchSeconds >= requiredWatchSec && verifiedSubscribed && verifiedCommented;
         const claimable = watchClaimable;
 
         if (existing) {
@@ -162,7 +183,7 @@ export const watchRoutes = [
             [
               watchSeconds,
               verifiedSubscribed ? 1 : 0,
-              commented ? 1 : 0,
+              verifiedCommented ? 1 : 0,
               claimable ? "claimed" : effectiveWatchSeconds >= requiredWatchSec ? "verified" : "started",
               claimable ? now : existing.verified_at,
               now,
@@ -181,7 +202,7 @@ export const watchRoutes = [
               watchSeconds,
               claimable ? "claimed" : effectiveWatchSeconds >= requiredWatchSec ? "verified" : "started",
               verifiedSubscribed ? 1 : 0,
-              commented ? 1 : 0,
+              verifiedCommented ? 1 : 0,
               claimable ? now : null,
               now,
               now,

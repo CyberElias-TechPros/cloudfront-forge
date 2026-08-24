@@ -37,8 +37,9 @@ function Submit() {
   const submitVideo = useSubmitVideo();
   const [niche, setNiche] = useState("Tech");
   const [boost, setBoost] = useState("Standard");
-  const [link, setLink] = useState("");
-  const [title, setTitle] = useState("");
+const [link, setLink] = useState("");
+const [title, setTitle] = useState("");
+const [magicWord, setMagicWord] = useState("");
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -47,12 +48,14 @@ function Submit() {
       return;
     }
     try {
-      const payload: { youtubeUrl: string; title?: string } = { youtubeUrl: link };
-      if (title.trim()) payload.title = title.trim();
+const payload: { youtubeUrl: string; title?: string; magicWord?: string } = { youtubeUrl: link };
+if (title.trim()) payload.title = title.trim();
+if (magicWord.trim()) payload.magicWord = magicWord.trim();
       await submitVideo.mutateAsync(payload as any);
       toast.success("Video submitted to the squad queue!");
       setLink("");
       setTitle("");
+      setMagicWord("");
     } catch (error) {
       console.error("Submit error:", error);
       toast.error("Could not submit right now. Check the link and try again.");
@@ -94,6 +97,19 @@ function Submit() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Tecno Camon 40 — 3 weeks later, honest review"
+              className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-3 text-sm outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="magic-word" className="text-sm font-medium">
+              Comment keyword <span className="text-xs text-muted-foreground">(optional — viewers include this word in their comment to prove they watched)</span>
+            </label>
+            <input
+              id="magic-word"
+              value={magicWord}
+              onChange={(e) => setMagicWord(e.target.value)}
+              placeholder="e.g. LOOPSQUAD-XK42"
               className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-3 text-sm outline-none placeholder:text-muted-foreground"
             />
           </div>

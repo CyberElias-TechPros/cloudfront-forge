@@ -312,6 +312,14 @@ function Queue() {
               {active.owner} · {active.handle} · posted {active.postedAgo}
             </p>
 
+            {active.magicWord && (
+              <div className="mt-3 rounded-lg border border-dashed border-accent/50 bg-accent/10 px-4 py-2.5">
+                <p className="text-xs font-medium text-accent">
+                  Comment hint — include this word in your comment: <span className="font-bold text-foreground">{active.magicWord}</span>
+                </p>
+              </div>
+            )}
+
             <div className="mt-5 rounded-lg bg-secondary/60 p-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2">

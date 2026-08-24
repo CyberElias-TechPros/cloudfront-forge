@@ -200,6 +200,7 @@ export interface QueueTask {
   youtubeVideoId: string;
   youtubeUrl: string;
   creatorChannelId?: string | null;
+  magicWord?: string | null;
 }
 
 export interface SubmissionDTO {
@@ -329,7 +330,7 @@ export const apiClientService = {
 
   videos: {
     list: () => getData<PaginatedResponse<unknown>>("/api/v1/videos"),
-    create: (data: { youtubeUrl: string; communityId?: string; title?: string }) =>
+    create: (data: { youtubeUrl: string; communityId?: string; title?: string; magicWord?: string }) =>
       postData<{ message: string; videoId: string }>("/api/v1/videos", data),
   },
 

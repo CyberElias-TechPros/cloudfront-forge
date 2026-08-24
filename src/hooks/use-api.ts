@@ -683,7 +683,7 @@ export function useSubmissions() {
 export function useSubmitVideo() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { youtubeUrl: string; communityId?: string; title?: string }) =>
+    mutationFn: (data: { youtubeUrl: string; communityId?: string; title?: string; magicWord?: string }) =>
       apiClientService.videos.create(data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["feed", "submissions"] });

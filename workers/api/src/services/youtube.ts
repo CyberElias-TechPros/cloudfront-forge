@@ -201,6 +201,47 @@ export class YouTubeService {
     return data.items?.[0]?.id ?? null;
   }
 
+  /**
+   * Verify that the watcher left a comment on this video containing the magic word.
+   * Uses the watcher's OAuth token to get their channel ID, then fetches commentThreads
+   * via API key (no user OAuth needed) to find a matching comment.
+   */
+  async verifyMagicWordComment(
+    accessToken: string,
+    youtubeVideoId: string,
+    magicWord: string,
+  ): Promise<boolean> {
+    const watcherChannelId = await this.getChannelId(accessToken);
+    if (!watcherChannelId) return false;
+    if (!this.env.YOUTUBE_API_KEY || this.env.YOUTUBE_API_KEY === "placeholder") return false;
+
+    const response = await fetch(
+      `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${youtubeVideoId}&key=${this.env.YOUTUBE_API_KEY}&maxResults=50`,
+    );
+    if (!response.ok) return false;
+
+    const data = (await response.json()) as {
+      items?: Array<{
+        snippet?: {
+          topLevelComment?: {
+            snippet?: {
+              authorChannelId?: { value?: string };
+              textDisplay?: string;
+            };
+          };
+        };
+      }>;
+    };
+
+    const word = magicWord.toLowerCase();
+    return (data.items ?? []).some((item) => {
+      const comment = item.snippet?.topLevelComment?.snippet;
+      if (!comment) return false;
+      if (comment.authorChannelId?.value !== watcherChannelId) return false;
+      return (comment.textDisplay ?? "").toLowerCase().includes(word);
+    });
+  }
+
   async isSubscribedTo(accessToken: string, channelId: string): Promise<boolean> {
     const myChannelId = await this.getChannelId(accessToken);
     if (!myChannelId || myChannelId === channelId) return false;

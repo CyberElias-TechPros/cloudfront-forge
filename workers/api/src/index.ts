@@ -80,15 +80,27 @@ export default {
       const path = url.pathname;
 
       const isAuthEndpoint = path.startsWith("/api/v1/auth/");
+      const isExpensiveEndpoint =
+        path.startsWith("/api/v1/ai/") ||
+        path === "/api/v1/videos" && request.method === "POST" ||
+        path === "/api/v1/watch" && request.method === "POST";
+      const isWriteEndpoint = request.method === "POST" || request.method === "PUT" || request.method === "PATCH" || request.method === "DELETE";
+
       const rateLimited = await rateLimitMiddleware(request, env, {
         maxRequests: isAuthEndpoint
           ? parseInt(env.AUTH_RATE_LIMIT_MAX_REQUESTS || "30", 10)
-          : parseInt(env.RATE_LIMIT_MAX_REQUESTS || "100", 10),
+          : isExpensiveEndpoint
+            ? 20
+            : isWriteEndpoint
+              ? parseInt(env.RATE_LIMIT_MAX_REQUESTS || "100", 10)
+              : parseInt(env.RATE_LIMIT_MAX_REQUESTS || "200", 10),
         windowSeconds: isAuthEndpoint
           ? parseInt(env.AUTH_RATE_LIMIT_WINDOW || "60", 10)
-          : parseInt(env.RATE_LIMIT_WINDOW || "60", 10),
-        failClosed: isAuthEndpoint || path.startsWith("/api/v1/admin/"),
-        keyPrefix: isAuthEndpoint ? "auth" : "general",
+          : isExpensiveEndpoint
+            ? 60
+            : parseInt(env.RATE_LIMIT_WINDOW || "60", 10),
+        failClosed: isAuthEndpoint || isExpensiveEndpoint || path.startsWith("/api/v1/admin/"),
+        keyPrefix: isAuthEndpoint ? "auth" : isExpensiveEndpoint ? "expensive" : isWriteEndpoint ? "write" : "read",
       });
       if (!rateLimited) {
         return createErrorResponse("RATE_LIMITED", "Too many requests", 429, corsHeaders);
