@@ -89,6 +89,7 @@ export const feedRoutes = [
           const duration = typeof v.duration_seconds === "number" && v.duration_seconds > 0 ? v.duration_seconds : null;
           return {
             id: v.id,
+            creatorId: v.user_id,
             owner,
             handle: `@${owner.toLowerCase().replace(/[^a-z0-9]+/g, "")}`,
             avatar: v.photo_url ?? owner.charAt(0).toUpperCase(),

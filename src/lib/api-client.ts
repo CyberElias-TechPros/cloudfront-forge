@@ -186,6 +186,7 @@ export interface CurrentMember {
 
 export interface QueueTask {
   id: string;
+  creatorId?: string | null;
   owner: string;
   handle: string;
   avatar: string;
@@ -387,6 +388,16 @@ export const apiClientService = {
     status: () =>
       getData<{ connected: boolean; channelId?: string | null }>("/api/v1/youtube/status"),
     disconnect: () => postData<{ message: string }>("/api/v1/youtube/disconnect", {}),
+  },
+
+  reports: {
+    create: (data: {
+      resourceType: string;
+      resourceId: string;
+      reason: string;
+      description?: string;
+      reportedUserId?: string;
+    }) => postData<{ message: string }>("/api/v1/reports", data),
   },
 
   users: {

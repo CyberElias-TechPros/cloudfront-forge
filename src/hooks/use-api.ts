@@ -258,6 +258,18 @@ export function useSkipMission() {
   });
 }
 
+export function useCreateReport() {
+  return useMutation({
+    mutationFn: (data: {
+      resourceType: string;
+      resourceId: string;
+      reason: string;
+      description?: string;
+      reportedUserId?: string;
+    }) => apiClientService.reports.create(data),
+  });
+}
+
 export function useReviews() {
   return useQuery({
     queryKey: queryKeys.reviews,

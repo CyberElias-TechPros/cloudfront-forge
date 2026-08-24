@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
   CheckCircle2,
   Clock,
+  Flag,
   MessageCircle,
   Pause,
   Play,
@@ -12,7 +13,13 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader, Shell, Thumb } from "@/components/page-parts";
 import { AdSlot } from "@/components/ad-slot";
-import { useQueueTasks, useWatch } from "@/hooks/use-api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useQueueTasks, useWatch, useCreateReport } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
 
 declare global {
@@ -46,6 +53,7 @@ const filters = ["All", "Pending", "In progress", "Verified", "Expired"] as cons
 function Queue() {
   const { data: tasks = [], isLoading, isError, error } = useQueueTasks();
   const watch = useWatch();
+  const report = useCreateReport();
   const [activeId, setActiveId] = useState<string | null>(null);
   const active = tasks.find((t) => t.id === activeId) ?? tasks[0];
   const [elapsed, setElapsed] = useState(0);
@@ -307,10 +315,50 @@ function Queue() {
             <Thumb hue={active.thumbHue} label={active.niche} />
           )}
           <div className="p-6">
-            <h2 className="text-3xl">{active.title}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {active.owner} · {active.handle} · posted {active.postedAgo}
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-3xl">{active.title}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {active.owner} · {active.handle} · posted {active.postedAgo}
+                </p>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="grid size-8 shrink-0 place-items-center rounded-md border border-border text-muted-foreground hover:bg-secondary"
+                    title="Report this video"
+                  >
+                    <Flag className="size-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {(["spam", "inappropriate", "cheating", "misleading"] as const).map((reason) => (
+                    <DropdownMenuItem
+                      key={reason}
+                      onClick={() => {
+                        report.mutate(
+                          {
+                            resourceType: "video",
+                            resourceId: active.id,
+                            reason,
+                            ...(active.creatorId ? { reportedUserId: active.creatorId } : {}),
+                          },
+                          {
+                            onSuccess: () =>
+                              toast.success(`Reported as ${reason}. Our team will review it.`),
+                            onError: (e: Error) => toast.error(e.message || "Report failed"),
+                          },
+                        );
+                      }}
+                      className="capitalize"
+                    >
+                      Report as {reason}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
 
             {active.magicWord && (
               <div className="mt-3 rounded-lg border border-dashed border-accent/50 bg-accent/10 px-4 py-2.5">
