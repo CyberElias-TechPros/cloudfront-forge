@@ -3,6 +3,7 @@ import type { Env } from "../types";
 import { createLogger } from "../lib/logger";
 import { sweepOverdueMissions, sweepOverdueReviews, sweepStreakReset } from "./sweeps";
 import { sendWeeklyDigests } from "./digest";
+import { sweepAnomalyScoring } from "./anomaly";
 
 export type JobFn = (db: Database) => Promise<number>;
 
@@ -15,6 +16,7 @@ const JOBS: JobDef[] = [
   { name: "overdue-missions", run: sweepOverdueMissions },
   { name: "overdue-reviews", run: sweepOverdueReviews },
   { name: "streak-reset", run: sweepStreakReset },
+  { name: "anomaly-scoring", run: sweepAnomalyScoring },
 ];
 
 async function logRun(

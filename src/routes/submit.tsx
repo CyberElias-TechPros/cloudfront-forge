@@ -7,6 +7,9 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/submit")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    link: (search["link"] as string) || undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Submit a Video — LoopSquad" },
@@ -26,18 +29,14 @@ export const Route = createFileRoute("/submit")({
 });
 
 const niches = ["Tech", "Food", "Fitness", "Beauty", "Gaming", "Music", "Podcast", "DIY"];
-const boosts = [
-  { label: "Standard", cost: 0, desc: "Normal rotation slot, usually live within 2 hours." },
-  { label: "Priority", cost: 120, desc: "Jump to the top half of the queue for 24 hours." },
-  { label: "Spotlight", cost: 300, desc: "Pinned on the dashboard hero for the whole day." },
-];
 
 function Submit() {
+  const search = Route.useSearch();
+  const sharedLink = search["link"];
   const { data: submissions = [] } = useSubmissions();
   const submitVideo = useSubmitVideo();
   const [niche, setNiche] = useState("Tech");
-  const [boost, setBoost] = useState("Standard");
-const [link, setLink] = useState("");
+const [link, setLink] = useState(sharedLink ?? "");
 const [title, setTitle] = useState("");
 const [magicWord, setMagicWord] = useState("");
 
@@ -48,9 +47,10 @@ const [magicWord, setMagicWord] = useState("");
       return;
     }
     try {
-const payload: { youtubeUrl: string; title?: string; magicWord?: string } = { youtubeUrl: link };
+const payload: { youtubeUrl: string; title?: string; magicWord?: string; niche?: string } = { youtubeUrl: link };
 if (title.trim()) payload.title = title.trim();
 if (magicWord.trim()) payload.magicWord = magicWord.trim();
+if (niche) payload.niche = niche;
       await submitVideo.mutateAsync(payload as any);
       const shareText = encodeURIComponent(
         `Just submitted a video to LoopSquad! Watch and review it here: ${typeof window !== "undefined" ? window.location.origin : ""}/queue`,
@@ -130,16 +130,13 @@ if (magicWord.trim()) payload.magicWord = magicWord.trim();
           </div>
 
           <div>
-            <p className="text-sm font-medium">Niche <span className="text-xs text-muted-foreground">· coming soon — not saved yet</span></p>
+            <p className="text-sm font-medium">Niche</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {niches.map((n) => (
                 <button
                   key={n}
                   type="button"
-                  onClick={() => {
-                    setNiche(n);
-                    toast.info("Niche filtering coming soon — selection not saved yet");
-                  }}
+                  onClick={() => setNiche(n)}
                   className={cn(
                     "rounded-full border border-border px-3 py-1.5 text-xs",
                     niche === n
@@ -163,32 +160,13 @@ if (magicWord.trim()) payload.magicWord = magicWord.trim();
             <p className="mt-2 text-xs text-muted-foreground">Target is automatically 20 watches per video.</p>
           </div>
 
-          <div>
-            <p className="text-sm font-medium">Placement <span className="text-xs text-muted-foreground">· boosts coming soon</span></p>
-            <div className="mt-2 grid gap-3 sm:grid-cols-3">
-              {boosts.map((b) => (
-                <button
-                  key={b.label}
-                  type="button"
-                  onClick={() => {
-                    setBoost(b.label);
-                    if (b.cost > 0) toast.info(`${b.label} boost coming soon — no credits charged yet`);
-                  }}
-                  className={cn(
-                    "rounded-lg border border-border p-4 text-left",
-                    boost === b.label ? "border-primary bg-secondary" : "bg-card",
-                  )}
-                >
-                  <span className="flex items-center gap-1.5 text-sm font-semibold">
-                    <Sparkles className="size-3.5 text-accent" /> {b.label}
-                  </span>
-                  <span className="mt-1 block text-xs text-muted-foreground">{b.desc}</span>
-                  <span className="mt-2 block text-xs text-accent">
-                    {b.cost === 0 ? "Free" : `${b.cost} pts`}
-                  </span>
-                </button>
-              ))}
-            </div>
+          <div className="rounded-lg border border-border bg-secondary/30 p-4">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <Sparkles className="size-4 text-accent" /> Want queue priority?
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Buy a Boost from the <a href="/gamification" className="underline">Shop</a> to pin your video top-of-queue for 24 hours.
+            </p>
           </div>
 
           <button

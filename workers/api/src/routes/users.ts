@@ -277,6 +277,15 @@ export const userRoutes = [
           "SELECT * FROM youtube_channels WHERE user_id = ? ORDER BY created_at DESC",
           [userId],
         );
+        // Fallback: OAuth channel_id is the authoritative source
+        let channelId = channel?.channel_id ?? null;
+        if (!channelId) {
+          const oauthRow = await db.querySingle(
+            "SELECT channel_id FROM youtube_oauth_tokens WHERE user_id = ?",
+            [userId],
+          );
+          channelId = oauthRow?.channel_id ?? null;
+        }
         const xp = await db.querySingle("SELECT * FROM xp_accounts WHERE user_id = ?", [userId]);
         const reputation = await db.querySingle(
           "SELECT * FROM reputation_accounts WHERE user_id = ?",

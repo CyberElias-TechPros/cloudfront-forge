@@ -8,6 +8,15 @@
   "theme_color": "#7c3aed",
   "orientation": "portrait-primary",
   "categories": ["social", "productivity"],
+  "share_target": {
+    "action": "/submit",
+    "method": "GET",
+    "params": {
+      "title": "name",
+      "text": "description",
+      "url": "link"
+    }
+  },
   "icons": [
     {
       "src": "/icon-192.png",
