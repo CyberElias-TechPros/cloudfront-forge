@@ -294,6 +294,62 @@ export const notificationRoutes = [
       }
     },
   },
+  // ---- Web Push subscription management ----
+  {
+    method: "POST",
+    path: "/api/v1/notifications/push/subscribe",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const userId = await requireAuth(request, env);
+        const body = (await request.json().catch(() => ({}))) as any;
+        const endpoint = body.endpoint as string | undefined;
+        const p256dh = body.keys?.p256dh as string | undefined;
+        const auth = body.keys?.auth as string | undefined;
+        if (!endpoint || !p256dh || !auth) {
+          return createErrorResponse("VALIDATION_ERROR", "Missing push subscription fields", 400);
+        }
+        const db = new Database(env);
+        const now = new Date().toISOString();
+        await db.execute(
+          `INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(user_id, endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth`,
+          [crypto.randomUUID(), userId, endpoint, p256dh, auth, now],
+        );
+        return createResponse({ message: "Push subscription saved" });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to save push subscription", 500);
+      }
+    },
+  },
+  {
+    method: "POST",
+    path: "/api/v1/notifications/push/unsubscribe",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const userId = await requireAuth(request, env);
+        const body = (await request.json().catch(() => ({}))) as any;
+        const endpoint = body.endpoint as string | undefined;
+        if (!endpoint) {
+          return createErrorResponse("VALIDATION_ERROR", "Missing endpoint", 400);
+        }
+        const db = new Database(env);
+        await db.execute(
+          "DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?",
+          [userId, endpoint],
+        );
+        return createResponse({ message: "Push subscription removed" });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to remove push subscription", 500);
+      }
+    },
+  },
 ];
 
 export default notificationRoutes;
