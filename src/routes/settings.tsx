@@ -14,6 +14,7 @@ import {
   useUpdateNotificationPreferences,
 } from "@/hooks/use-api";
 import { toast } from "sonner";
+import { usePushSubscription } from "@/hooks/use-push";
 
 export const Route = createFileRoute("/settings")({
   validateSearch: (search: Record<string, unknown>): { youtube?: string; reason?: string } => {
@@ -41,6 +42,7 @@ function Settings() {
   const queryClient = useQueryClient();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const push = usePushSubscription();
   const { data: preferences } = useNotificationPreferences();
   const updatePreferences = useUpdateNotificationPreferences();
 
@@ -213,6 +215,25 @@ function Settings() {
                 onCheckedChange={(checked) => handlePreferenceChange("communityUpdates", checked)}
               />
             </div>
+
+            {push.supported && (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Push notifications</p>
+                  <p className="text-xs text-muted-foreground">
+                    {push.subscribed ? "Receiving browser push notifications" : "Enable browser push notifications on this device"}
+                  </p>
+                </div>
+                <Button
+                  variant={push.subscribed ? "destructive" : "default"}
+                  size="sm"
+                  onClick={push.subscribed ? push.unsubscribe : push.subscribe}
+                  disabled={push.loading}
+                >
+                  {push.loading ? "..." : push.subscribed ? "Unsubscribe" : "Subscribe"}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 

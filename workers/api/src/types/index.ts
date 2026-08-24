@@ -25,6 +25,8 @@ export interface Env {
   AI_DAILY_GLOBAL_LIMIT?: string;
   WATCH_SESSIONS_ENABLED?: string;
   WATCH_SESSION_SECRET?: string;
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
 }
 
 export interface User {

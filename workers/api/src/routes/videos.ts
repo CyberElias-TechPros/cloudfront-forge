@@ -2,6 +2,7 @@ import type { Env } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
+import { notifyUserPush } from "../lib/push";
 import { z } from "zod";
 import { createLogger } from "../lib/logger";
 
@@ -217,6 +218,7 @@ export const videoRoutes = [
               nowISO,
             ],
           );
+          await notifyUserPush(env, (reviewer as any).id, "New Review Assigned", `A new video "${finalTitle}" needs your review.`);
         }
 
         return createResponse({

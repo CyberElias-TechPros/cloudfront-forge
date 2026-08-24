@@ -142,6 +142,14 @@ function RootComponent() {
   const router = useRouter();
   const pathname = router.state?.location?.pathname ?? "/";
   const isPublic = pathname === "/" || pathname === "/rules" || pathname.startsWith("/auth/");
+
+  // Register service worker for Web Push
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+  }, []);
+
   const outlet = isPublic ? (
     <Outlet />
   ) : (

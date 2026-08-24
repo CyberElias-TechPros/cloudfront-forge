@@ -5,6 +5,7 @@ import { Database } from "../lib/database";
 import { sanitize } from "../lib/sanitize";
 import { z } from "zod";
 import { createLogger } from "../lib/logger";
+import { notifyUserPush } from "../lib/push";
 
 function getPagination(request: Request): { limit: number; offset: number } {
   const { searchParams } = new URL(request.url);
@@ -107,6 +108,9 @@ export const notificationRoutes = [
             now,
           ],
         );
+
+        // Fire-and-forget web push
+        await notifyUserPush(env, userId, sanitize(body.title), sanitize(body.message));
 
         return createResponse({ message: "Notification created" }, 201);
       } catch (error: any) {

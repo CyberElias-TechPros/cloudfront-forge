@@ -11,6 +11,7 @@ AI_MODEL = "meta/llama-3.1-8b-instruct"
 CORS_ORIGINS = "https://loop.freegameplay.site,https://cloudfront-forge.vercel.app"
 YOUTUBE_OAUTH_CLIENT_ID = "365634472671-dvmns559uga32703kf2l9vpgbmts38tl.apps.googleusercontent.com"
 YOUTUBE_OAUTH_REDIRECT_URI = "https://creatorloop-api.autumn-surf-21ec.workers.dev/api/v1/youtube/oauth/callback"
+VAPID_PUBLIC_KEY = "BIfvnJ6Mp68dCFCkywGZlFpPo-hkg6-LeyE0Uz5pZGxOWYejjQFJg_JMxvcRB288LDcK7vAyRMymGJqVEBNpYvk"
 
 # D1 Database
 [[d1_databases]]

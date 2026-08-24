@@ -2,6 +2,7 @@ import type { Env } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
+import { notifyUserPush } from "../lib/push";
 import { z } from "zod";
 
 const createReportSchema = z.object({
@@ -78,10 +79,12 @@ export const reportRoutes = [
         // Notify admins
         const admins = await db.query("SELECT user_id FROM admin_users WHERE role IN ('super_admin', 'admin')");
         for (const admin of admins.results) {
+          const adminId = (admin as any).user_id;
           await db.execute(
             "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'REPORT_FILED', 'Report Filed', ?, ?)",
-            [crypto.randomUUID(), (admin as any).user_id, `New ${reason} report on ${resourceType}`, now],
+            [crypto.randomUUID(), adminId, `New ${reason} report on ${resourceType}`, now],
           );
+          await notifyUserPush(env, adminId, "Report Filed", `New ${reason} report on ${resourceType}`);
         }
 
         return createResponse({ message: "Report submitted" }, 201);
