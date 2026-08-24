@@ -54,6 +54,8 @@ function Settings() {
     missionReminders: true,
     reviewRequests: true,
     communityUpdates: true,
+    quietHoursStart: null as number | null,
+    quietHoursEnd: null as number | null,
   });
 
   useEffect(() => {
@@ -75,7 +77,7 @@ function Settings() {
     void navigate({ search: {}, replace: true });
   }, [search.youtube]);
 
-  const handlePreferenceChange = (key: string, value: boolean) => {
+  const handlePreferenceChange = (key: string, value: boolean | number | null) => {
     setLocalPrefs((prev) => ({ ...prev, [key]: value }));
     updatePreferences.mutate({ [key]: value });
   };
@@ -214,6 +216,45 @@ function Settings() {
                 checked={localPrefs.communityUpdates}
                 onCheckedChange={(checked) => handlePreferenceChange("communityUpdates", checked)}
               />
+            </div>
+
+            <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+              <p className="text-sm font-medium">Quiet hours (UTC)</p>
+              <p className="text-xs text-muted-foreground">Pause push notifications during these hours</p>
+              <div className="flex items-center gap-3">
+                <label className="text-xs text-muted-foreground">From</label>
+                <select
+                  value={localPrefs.quietHoursStart ?? ""}
+                  onChange={(e) =>
+                    handlePreferenceChange(
+                      "quietHoursStart",
+                      e.target.value === "" ? null : Number(e.target.value),
+                    )
+                  }
+                  className="rounded-md border border-border bg-card px-2 py-1 text-xs"
+                >
+                  <option value="">Off</option>
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <option key={i} value={i}>{String(i).padStart(2, "0")}:00</option>
+                  ))}
+                </select>
+                <label className="text-xs text-muted-foreground">to</label>
+                <select
+                  value={localPrefs.quietHoursEnd ?? ""}
+                  onChange={(e) =>
+                    handlePreferenceChange(
+                      "quietHoursEnd",
+                      e.target.value === "" ? null : Number(e.target.value),
+                    )
+                  }
+                  className="rounded-md border border-border bg-card px-2 py-1 text-xs"
+                >
+                  <option value="">Off</option>
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <option key={i} value={i}>{String(i).padStart(2, "0")}:00</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {push.supported && (

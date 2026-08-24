@@ -209,6 +209,7 @@ export const gamificationRoutes = [
       try {
         const { searchParams } = new URL(request.url);
         const timeframe = searchParams.get("timeframe") ?? "weekly";
+        const cohort = searchParams.get("cohort"); // rookie | rising | veteran | null (all)
         const { limit, offset } = getPagination(request);
 
         const database = db(env);
@@ -220,8 +221,18 @@ export const gamificationRoutes = [
           dateFilter = "AND xp.created_at >= datetime('now', '-30 days')";
         }
 
+        // Cohort tiers by account age: rookie <7d, rising 7-30d, veteran >30d
+        let cohortFilter = "";
+        if (cohort === "rookie") {
+          cohortFilter = "AND u.created_at > datetime('now', '-7 days')";
+        } else if (cohort === "rising") {
+          cohortFilter = "AND u.created_at <= datetime('now', '-7 days') AND u.created_at > datetime('now', '-30 days')";
+        } else if (cohort === "veteran") {
+          cohortFilter = "AND u.created_at <= datetime('now', '-30 days')";
+        }
+
         const totalResult = await database.query(
-          `SELECT COUNT(*) as count FROM users u WHERE u.deleted_at IS NULL`,
+          `SELECT COUNT(*) as count FROM users u WHERE u.deleted_at IS NULL ${cohortFilter}`,
           [],
         );
 
@@ -236,7 +247,7 @@ export const gamificationRoutes = [
           LEFT JOIN xp_accounts xp ON xp.user_id = u.id
           LEFT JOIN credit_accounts c ON c.user_id = u.id
           LEFT JOIN reputation_accounts r ON r.user_id = u.id
-          WHERE u.deleted_at IS NULL
+          WHERE u.deleted_at IS NULL ${cohortFilter}
            ORDER BY weighted_score DESC
            LIMIT ? OFFSET ?
          `,
@@ -253,12 +264,76 @@ export const gamificationRoutes = [
           total: totalResult.results[0]?.count ?? 0,
           limit,
           offset,
+          cohort: cohort ?? "all",
         });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch leaderboard", 500);
+      }
+    },
+  },
+
+  {
+    method: "POST",
+    path: "/api/v1/gamification/daily-bonus",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const userId = await requireAuth(request, env);
+        const database = db(env);
+        const today = new Date().toISOString().split("T")[0];
+
+        // Check if bonus already claimed today
+        const existing = await database.query(
+          "SELECT id FROM credit_transactions WHERE user_id = ? AND description = ? AND DATE(created_at) = ?",
+          [userId, "daily_bonus", today],
+        );
+        if (existing.results.length > 0) {
+          return createErrorResponse("CONFLICT", "Daily bonus already claimed today", 409);
+        }
+
+        // Get current streak (daily_login type)
+        const streak = await database.query(
+          "SELECT current_streak FROM streaks WHERE user_id = ? AND streak_type = 'daily_login'",
+          [userId],
+        );
+        const streakCount = streak.results.length > 0
+          ? ((streak.results[0] as Record<string, unknown>).current_streak as number ?? 0)
+          : 0;
+
+        // Base 5 credits × (1 + streak × 0.1), capped at 3×
+        const multiplier = Math.min(1 + streakCount * 0.1, 3);
+        const baseCredits = 5;
+        const bonusCredits = Math.round(baseCredits * multiplier);
+
+        // Award credits
+        const balance = await database.query("SELECT balance FROM credit_accounts WHERE user_id = ?", [userId]);
+        if (balance.results.length === 0) {
+          return createErrorResponse("NOT_FOUND", "Credit account not found", 404);
+        }
+        const currentBalance = (balance.results[0] as Record<string, unknown>).balance as number;
+        const newId = crypto.randomUUID();
+        const now = new Date().toISOString();
+        await database.execute(
+          "INSERT INTO credit_transactions (id, user_id, type, amount, balance_after, description, created_at) VALUES (?, ?, 'earned', ?, ?, 'daily_bonus', ?)",
+          [newId, userId, bonusCredits, currentBalance + bonusCredits, now],
+        );
+        await database.execute(
+          "UPDATE credit_accounts SET balance = balance + ?, updated_at = ? WHERE user_id = ?",
+          [bonusCredits, now, userId],
+        );
+
+        return createResponse({
+          credits: bonusCredits,
+          multiplier: Math.round(multiplier * 100) / 100,
+          streak: streakCount,
+        });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to claim daily bonus", 500);
       }
     },
   },

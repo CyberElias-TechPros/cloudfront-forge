@@ -338,6 +338,27 @@ export function usePurchase() {
   });
 }
 
+export function useDailyBonus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiClientService.gamification.dailyBonus(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.credits });
+    },
+  });
+}
+
+export function useReviewHelpful() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ reviewId, helpful }: { reviewId: string; helpful: boolean }) =>
+      apiClientService.reviews.helpful(reviewId, helpful),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reviews });
+    },
+  });
+}
+
 export function useReviews() {
   return useQuery({
     queryKey: queryKeys.reviews,
@@ -524,12 +545,12 @@ export function useStreaks() {
   });
 }
 
-export function useLeaderboard() {
+export function useLeaderboard(cohort?: string) {
   return useQuery({
-    queryKey: queryKeys.leaderboard,
+    queryKey: [...queryKeys.leaderboard, cohort ?? "all"],
     queryFn: async () => {
       try {
-        const data = await apiClientService.gamification.leaderboard();
+        const data = await apiClientService.gamification.leaderboard(cohort);
         return data.items;
       } catch (error) {
         console.warn("[useLeaderboard] API unavailable:", error);
@@ -630,6 +651,8 @@ export function useNotificationPreferences() {
           missionReminders: true,
           reviewRequests: true,
           communityUpdates: true,
+          quietHoursStart: null,
+          quietHoursEnd: null,
         } as NotificationPreferences;
       }
     },

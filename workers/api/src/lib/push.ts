@@ -91,6 +91,23 @@ export async function notifyUserPush(env: Env, userId: string, title: string, bo
   try {
     if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return;
     const db = new Database(env);
+
+    // Quiet hours: check user preference (UTC hours 0-23)
+    const prefs = await db.query(
+      "SELECT quiet_hours_start, quiet_hours_end FROM notification_preferences WHERE user_id = ?",
+      [userId],
+    );
+    if (prefs.results.length > 0) {
+      const pref = prefs.results[0] as Record<string, unknown>;
+      const start = pref.quiet_hours_start;
+      const end = pref.quiet_hours_end;
+      if (start !== null && end !== null && typeof start === "number" && typeof end === "number") {
+        const now = new Date().getUTCHours();
+        const inQuiet = start < end ? (now >= start && now < end) : (now >= start || now < end);
+        if (inQuiet) return;
+      }
+    }
+
     const subs = await db.query(
       "SELECT id, endpoint FROM push_subscriptions WHERE user_id = ?",
       [userId],

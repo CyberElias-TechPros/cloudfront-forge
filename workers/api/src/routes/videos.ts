@@ -607,6 +607,56 @@ export const reviewRoutes = [
       }
     },
   },
+
+  {
+    method: "POST",
+    pattern: "^\\/api\\/v1/reviews/([^/]+)/helpful$",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const userId = await requireAuth(request, env);
+        const url = new URL(request.url);
+        const reviewId = url.pathname.split("/")[4];
+        if (!reviewId) return createErrorResponse("VALIDATION_ERROR", "reviewId required", 400);
+
+        const database = db(env);
+        const review = await database.query("SELECT * FROM reviews WHERE id = ?", [reviewId]);
+        if (review.results.length === 0) return createErrorResponse("NOT_FOUND", "Review not found", 404);
+
+        const reviewRow = review.results[0] as Record<string, unknown>;
+        const video = await database.query("SELECT * FROM videos WHERE id = ?", [reviewRow.video_id]);
+        if (video.results.length === 0) return createErrorResponse("NOT_FOUND", "Video not found", 404);
+        if ((video.results[0] as Record<string, unknown>).user_id !== userId) {
+          return createErrorResponse("FORBIDDEN", "Only the video submitter can rate this review", 403);
+        }
+
+        const body = (await request.json()) as { helpful: boolean };
+        await database.query("UPDATE reviews SET helpful = ? WHERE id = ?", [body.helpful ? 1 : 0, reviewId]);
+
+        // Boost reviewer trust by 1 per helpful review
+        if (body.helpful) {
+          await database.query(
+            `INSERT INTO reputation_accounts (id, user_id, score, created_at, updated_at)
+             VALUES (?, ?, 1, ?, ?)
+             ON CONFLICT(user_id) DO UPDATE SET score = score + 1, updated_at = ?`,
+            [
+              crypto.randomUUID(),
+              reviewRow.reviewer_id,
+              new Date().toISOString(),
+              new Date().toISOString(),
+              new Date().toISOString(),
+            ],
+          );
+        }
+
+        return createResponse({ message: "Rating saved" });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to rate review", 500);
+      }
+    },
+  },
 ];
 
 // Helper: Extract YouTube video ID from URL

@@ -28,6 +28,8 @@ const updatePreferencesSchema = z.object({
   missionReminders: z.boolean().optional(),
   reviewRequests: z.boolean().optional(),
   communityUpdates: z.boolean().optional(),
+  quietHoursStart: z.number().min(0).max(23).nullable().optional(),
+  quietHoursEnd: z.number().min(0).max(23).nullable().optional(),
 });
 
 export const notificationRoutes = [
@@ -229,6 +231,8 @@ export const notificationRoutes = [
              mission_reminders = COALESCE(?, mission_reminders),
              review_requests = COALESCE(?, review_requests),
              community_updates = COALESCE(?, community_updates),
+             quiet_hours_start = COALESCE(?, quiet_hours_start),
+             quiet_hours_end = COALESCE(?, quiet_hours_end),
              updated_at = ?
              WHERE user_id = ?`,
             [
@@ -239,6 +243,8 @@ export const notificationRoutes = [
               body.missionReminders ?? null,
               body.reviewRequests ?? null,
               body.communityUpdates ?? null,
+              body.quietHoursStart ?? null,
+              body.quietHoursEnd ?? null,
               now,
               userId,
             ],
@@ -247,8 +253,9 @@ export const notificationRoutes = [
           await db.execute(
             `INSERT INTO notification_preferences 
              (id, user_id, email_enabled, push_enabled, whatsapp_enabled, in_app_enabled, 
-              mission_reminders, review_requests, community_updates, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              mission_reminders, review_requests, community_updates, quiet_hours_start, quiet_hours_end,
+              created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               crypto.randomUUID(),
               userId,
@@ -259,6 +266,8 @@ export const notificationRoutes = [
               body.missionReminders ?? true,
               body.reviewRequests ?? true,
               body.communityUpdates ?? true,
+              body.quietHoursStart ?? null,
+              body.quietHoursEnd ?? null,
               now,
               now,
             ],
@@ -297,6 +306,8 @@ export const notificationRoutes = [
             missionReminders: true,
             reviewRequests: true,
             communityUpdates: true,
+            quietHoursStart: null,
+            quietHoursEnd: null,
           });
         }
 
@@ -308,6 +319,8 @@ export const notificationRoutes = [
           missionReminders: preferences.mission_reminders === 1,
           reviewRequests: preferences.review_requests === 1,
           communityUpdates: preferences.community_updates === 1,
+          quietHoursStart: preferences.quiet_hours_start ?? null,
+          quietHoursEnd: preferences.quiet_hours_end ?? null,
         });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {

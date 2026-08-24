@@ -25,10 +25,17 @@ export const Route = createFileRoute("/leaderboard")({
 });
 
 const ranges = ["This week", "This month", "All time"] as const;
+const cohorts = [
+  { key: "", label: "All" },
+  { key: "rookie", label: "Rookies" },
+  { key: "rising", label: "Rising" },
+  { key: "veteran", label: "Veterans" },
+] as const;
 
 function Leaderboard() {
   const [range, setRange] = useState<(typeof ranges)[number]>("This week");
-  const { data: entries = [], isLoading } = useLeaderboard();
+  const [cohort, setCohort] = useState<string>("");
+  const { data: entries = [], isLoading } = useLeaderboard(cohort);
 
   const sorted = [...entries].sort((a, b) => b.totalXp - a.totalXp);
   const top = sorted.slice(0, 3);
@@ -59,6 +66,24 @@ function Leaderboard() {
           </div>
         }
       />
+
+      <div className="mt-4 flex gap-2">
+        {cohorts.map((c) => (
+          <button
+            key={c.key}
+            type="button"
+            onClick={() => setCohort(c.key)}
+            className={cn(
+              "rounded-full border border-border px-3 py-1.5 text-xs",
+              cohort === c.key
+                ? "bg-accent text-accent-foreground"
+                : "bg-card text-muted-foreground",
+            )}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         {isLoading ? (

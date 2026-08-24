@@ -2,15 +2,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Award, Calendar, Flame, Gift, Rocket, Snowflake, Star, Trophy, Zap } from "lucide-react";
 import { PageHeader, Shell, StatCard } from "@/components/page-parts";
 import {
-  useXp,
   useCredits,
   useStreaks,
+  useXp,
   useLeaderboard,
   useBadges,
-  useCurrentMember,
+  useSubmissions,
   useActivity,
   usePurchase,
-  useSubmissions,
+  useCurrentMember,
+  useDailyBonus,
 } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ function Gamification() {
   const { data: credits, isLoading: creditsLoading, isError: creditsError } = useCredits();
   const { data: submissions = [] } = useSubmissions();
   const purchase = usePurchase();
+  const dailyBonus = useDailyBonus();
   const activeVideos = submissions.filter((s) => s.status === "active");
   const { data: streaks, isLoading: streaksLoading, isError: streaksError } = useStreaks();
   const { data: leaderboard = [], isLoading: lbLoading, isError: lbError } = useLeaderboard();
@@ -131,9 +133,20 @@ function Gamification() {
         title="Gamification"
         description="Your XP, credits, streak, and rewards all in one place."
         action={
-          <Button size="sm" onClick={() => toast.success("Daily bonus claimed! +10 credits (coming soon — no credits added yet)")}>
+          <Button
+            size="sm"
+            disabled={dailyBonus.isPending}
+            onClick={() =>
+              dailyBonus.mutate(undefined, {
+                onSuccess: (data) =>
+                  toast.success(`+${data.credits} credits claimed! (${data.multiplier}× streak multiplier)`),
+                onError: (err: any) =>
+                  toast.error(err?.message?.includes("409") ? "Already claimed today" : "Failed to claim bonus"),
+              })
+            }
+          >
             <Gift className="size-4 mr-2" />
-            Claim daily login bonus
+            {dailyBonus.isPending ? "Claiming..." : "Claim daily bonus"}
           </Button>
         }
       />

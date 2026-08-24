@@ -263,6 +263,8 @@ export interface NotificationPreferences {
   missionReminders: boolean;
   reviewRequests: boolean;
   communityUpdates: boolean;
+  quietHoursStart: number | null;
+  quietHoursEnd: number | null;
 }
 
 export interface UserPermissions {
@@ -347,6 +349,8 @@ export const apiClientService = {
         `/api/v1/reviews/${reviewId}/complete`,
         data,
       ),
+    helpful: (reviewId: string, helpful: boolean) =>
+      postData<{ message: string }>(`/api/v1/reviews/${reviewId}/helpful`, { helpful }),
   },
 
   gamification: {
@@ -354,7 +358,15 @@ export const apiClientService = {
     xp: () => getData<XpSummary>("/api/v1/xp"),
     streaks: () => getData<StreakInfo>("/api/v1/streaks"),
     badges: () => getData<unknown[]>("/api/v1/badges"),
-    leaderboard: () => getData<PaginatedResponse<LeaderboardEntry>>("/api/v1/leaderboards"),
+    leaderboard: (cohort?: string) =>
+      getData<PaginatedResponse<LeaderboardEntry>>(
+        `/api/v1/leaderboards${cohort ? `?cohort=${cohort}` : ""}`,
+      ),
+    dailyBonus: () =>
+      postData<{ credits: number; multiplier: number; streak: number }>(
+        "/api/v1/gamification/daily-bonus",
+        {},
+      ),
   },
 
   notifications: {
