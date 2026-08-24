@@ -7,6 +7,49 @@ import { createLogger } from "../lib/logger";
 
 const HISTORY_LIMIT = 20;
 
+/** Build a system prompt enriched with the user's real platform data. */
+async function buildPlatformAwarePrompt(db: Database, userId: string): Promise<string> {
+  // Fetch user profile + stats in parallel
+  const [member, videos, xp, streaks, reviews] = await Promise.all([
+    db.querySingle(
+      "SELECT display_name, trust_score FROM users WHERE id = ?",
+      [userId],
+    ),
+    db.query(
+      `SELECT v.id, v.title, v.status, v.created_at,
+              (SELECT COUNT(*) FROM watch_sessions w WHERE w.video_id = v.id AND w.status = 'claimed') as claims
+       FROM videos v WHERE v.user_id = ? ORDER BY v.created_at DESC LIMIT 5`,
+      [userId],
+    ),
+    db.querySingle("SELECT total_xp, level FROM xp_accounts WHERE user_id = ?", [userId]),
+    db.querySingle("SELECT current_streak, longest_streak FROM streaks WHERE user_id = ? AND streak_type = 'daily_login'", [userId]),
+    db.querySingle(
+      "SELECT COUNT(*) as count FROM reviews WHERE reviewer_id = ? AND status = 'completed'",
+      [userId],
+    ),
+  ]);
+
+  const m = member as any;
+  const x = xp as any;
+  const s = streaks as any;
+  const videoList = (videos.results ?? [])
+    .map((v: any) => `- "${v.title}" (${v.status}, ${v.claims ?? 0} claims)`)
+    .join("\n");
+
+  return (
+    AI_SYSTEM_PROMPT +
+    `\n\n--- YOUR LIVE DATA (fetched fresh for this user) ---\n` +
+    `Name: ${m?.display_name ?? "Creator"}\n` +
+    `Trust score: ${m?.trust_score ?? "?"}/100\n` +
+    `Level: ${x?.level ?? "?"} (${x?.total_xp ?? 0} XP)\n` +
+    `Streak: ${s?.current_streak ?? 0} days (longest: ${s?.longest_streak ?? 0})\n` +
+    `Reviews completed: ${reviews?.count ?? 0}\n` +
+    `Recent videos:\n${videoList || "(none yet)"}\n` +
+    `\nUse this data when answering questions about their account, videos, or growth. ` +
+    `If they ask about features not listed in your instructions, say you don't have that info.`
+  );
+}
+
 export const aiRoutes = [
   {
     method: "POST",
@@ -53,7 +96,7 @@ export const aiRoutes = [
         const history = (historyResult.results ?? []) as Array<{ role: string; content: string }>;
 
         const messages: ChatMessage[] = [
-          { role: "system", content: AI_SYSTEM_PROMPT },
+          { role: "system", content: await buildPlatformAwarePrompt(db, userId) },
           ...history.map((m) => ({ role: m.role as ChatMessage["role"], content: m.content })),
           { role: "user", content: message },
         ];
