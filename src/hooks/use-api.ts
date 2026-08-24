@@ -270,6 +270,19 @@ export function useCreateReport() {
   });
 }
 
+export function useAttentionChallenge() {
+  return useMutation({
+    mutationFn: (videoId: string) => apiClientService.watch.challenge(videoId),
+  });
+}
+
+export function useAnswerChallenge() {
+  return useMutation({
+    mutationFn: ({ challengeId, answer }: { challengeId: string; answer: string }) =>
+      apiClientService.watch.answerChallenge(challengeId, answer),
+  });
+}
+
 export function useDailyQuests() {
   return useQuery({
     queryKey: [...queryKeys.notifications, "daily-quests"],

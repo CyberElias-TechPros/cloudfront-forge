@@ -19,7 +19,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useQueueTasks, useWatch, useCreateReport } from "@/hooks/use-api";
+import { useQueueTasks, useWatch, useCreateReport, useAttentionChallenge, useAnswerChallenge } from "@/hooks/use-api";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 declare global {
@@ -54,6 +56,8 @@ function Queue() {
   const { data: tasks = [], isLoading, isError, error } = useQueueTasks();
   const watch = useWatch();
   const report = useCreateReport();
+  const getChallenge = useAttentionChallenge();
+  const answerChallenge = useAnswerChallenge();
   const [activeId, setActiveId] = useState<string | null>(null);
   const active = tasks.find((t) => t.id === activeId) ?? tasks[0];
   const [elapsed, setElapsed] = useState(0);
@@ -68,6 +72,11 @@ function Queue() {
   const lastSampleRef = useRef<number | null>(null);
   const playerStateRef = useRef<number>(-1);
   const [ytReady, setYtReady] = useState(false);
+  const challengeThresholdRef = useRef<number | null>(null);
+  const challengeFiredRef = useRef(false);
+  const [activeChallenge, setActiveChallenge] = useState<{ id: string; question: string } | null>(null);
+  const [challengeAnswer, setChallengeAnswer] = useState("");
+  const [attentionVoided, setAttentionVoided] = useState(false);
 
   const alreadyClaimed = active
     ? claimedIds.includes(active.id) || active.status === "verified"
@@ -111,6 +120,12 @@ function Queue() {
     setCommented(false);
     setSubOpened(false);
     lastSampleRef.current = null;
+    // New video: schedule a mid-watch attention check at a random 40-70% point
+    challengeThresholdRef.current = active ? (0.4 + Math.random() * 0.3) * active.requiredSec : null;
+    challengeFiredRef.current = false;
+    setActiveChallenge(null);
+    setAttentionVoided(false);
+    setChallengeAnswer("");
   }, [activeId]);
 
   // Watch time is sampled from the YouTube player's own clock so the platform
@@ -142,6 +157,26 @@ function Queue() {
     const id = setInterval(tick, 500);
     return () => clearInterval(id);
   }, [playing, active]);
+
+  // Mid-watch attention check: fires once when playback crosses the random threshold
+  useEffect(() => {
+    if (!active || attentionVoided) return;
+    const threshold = challengeThresholdRef.current;
+    if (threshold == null || challengeFiredRef.current) return;
+    if (elapsed >= threshold && elapsed < active.requiredSec) {
+      challengeFiredRef.current = true;
+      getChallenge.mutate(
+        active.id,
+        {
+          onSuccess: (res) => setActiveChallenge({ id: res.challengeId, question: res.question }),
+          onError: () => {
+            // Soft-fail: don't block the user on a challenge fetch error
+            challengeFiredRef.current = false;
+          },
+        },
+      );
+    }
+  }, [elapsed, active, attentionVoided]);
 
   useEffect(() => {
     const onVis = () => { if (document.hidden) setPlaying(false); };
@@ -443,16 +478,18 @@ function Queue() {
             <button
               type="button"
               onClick={handleClaim}
-              disabled={!claimable || alreadyClaimed || watch.isPending}
+              disabled={!claimable || alreadyClaimed || watch.isPending || attentionVoided}
               className="mt-4 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground disabled:opacity-40"
             >
-              {alreadyClaimed
-                ? "Claimed"
-                : watch.isPending
-                  ? "Claiming…"
-                  : claimable
-                    ? `Claim +${active.reward} points`
-                    : `${hookStatus === "verified" ? "Watch verified" : hookStatus === "started" ? "Start watching" : "Claim unavailable"}`}
+              {attentionVoided
+                ? "Attention check failed — session voided"
+                : alreadyClaimed
+                  ? "Claimed"
+                  : watch.isPending
+                    ? "Claiming…"
+                    : claimable
+                      ? `Claim +${active.reward} points`
+                      : `${hookStatus === "verified" ? "Watch verified" : hookStatus === "started" ? "Start watching" : "Claim unavailable"}`}
             </button>
 
             <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
@@ -513,6 +550,65 @@ function Queue() {
           <AdSlot className="mt-6" />
         </section>
       </div>
+
+      <Dialog open={!!activeChallenge && !attentionVoided} onOpenChange={(open) => { if (!open) setActiveChallenge(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Quick attention check</DialogTitle>
+            <DialogDescription>
+              Answer to confirm you're actively watching. You get 2 attempts.
+            </DialogDescription>
+          </DialogHeader>
+          {activeChallenge && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!challengeAnswer.trim()) return;
+                answerChallenge.mutate(
+                  { challengeId: activeChallenge.id, answer: challengeAnswer },
+                  {
+                    onSuccess: (res) => {
+                      if (res.passed) {
+                        toast.success("Verified — enjoy the rest of the video");
+                        setActiveChallenge(null);
+                        setChallengeAnswer("");
+                      } else if (res.voided) {
+                        setAttentionVoided(true);
+                        setActiveChallenge(null);
+                        toast.error("Attention check failed twice — this session is voided.");
+                      } else {
+                        toast.error("Wrong answer — one attempt left. Try again:");
+                        getChallenge.mutate(active!.id, {
+                          onSuccess: (r2) => setActiveChallenge({ id: r2.challengeId, question: r2.question }),
+                        });
+                        setChallengeAnswer("");
+                      }
+                    },
+                    onError: (e: Error) => toast.error(e.message || "Could not submit answer"),
+                  },
+                );
+              }}
+              className="space-y-3"
+            >
+              <p className="text-center text-lg font-semibold">{activeChallenge.question}</p>
+              <Input
+                autoFocus
+                inputMode="numeric"
+                value={challengeAnswer}
+                onChange={(e) => setChallengeAnswer(e.target.value)}
+                placeholder="Your answer"
+              />
+              <button
+                type="submit"
+                disabled={answerChallenge.isPending || !challengeAnswer.trim()}
+                className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-40"
+              >
+                {answerChallenge.isPending ? "Checking…" : "Submit"}
+              </button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </Shell>
   );
 }

@@ -11,6 +11,11 @@ function levelForXp(totalXp: number): number {
   return Math.max(1, Math.floor(totalXp / 250) + 1);
 }
 
+async function sha256Hex(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 async function ensureReputation(db: Database, userId: string, now: string): Promise<void> {
   const existing = await db.querySingle("SELECT id FROM reputation_accounts WHERE user_id = ?", [
     userId,
@@ -114,6 +119,109 @@ function extractUserId(request: Request): string | null {
 }
 
 export const watchRoutes = [
+  // POST /watch/challenge - issue an attention check (mid-watch overlay)
+  {
+    method: "POST",
+    path: "/api/v1/watch/challenge",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const userId = await requireAuth(request, env);
+        const body = (await request.json().catch(() => ({}))) as { videoId?: string };
+        if (!body.videoId) {
+          return createErrorResponse("VALIDATION_ERROR", "videoId is required", 400);
+        }
+        const db = new Database(env);
+        const now = new Date().toISOString();
+
+        // Generate simple arithmetic challenge; store SHA-256 of answer
+        const a = 2 + Math.floor(Math.random() * 9);
+        const b = 2 + Math.floor(Math.random() * 9);
+        const question = `What is ${a} + ${b}?`;
+        const answerHash = await sha256Hex(String(a + b));
+
+        const id = crypto.randomUUID();
+        await db.execute(
+          `INSERT INTO attention_challenges (id, user_id, video_id, question, answer_hash, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [id, userId, body.videoId, question, answerHash, now],
+        );
+        return createResponse({ challengeId: id, question, ttlSec: 120 });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to create challenge", 500);
+      }
+    },
+  },
+
+  // POST /watch/challenge/:id/answer - grade an attention check
+  {
+    method: "POST",
+    pattern: "^\\/api\\/v1/watch/challenge/([^/]+)/answer$",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const userId = await requireAuth(request, env);
+        const challengeId = new URL(request.url).pathname.split("/")[5] ?? "";
+        const body = (await request.json().catch(() => ({}))) as { answer?: string | number };
+        if (body.answer === undefined || body.answer === null) {
+          return createErrorResponse("VALIDATION_ERROR", "answer is required", 400);
+        }
+
+        const db = new Database(env);
+        const row = await db.querySingle(
+          "SELECT * FROM attention_challenges WHERE id = ? AND user_id = ? AND status = 'active'",
+          [challengeId, userId],
+        );
+        const challenge = row as Record<string, unknown> | null;
+        if (!challenge) {
+          return createErrorResponse("NOT_FOUND", "Challenge not found or already resolved", 404);
+        }
+
+        const attempts = ((challenge.attempts as number) ?? 0) + 1;
+        const correct = (await sha256Hex(String(body.answer).trim())) === challenge.answer_hash;
+
+        if (correct) {
+          await db.execute(
+            "UPDATE attention_challenges SET status = 'passed', attempts = ?, resolved_at = ? WHERE id = ?",
+            [attempts, new Date().toISOString(), challengeId],
+          );
+          // Small trust bonus for passing first try
+          if (attempts === 1) {
+            await db.execute(
+              "UPDATE reputation_accounts SET score = MIN(100, score + 1), updated_at = ? WHERE user_id = ?",
+              [new Date().toISOString(), userId],
+            );
+          }
+          return createResponse({ passed: true, attempts });
+        }
+
+        if (attempts >= ((challenge.max_attempts as number) ?? 2)) {
+          await db.execute(
+            "UPDATE attention_challenges SET status = 'failed', attempts = ?, resolved_at = ? WHERE id = ?",
+            [attempts, new Date().toISOString(), challengeId],
+          );
+          await db.execute(
+            "UPDATE reputation_accounts SET score = MAX(0, score - 5), updated_at = ? WHERE user_id = ?",
+            [new Date().toISOString(), userId],
+          );
+          return createResponse({ passed: false, voided: true, attempts });
+        }
+
+        await db.execute("UPDATE attention_challenges SET attempts = ? WHERE id = ?", [
+          attempts,
+          challengeId,
+        ]);
+        return createResponse({ passed: false, voided: false, attempts });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to submit answer", 500);
+      }
+    },
+  },
+
   // POST /watch/start - issue a signed session token for server-verified playback
   {
     method: "POST",
@@ -271,8 +379,16 @@ export const watchRoutes = [
         }
 
         const effectiveWatchSeconds = watchVerified ? verifiedWatchSeconds : watchSeconds;
+
+        // Attention check gate: a failed challenge voids this claim
+        const failedChallenge = await db.querySingle(
+          "SELECT id FROM attention_challenges WHERE user_id = ? AND video_id = ? AND status = 'failed' AND created_at > datetime('now', '-1 day')",
+          [watcherId, videoId],
+        );
+        const attentionBlocked = !!failedChallenge;
+
         const watchClaimable = effectiveWatchSeconds >= requiredWatchSec && verifiedSubscribed && verifiedCommented;
-        const claimable = watchClaimable;
+        const claimable = watchClaimable && !attentionBlocked;
 
         if (existing) {
           await db.execute(
@@ -402,6 +518,7 @@ export const watchRoutes = [
         return createResponse({
           status,
           claimable: effectiveSubscribed && effectiveWatchSeconds >= requiredWatchSec,
+          attentionBlocked,
           xpAwarded,
           creditsAwarded,
           subReason,

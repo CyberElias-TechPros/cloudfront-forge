@@ -381,6 +381,16 @@ export const apiClientService = {
         "/api/v1/watch",
         data,
       ),
+    challenge: (videoId: string) =>
+      postData<{ challengeId: string; question: string; ttlSec: number }>(
+        "/api/v1/watch/challenge",
+        { videoId },
+      ),
+    answerChallenge: (challengeId: string, answer: string) =>
+      postData<{ passed: boolean; voided?: boolean; attempts: number }>(
+        `/api/v1/watch/challenge/${challengeId}/answer`,
+        { answer },
+      ),
   },
 
   youtube: {
