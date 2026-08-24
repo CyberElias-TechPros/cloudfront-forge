@@ -2,7 +2,12 @@ import type { Env } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
-import { generateChatCompletion, AI_SYSTEM_PROMPT, type ChatMessage } from "../services/ai";
+import {
+  generateChatCompletion,
+  generateChatCompletionStream,
+  AI_SYSTEM_PROMPT,
+  type ChatMessage,
+} from "../services/ai";
 import { createLogger } from "../lib/logger";
 
 const HISTORY_LIMIT = 20;
@@ -165,6 +170,124 @@ export const aiRoutes = [
         }
         logger.error("AI chat error", error);
         return createErrorResponse("INTERNAL_ERROR", "Failed to process chat", 500);
+      }
+    },
+  },
+  {
+    method: "POST",
+    path: "/api/v1/ai/chat/stream",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      const logger = createLogger(env);
+      try {
+        const userId = await requireAuth(request, env);
+        const rawBody = await request.json().catch(() => ({}));
+        const body = rawBody as Record<string, unknown>;
+        const message = typeof body.message === "string" ? body.message.trim() : undefined;
+        const conversationId =
+          typeof body.conversationId === "string" ? body.conversationId : undefined;
+
+        if (!message) {
+          return createErrorResponse("VALIDATION_ERROR", "Message is required", 400);
+        }
+
+        const db = new Database(env);
+        const now = db.now();
+        let convId = conversationId;
+
+        if (convId) {
+          const conv = await db.querySingle(
+            "SELECT id FROM ai_conversations WHERE id = ? AND user_id = ?",
+            [convId, userId],
+          );
+          if (!conv) return createErrorResponse("NOT_FOUND", "Conversation not found", 404);
+        } else {
+          convId = db.uuid();
+          await db.execute(
+            "INSERT INTO ai_conversations (id, user_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            [convId, userId, message.slice(0, 60), now, now],
+          );
+        }
+
+        const historyResult = await db.query(
+          "SELECT role, content FROM ai_messages WHERE conversation_id = ? AND user_id = ? ORDER BY created_at ASC LIMIT ?",
+          [convId, userId, HISTORY_LIMIT],
+        );
+        const history = (historyResult.results ?? []) as Array<{ role: string; content: string }>;
+
+        const messages: ChatMessage[] = [
+          { role: "system", content: await buildPlatformAwarePrompt(db, userId) },
+          ...history.map((m) => ({ role: m.role as ChatMessage["role"], content: m.content })),
+          { role: "user", content: message },
+        ];
+
+        // Quota check (same as non-streaming)
+        const DAILY_USER_LIMIT = parseInt(env.AI_DAILY_USER_LIMIT || "20", 10);
+        const todayUserCount = await db.querySingle(
+          "SELECT COUNT(*) as cnt FROM ai_messages WHERE user_id = ? AND role = 'user' AND created_at > datetime('now', 'start of day')",
+          [userId],
+        );
+        if ((todayUserCount?.cnt ?? 0) >= DAILY_USER_LIMIT) {
+          return createErrorResponse(
+            "QUOTA_EXCEEDED",
+            `Daily AI limit reached (${DAILY_USER_LIMIT}). Resets at midnight.`,
+            429,
+          );
+        }
+
+        // SSE stream
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+          async start(controller) {
+            let fullReply = "";
+            try {
+              for await (const chunk of generateChatCompletionStream(messages, env)) {
+                fullReply += chunk;
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({ content: chunk })}\n\n`),
+                );
+              }
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+
+              // Persist messages
+              await db.batch([
+                {
+                  sql: "INSERT INTO ai_messages (id, conversation_id, user_id, role, content, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                  params: [db.uuid(), convId!, userId, "user", message, now],
+                },
+                {
+                  sql: "INSERT INTO ai_messages (id, conversation_id, user_id, role, content, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                  params: [db.uuid(), convId!, userId, "assistant", fullReply, now],
+                },
+                {
+                  sql: "UPDATE ai_conversations SET updated_at = ? WHERE id = ?",
+                  params: [now, convId!],
+                },
+              ]);
+            } catch (err) {
+              const errMsg = err instanceof Error ? err.message : "Stream failed";
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ error: errMsg })}\n\n`),
+              );
+            } finally {
+              controller.close();
+            }
+          },
+        });
+
+        return new Response(stream, {
+          status: 200,
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+          },
+        });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        logger.error("AI stream error", error);
+        return createErrorResponse("INTERNAL_ERROR", "Failed to start stream", 500);
       }
     },
   },

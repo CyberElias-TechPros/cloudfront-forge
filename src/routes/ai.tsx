@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Bot, MessageSquare, Plus, Send, Sparkles, Trash2, User } from "lucide-react";
 import { Shell, PageHeader } from "@/components/page-parts";
 import { api } from "@/lib/api";
+import { getIdToken } from "@/lib/firebase";
 
 export const Route = createFileRoute("/ai")({
   head: () => ({
@@ -94,13 +95,69 @@ export default function AiAssistant() {
     const optimistic: ChatMessage[] = [...messages, { role: "user", content: text }];
     setMessages(optimistic);
     setLoading(true);
+
     try {
-      const res = await api.post<{ conversationId: string; reply: string }>("/api/v1/ai/chat", {
-        message: text,
-        conversationId: activeId ?? undefined,
+      const token = await getIdToken();
+      const res = await fetch(`${import.meta.env["VITE_API_URL"] ?? ""}/api/v1/ai/chat/stream`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          message: text,
+          conversationId: activeId ?? undefined,
+        }),
       });
-      setMessages([...optimistic, { role: "assistant", content: res.reply }]);
-      setActiveId(res.conversationId);
+
+      if (!res.ok || !res.body) {
+        const errBody = await res.json().catch(() => ({})) as { error?: { message?: string } };
+        throw new Error(errBody?.error?.message ?? `Request failed (${res.status})`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let assistantContent = "";
+      let buffer = "";
+
+      setMessages([...optimistic, { role: "assistant", content: "" }]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data: ")) continue;
+          const data = trimmed.slice(6);
+          if (data === "[DONE]") break;
+
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.error) throw new Error(parsed.error);
+            if (parsed.content) {
+              assistantContent += parsed.content;
+              setMessages([...optimistic, { role: "assistant", content: assistantContent }]);
+            }
+          } catch (parseErr) {
+            if (parseErr instanceof Error && parseErr.message !== "Unexpected end of JSON input") {
+              throw parseErr;
+            }
+          }
+        }
+      }
+
+      setActiveId((prev) => {
+        if (!prev) {
+          // New conversation — reload sidebar
+          loadConversations();
+        }
+        return prev;
+      });
       loadConversations();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Try again.";
