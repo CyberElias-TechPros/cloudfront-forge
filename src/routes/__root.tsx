@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SiteFooter, SiteHeader } from "../components/site-chrome";
+import { InstallBanner } from "../components/install-banner";
 import { AuthProvider, RequireAuth } from "../hooks/useAuth";
 import { validateFrontendEnv } from "../lib/env-validation";
 
@@ -95,12 +96,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "theme-color", content: "#7c3aed" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
+      { rel: "manifest", href: "/manifest.json" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -166,6 +169,7 @@ function RootComponent() {
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <div className="flex-1">{outlet}</div>
           <SiteFooter />
+          {!isPublic && <InstallBanner />}
         </div>
       </AuthProvider>
     </QueryClientProvider>
