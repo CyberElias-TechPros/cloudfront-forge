@@ -55,6 +55,7 @@ export const feedRoutes = [
         const userId = await requireAuth(request, env);
         const db = new Database(env);
         const { limit, offset } = getPagination(request);
+        const nowIso = new Date().toISOString();
 
         const totalResult = await db.query(
           `SELECT COUNT(*) as count FROM videos v
@@ -72,9 +73,10 @@ export const feedRoutes = [
            LEFT JOIN users u ON v.user_id = u.id
            LEFT JOIN watch_sessions ws ON ws.video_id = v.id AND ws.watcher_id = ?
            WHERE v.status = 'active' AND v.user_id != ?
-           ORDER BY v.created_at DESC
+           ORDER BY (v.boosted_until IS NOT NULL AND v.boosted_until > ?) DESC,
+                    v.created_at DESC
            LIMIT ? OFFSET ?`,
-          [userId, userId, limit, offset],
+          [userId, userId, nowIso, limit, offset],
         );
 
         const items = result.results.map((v: any) => {

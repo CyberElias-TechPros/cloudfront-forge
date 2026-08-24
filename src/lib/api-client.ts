@@ -416,6 +416,21 @@ export const apiClientService = {
       }>("/api/v1/daily-quests"),
   },
 
+  shop: {
+    list: () =>
+      getData<{
+        items: Array<{ id: string; name: string; description: string; cost: number }>;
+      }>("/api/v1/shop"),
+    purchase: (data: { itemType: "boost" | "streak_freeze"; videoId?: string }) =>
+      postData<{
+        message: string;
+        itemType: string;
+        cost: number;
+        boostedUntil: string | null;
+        balance: number;
+      }>("/api/v1/shop/purchase", data),
+  },
+
   users: {
     profile: () => getData<UserProfile>("/api/v1/users/me/profile"),
     member: () => getData<CurrentMember>("/api/v1/users/me/member"),

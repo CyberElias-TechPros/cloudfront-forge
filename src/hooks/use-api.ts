@@ -284,6 +284,32 @@ export function useDailyQuests() {
   });
 }
 
+export function useShop() {
+  return useQuery({
+    queryKey: ["shop"],
+    queryFn: async () => {
+      try {
+        const data = await apiClientService.shop.list();
+        return data.items;
+      } catch {
+        return [];
+      }
+    },
+  });
+}
+
+export function usePurchase() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { itemType: "boost" | "streak_freeze"; videoId?: string }) =>
+      apiClientService.shop.purchase(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.credits });
+      void queryClient.invalidateQueries({ queryKey: ["feed", "submissions"] });
+    },
+  });
+}
+
 export function useReviews() {
   return useQuery({
     queryKey: queryKeys.reviews,

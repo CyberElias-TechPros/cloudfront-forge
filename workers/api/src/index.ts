@@ -17,6 +17,7 @@ import { aiRoutes } from "./routes/ai";
 import { youtubeRoutes } from "./routes/youtube";
 import { searchRoutes } from "./routes/search";
 import { reportRoutes } from "./routes/reports";
+import { shopRoutes } from "./routes/shop";
 import { runAllJobs } from "./jobs";
 
 const SECURITY_HEADERS = new Headers({
@@ -136,6 +137,7 @@ export default {
         ...youtubeRoutes,
         ...searchRoutes,
         ...reportRoutes,
+  ...shopRoutes,
       ];
 
       const route = allRoutes.find(

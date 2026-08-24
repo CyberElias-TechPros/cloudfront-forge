@@ -33,10 +33,11 @@ export async function sweepOverdueReviews(db: Database): Promise<number> {
 
 /**
  * Reset stale streaks: streak breaks if no claim in last 48 hours.
+ * Users with streak_freezes > 0 consume one freeze instead of losing the streak.
  */
 export async function sweepStreakReset(db: Database): Promise<number> {
   const rows = await db.query(
-    `SELECT s.user_id FROM streaks s
+    `SELECT s.user_id, s.streak_freezes FROM streaks s
      WHERE s.current_streak > 0
        AND NOT EXISTS (
          SELECT 1 FROM watch_sessions w
@@ -48,10 +49,20 @@ export async function sweepStreakReset(db: Database): Promise<number> {
   );
   if (rows.results.length === 0) return 0;
   const now = new Date().toISOString();
-  const ids = rows.results.map((r: any) => r.user_id as string);
-  await db.execute(
-    `UPDATE streaks SET current_streak = 0, updated_at = ? WHERE user_id IN (${ids.map(() => "?").join(",")})`,
-    [now, ...ids],
-  );
-  return ids.length;
+  let resets = 0;
+  for (const row of rows.results as Array<{ user_id: string; streak_freezes: number }>) {
+    if ((row.streak_freezes ?? 0) > 0) {
+      await db.execute(
+        "UPDATE streaks SET streak_freezes = streak_freezes - 1, updated_at = ? WHERE user_id = ?",
+        [now, row.user_id],
+      );
+    } else {
+      await db.execute(
+        "UPDATE streaks SET current_streak = 0, updated_at = ? WHERE user_id = ?",
+        [now, row.user_id],
+      );
+      resets++;
+    }
+  }
+  return resets;
 }

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Award, Calendar, Flame, Gift, Star, TrendingUp, Trophy, Zap } from "lucide-react";
+import { Award, Calendar, Flame, Gift, Rocket, Snowflake, Star, Trophy, Zap } from "lucide-react";
 import { PageHeader, Shell, StatCard } from "@/components/page-parts";
 import {
   useXp,
@@ -9,6 +9,8 @@ import {
   useBadges,
   useCurrentMember,
   useActivity,
+  usePurchase,
+  useSubmissions,
 } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -39,6 +41,9 @@ const xpLevels = [0, 100, 250, 500, 1000, 1800, 3000, 5000, 8000, 12000, 18000];
 function Gamification() {
   const { data: xp, isLoading: xpLoading, isError: xpError } = useXp();
   const { data: credits, isLoading: creditsLoading, isError: creditsError } = useCredits();
+  const { data: submissions = [] } = useSubmissions();
+  const purchase = usePurchase();
+  const activeVideos = submissions.filter((s) => s.status === "active");
   const { data: streaks, isLoading: streaksLoading, isError: streaksError } = useStreaks();
   const { data: leaderboard = [], isLoading: lbLoading, isError: lbError } = useLeaderboard();
   const { data: badges = [], isLoading: badgesLoading, isError: badgesError } = useBadges();
@@ -254,28 +259,60 @@ function Gamification() {
           <Card>
             <CardHeader>
               <CardTitle>Credit shop</CardTitle>
-              <CardDescription>Spend credits to boost your videos</CardDescription>
+              <CardDescription>Spend credits on boosts and streak protection</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 <ShopItem
-                  name="Queue priority"
-                  description="Move to front of rotation"
-                  cost={15}
-                  icon={<TrendingUp className="size-4 text-accent" />}
-                />
-                <ShopItem
-                  name="Featured placement"
-                  description="Highlight for 24h"
-                  cost={30}
-                  icon={<Star className="size-4 text-accent" />}
-                />
-                <ShopItem
-                  name="Review boost"
-                  description="Get reviewed by top members"
+                  name="Video boost"
+                  description="Top of the queue for 24h"
                   cost={50}
-                  icon={<Award className="size-4 text-accent" />}
+                  icon={<Rocket className="size-4 text-accent" />}
+                  disabled={creditBalance < 50 || activeVideos.length === 0}
+                  busy={purchase.isPending}
+                  onPurchase={() => {
+                    const video = activeVideos[0];
+                    if (!video) return;
+                    purchase.mutate(
+                      { itemType: "boost", videoId: video.id },
+                      {
+                        onSuccess: (res) =>
+                          toast.success(
+                            `"${video.title}" boosted for 24h. Balance: ${res.balance} credits`,
+                          ),
+                        onError: (e: Error) => toast.error(e.message),
+                      },
+                    );
+                  }}
                 />
+                <ShopItem
+                  name="Streak freeze"
+                  description="Protects streak one inactive day"
+                  cost={30}
+                  icon={<Snowflake className="size-4 text-accent" />}
+                  disabled={creditBalance < 30}
+                  busy={purchase.isPending}
+                  onPurchase={() => {
+                    purchase.mutate(
+                      { itemType: "streak_freeze" },
+                      {
+                        onSuccess: (res) =>
+                          toast.success(`Streak freeze acquired. Balance: ${res.balance} credits`),
+                        onError: (e: Error) => toast.error(e.message),
+                      },
+                    );
+                  }}
+                />
+                {activeVideos.length > 1 && activeVideos[0] && (
+                  <p className="text-xs text-muted-foreground">
+                    Boost applies to your most recent active video: "{activeVideos[0].title}"
+                  </p>
+                )}
+                {activeVideos.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Submit a video to unlock boosts.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -356,11 +393,17 @@ function ShopItem({
   description,
   cost,
   icon,
+  disabled,
+  busy,
+  onPurchase,
 }: {
   name: string;
   description: string;
   cost: number;
   icon: React.ReactNode;
+  disabled?: boolean;
+  busy?: boolean;
+  onPurchase: () => void;
 }) {
   return (
     <div className="flex items-center justify-between rounded-lg border border-border p-3">
@@ -371,7 +414,7 @@ function ShopItem({
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
       </div>
-      <Button variant="outline" size="sm" onClick={() => toast.info(`${name} — shop purchases coming soon, no credits charged`)}>
+      <Button variant="outline" size="sm" onClick={onPurchase} disabled={disabled || busy}>
         <Zap className="size-4 mr-1" />
         {cost}
       </Button>
