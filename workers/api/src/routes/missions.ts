@@ -18,6 +18,19 @@ const createMissionSchema = z.object({
   xpReward: z.number().min(0).default(25),
   creditReward: z.number().min(0).default(10),
   timeEstimateMinutes: z.number().min(1).max(300).default(15),
+  chainId: z.string().uuid().optional(),
+  chainStep: z.number().min(1).max(3).optional(),
+});
+
+const createChainSchema = z.object({
+  niche: z.string().min(2).max(50),
+  steps: z.array(z.object({
+    title: z.string().min(5).max(200),
+    description: z.string().max(1000).default(""),
+    difficulty: z.enum(["easy", "medium", "hard"]).default("medium"),
+    xpReward: z.number().min(0).default(25),
+    creditReward: z.number().min(0).default(10),
+  })).min(2).max(5),
 });
 
 const completeMissionSchema = z.object({
@@ -89,8 +102,8 @@ export const missionRoutes = [
         const now = new Date().toISOString();
 
         await db.execute(
-          `INSERT INTO missions (id, title, description, difficulty, xp_reward, credit_reward, time_estimate_minutes, is_active, valid_from, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO missions (id, title, description, difficulty, xp_reward, credit_reward, time_estimate_minutes, is_active, valid_from, chain_id, chain_step, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             crypto.randomUUID(),
             body.title,
@@ -101,6 +114,8 @@ export const missionRoutes = [
             body.timeEstimateMinutes,
             1,
             now,
+            body.chainId ?? null,
+            body.chainStep ?? null,
             now,
             now,
           ],
@@ -349,6 +364,67 @@ export const missionRoutes = [
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to skip mission", 500);
+      }
+    },
+  },
+  {
+    method: "POST",
+    path: "/api/v1/missions/chain",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        await requireAdmin(request, env);
+        const body = (await request.json().catch(() => ({}))) as any;
+        const validation = createChainSchema.safeParse(body);
+
+        if (!validation.success) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            validation.error.errors.map((e) => e.message).join(", "),
+            400,
+          );
+        }
+
+        const db = new Database(env);
+        const now = new Date().toISOString();
+        const chainId = crypto.randomUUID();
+        const missionIds: string[] = [];
+
+        for (let i = 0; i < validation.data.steps.length; i++) {
+          const step = validation.data.steps[i];
+          const missionId = crypto.randomUUID();
+          missionIds.push(missionId);
+          await db.execute(
+            `INSERT INTO missions (id, title, description, difficulty, xp_reward, credit_reward, time_estimate_minutes, is_active, valid_from, chain_id, chain_step, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              missionId,
+              `[${validation.data.niche}] ${step.title}`,
+              step.description,
+              step.difficulty,
+              step.xpReward,
+              step.creditReward,
+              15,
+              1,
+              now,
+              chainId,
+              i + 1,
+              now,
+              now,
+            ],
+          );
+        }
+
+        return createResponse({
+          message: "Mission chain created",
+          chainId,
+          missions: missionIds,
+          steps: validation.data.steps.length,
+        }, 201);
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to create chain", 500);
       }
     },
   },

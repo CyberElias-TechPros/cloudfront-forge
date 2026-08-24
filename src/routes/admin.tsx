@@ -10,6 +10,7 @@ import {
   useCurrentMember,
   useUserPermissions,
   useAdminAnalytics,
+  useAdminRetention,
 } from "@/hooks/use-api";
 
 export const Route = createFileRoute("/admin")({
@@ -37,6 +38,7 @@ function Admin() {
   const flagsQuery = useAdminReports("pending");
   const statsQuery = useAdminMetrics();
   const analyticsQuery = useAdminAnalytics();
+  const retentionQuery = useAdminRetention();
   const resolveReportMutation = useResolveReport();
   const usersQuery = useAdminUsers("active");
   const users = usersQuery.data ?? [];
@@ -132,6 +134,45 @@ function Admin() {
                 <p className="mt-1 text-2xl font-bold tabular-nums">{s.value}</p>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Cohort retention */}
+      {retentionQuery.data && retentionQuery.data.cohorts.length > 0 && (
+        <div className="mt-6 surface p-6">
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <Users className="size-4" /> Cohort Retention (W1 / W4)
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                  <th className="pb-2 pr-4">Cohort date</th>
+                  <th className="pb-2 pr-4 text-right">Users</th>
+                  <th className="pb-2 pr-4 text-right">Week 1</th>
+                  <th className="pb-2 text-right">Week 4</th>
+                </tr>
+              </thead>
+              <tbody>
+                {retentionQuery.data.cohorts.map((c) => (
+                  <tr key={c.date} className="border-b border-border/50">
+                    <td className="py-2 pr-4 tabular-nums">{c.date}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums">{c.total}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums">
+                      <span className={cn("font-medium", c.week1Retention >= 50 ? "text-green-400" : c.week1Retention >= 25 ? "text-yellow-400" : "text-red-400")}>
+                        {c.week1Retention}%
+                      </span>
+                    </td>
+                    <td className="py-2 text-right tabular-nums">
+                      <span className={cn("font-medium", c.week4Retention >= 30 ? "text-green-400" : c.week4Retention >= 10 ? "text-yellow-400" : "text-red-400")}>
+                        {c.week4Retention}%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

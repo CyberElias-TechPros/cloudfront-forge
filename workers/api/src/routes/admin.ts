@@ -302,4 +302,52 @@ export const adminRoutes = [
       }
     },
   },
+  {
+    method: "GET",
+    path: "/api/v1/admin/retention",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        await requireAdmin(request, env);
+        const database = new Database(env);
+
+        // Cohort retention: % of users active in week 1 and week 4 after signup
+        const cohorts = await database.query(
+          `SELECT
+             DATE(u.created_at) as cohort_date,
+             COUNT(DISTINCT u.id) as total_users,
+             COUNT(DISTINCT CASE WHEN ws.watcher_id IS NOT NULL THEN u.id END) as week1_active,
+             COUNT(DISTINCT CASE WHEN ws4.watcher_id IS NOT NULL THEN u.id END) as week4_active
+           FROM users u
+           LEFT JOIN watch_sessions ws
+             ON ws.watcher_id = u.id
+             AND ws.verified_at >= u.created_at
+             AND ws.verified_at < datetime(u.created_at, '+7 days')
+           LEFT JOIN watch_sessions ws4
+             ON ws4.watcher_id = u.id
+             AND ws4.verified_at >= datetime(u.created_at, '+7 days')
+             AND ws4.verified_at < datetime(u.created_at, '+28 days')
+           WHERE u.deleted_at IS NULL
+             AND u.created_at < datetime('now', '-28 days')
+           GROUP BY DATE(u.created_at)
+           ORDER BY cohort_date DESC
+           LIMIT 30`,
+          [],
+        );
+
+        return createResponse({
+          cohorts: (cohorts.results ?? []).map((c: any) => ({
+            date: c.cohort_date,
+            total: c.total_users,
+            week1Retention: c.total_users > 0 ? Math.round((c.week1_active / c.total_users) * 100) : 0,
+            week4Retention: c.total_users > 0 ? Math.round((c.week4_active / c.total_users) * 100) : 0,
+          })),
+        });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to fetch retention", 500);
+      }
+    },
+  },
 ];

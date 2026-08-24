@@ -503,6 +503,15 @@ export const apiClientService = {
         events: Array<{ event_type: string; count: number }>;
         dailyTrend: Array<{ day: string; event_type: string; count: number }>;
       }>(`/api/v1/admin/analytics?days=${days}`),
+    retention: () =>
+      getData<{
+        cohorts: Array<{
+          date: string;
+          total: number;
+          week1Retention: number;
+          week4Retention: number;
+        }>;
+      }>("/api/v1/admin/retention"),
   },
 };
 

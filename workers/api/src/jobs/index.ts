@@ -4,6 +4,7 @@ import { createLogger } from "../lib/logger";
 import { sweepOverdueMissions, sweepOverdueReviews, sweepStreakReset } from "./sweeps";
 import { sendWeeklyDigests } from "./digest";
 import { sweepAnomalyScoring } from "./anomaly";
+import { sweepBadgeAwards } from "./badges";
 
 export type JobFn = (db: Database) => Promise<number>;
 
@@ -17,6 +18,7 @@ const JOBS: JobDef[] = [
   { name: "overdue-reviews", run: sweepOverdueReviews },
   { name: "streak-reset", run: sweepStreakReset },
   { name: "anomaly-scoring", run: sweepAnomalyScoring },
+  { name: "badge-awards", run: sweepBadgeAwards },
 ];
 
 async function logRun(
