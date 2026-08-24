@@ -19,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useQueueTasks, useWatch, useCreateReport, useAttentionChallenge, useAnswerChallenge } from "@/hooks/use-api";
+import { useQueueTasks, useWatch, useCreateReport, useAttentionChallenge, useAnswerChallenge, useCommunities } from "@/hooks/use-api";
 import { apiClientService } from "@/lib/api-client";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -54,7 +54,9 @@ export const Route = createFileRoute("/queue")({
 const filters = ["All", "Pending", "In progress", "Verified", "Expired"] as const;
 
 function Queue() {
-  const { data: tasks = [], isLoading, isError, error } = useQueueTasks();
+  const [communityFilter, setCommunityFilter] = useState<string>("");
+  const { data: tasks = [], isLoading, isError, error } = useQueueTasks(communityFilter || undefined);
+  const { data: myCommunities = [] } = useCommunities();
   const watch = useWatch();
   const report = useCreateReport();
   const getChallenge = useAttentionChallenge();
@@ -540,8 +542,23 @@ function Queue() {
         </section>
 
         <section>
-          <div className="flex flex-wrap gap-2">
-            {filters.map((f) => (
+          <div className="flex flex-wrap items-center gap-3">
+            {myCommunities.length > 0 && (
+              <select
+                value={communityFilter}
+                onChange={(e) => setCommunityFilter(e.target.value)}
+                className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground"
+              >
+                <option value="">All communities</option>
+                {myCommunities.map((c: any) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {filters.map((f) => (
               <button
                 key={f}
                 type="button"
@@ -555,7 +572,8 @@ function Queue() {
               >
                 {f}
               </button>
-            ))}
+              ))}
+            </div>
           </div>
 
           <ul className="mt-4 space-y-3">

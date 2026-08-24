@@ -52,7 +52,22 @@ const payload: { youtubeUrl: string; title?: string; magicWord?: string } = { yo
 if (title.trim()) payload.title = title.trim();
 if (magicWord.trim()) payload.magicWord = magicWord.trim();
       await submitVideo.mutateAsync(payload as any);
-      toast.success("Video submitted to the squad queue!");
+      const shareText = encodeURIComponent(
+        `Just submitted a video to LoopSquad! Watch and review it here: ${typeof window !== "undefined" ? window.location.origin : ""}/queue`,
+      );
+      toast.success("Video submitted!", {
+        description: (
+          <a
+            href={`https://wa.me/?text=${shareText}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block rounded bg-[#25d366] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+          >
+            Share to WhatsApp
+          </a>
+        ),
+        duration: 8000,
+      });
       setLink("");
       setTitle("");
       setMagicWord("");

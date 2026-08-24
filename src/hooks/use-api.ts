@@ -773,11 +773,11 @@ export function useUserPermissions() {
   });
 }
 
-export function useQueueTasks() {
+export function useQueueTasks(communityId?: string) {
   return useQuery({
-    queryKey: ["feed", "queue"],
+    queryKey: ["feed", "queue", communityId ?? "all"],
     queryFn: async (): Promise<QueueTask[]> => {
-      const data = await apiClientService.feed.queue();
+      const data = await apiClientService.feed.queue(communityId);
       return data.items;
     },
     retry: shouldRetryAuth,

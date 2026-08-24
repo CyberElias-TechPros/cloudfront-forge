@@ -456,7 +456,10 @@ export const apiClientService = {
   },
 
   feed: {
-    queue: () => getData<PaginatedResponse<QueueTask>>("/api/v1/queue"),
+    queue: (communityId?: string) =>
+      getData<PaginatedResponse<QueueTask>>(
+        `/api/v1/queue${communityId ? `?communityId=${communityId}` : ""}`,
+      ),
     submissions: () => getData<PaginatedResponse<SubmissionDTO>>("/api/v1/submissions"),
     activity: () => getData<PaginatedResponse<ActivityItem>>("/api/v1/activity"),
   },

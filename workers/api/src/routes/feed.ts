@@ -56,14 +56,22 @@ export const feedRoutes = [
         const db = new Database(env);
         const { limit, offset } = getPagination(request);
         const nowIso = new Date().toISOString();
+        const { searchParams } = new URL(request.url);
+        const communityId = searchParams.get("communityId");
 
+        const communityFilter = communityId
+          ? `AND v.user_id IN (SELECT user_id FROM community_members WHERE community_id = ? AND status = 'active')`
+          : "";
+        const countParams = communityId ? [userId, communityId] : [userId];
         const totalResult = await db.query(
           `SELECT COUNT(*) as count FROM videos v
-            WHERE v.status = 'active' AND v.user_id != ?
-           `,
-          [userId],
+            WHERE v.status = 'active' AND v.user_id != ? ${communityFilter}`,
+          countParams,
         );
 
+        const params = communityId
+          ? [userId, userId, communityId, nowIso, limit, offset]
+          : [userId, userId, nowIso, limit, offset];
         const result = await db.query(
           `SELECT v.id, v.title, v.duration_seconds, v.status, v.created_at, v.user_id,
                   v.youtube_video_id, v.youtube_url, v.channel_id, v.magic_word,
@@ -72,11 +80,11 @@ export const feedRoutes = [
            FROM videos v
            LEFT JOIN users u ON v.user_id = u.id
            LEFT JOIN watch_sessions ws ON ws.video_id = v.id AND ws.watcher_id = ?
-           WHERE v.status = 'active' AND v.user_id != ?
+           WHERE v.status = 'active' AND v.user_id != ? ${communityFilter}
            ORDER BY (v.boosted_until IS NOT NULL AND v.boosted_until > ?) DESC,
                     v.created_at DESC
            LIMIT ? OFFSET ?`,
-          [userId, userId, nowIso, limit, offset],
+          params,
         );
 
         const items = result.results.map((v: any) => {
