@@ -334,6 +334,7 @@ function Queue() {
       );
     }
     if (isError) {
+      const isAuthError = (error as Error).message.toLowerCase().includes("auth");
       return (
         <Shell>
           <PageHeader
@@ -341,10 +342,20 @@ function Queue() {
             title="Watch Queue"
             description="The timer only counts while the video is playing and in focus. Random attention checks keep it honest."
           />
-          <div className="mt-6 surface p-6 text-center text-destructive">
-            <p className="text-sm">Failed to load watch queue. Please try again later.</p>
-            <p className="mt-1 text-xs text-muted-foreground">{(error as Error).message}</p>
-          </div>
+          {isAuthError ? (
+            <div className="mt-6 surface p-6 text-center">
+              <p className="text-sm font-medium">Sign in to view the queue</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Your session expired or tracking prevention blocked sign-in. Try allowing storage for this site, then reload.
+              </p>
+              <a href="/auth/signin" className="mt-4 inline-block rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">Sign in</a>
+            </div>
+          ) : (
+            <div className="mt-6 surface p-6 text-center text-destructive">
+              <p className="text-sm">Failed to load watch queue. Please try again later.</p>
+              <p className="mt-1 text-xs text-muted-foreground">{(error as Error).message}</p>
+            </div>
+          )}
         </Shell>
       );
     }

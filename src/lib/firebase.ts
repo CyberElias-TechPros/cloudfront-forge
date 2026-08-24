@@ -5,6 +5,8 @@ import {
   signInWithPopup,
   signOut,
   onAuthStateChanged,
+  browserLocalPersistence,
+  setPersistence,
   type Auth,
 } from "firebase/auth";
 
@@ -58,6 +60,10 @@ function initFirebase(): void {
   try {
     app = initializeApp(firebaseConfig);
     authInstance = getAuth(app);
+    // Force localStorage persistence (not IndexedDB) to survive Tracking Prevention
+    setPersistence(authInstance, browserLocalPersistence).catch(() => {
+      console.warn("[Firebase] Could not set localStorage persistence — tracking prevention may block auth");
+    });
     console.debug("Firebase initialized successfully");
   } catch (error) {
     configError =
