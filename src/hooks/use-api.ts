@@ -270,6 +270,20 @@ export function useCreateReport() {
   });
 }
 
+export function useDailyQuests() {
+  return useQuery({
+    queryKey: [...queryKeys.notifications, "daily-quests"],
+    queryFn: async () => {
+      try {
+        return await apiClientService.quests.daily();
+      } catch {
+        return { items: [], date: "" };
+      }
+    },
+    refetchInterval: 120_000,
+  });
+}
+
 export function useReviews() {
   return useQuery({
     queryKey: queryKeys.reviews,

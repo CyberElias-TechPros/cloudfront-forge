@@ -10,6 +10,7 @@ import {
   useCurrentMember,
   useMissions,
   useAssignMission,
+  useDailyQuests,
 } from "@/hooks/use-api";
 import type { MissionAssignment, Mission } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
@@ -52,6 +53,7 @@ function Missions() {
   >("all");
 
   const { data: missionAssignments = [], isLoading, isError, error } = useMissionAssignments();
+  const { data: dailyQuests } = useDailyQuests();
   const completeMission = useCompleteMission();
   const skipMission = useSkipMission();
   const { data: member, isLoading: memberLoading, isError: memberError } = useCurrentMember();
@@ -165,6 +167,49 @@ function Missions() {
           </div>
         }
       />
+
+      {dailyQuests && dailyQuests.items.length > 0 && (
+        <div className="mt-6">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <Zap className="size-4 text-accent" /> Daily Quests
+            <span className="ml-auto text-xs normal-case">resets at midnight UTC</span>
+          </h3>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {dailyQuests.items.map((q) => {
+              const done = q.status !== "active";
+              const pct = Math.min(100, Math.round((q.progress / q.target_count) * 100));
+              const labels: Record<string, string> = {
+                watch_videos: "Watch 2 videos",
+                give_reviews: "Complete a peer review",
+                submit_video: "Submit a video",
+              };
+              return (
+                <div
+                  key={q.id}
+                  className={cn(
+                    "rounded-lg border p-4",
+                    done ? "border-success/40 bg-success/5" : "border-border bg-card",
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">{labels[q.quest_type] ?? q.quest_type}</p>
+                    {done && <span className="text-xs font-semibold text-success">Done</span>}
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background">
+                    <div
+                      className={cn("h-full transition-all", done ? "bg-success" : "bg-primary")}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    +{q.reward_xp} XP · +{q.reward_credits} credits · {Math.min(q.progress, q.target_count)}/{q.target_count}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 grid gap-4 sm:grid-cols-4">
         <StatCard

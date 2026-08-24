@@ -400,6 +400,22 @@ export const apiClientService = {
     }) => postData<{ message: string }>("/api/v1/reports", data),
   },
 
+  quests: {
+    daily: () =>
+      getData<{
+        items: Array<{
+          id: string;
+          quest_type: string;
+          target_count: number;
+          progress: number;
+          reward_xp: number;
+          reward_credits: number;
+          status: string;
+        }>;
+        date: string;
+      }>("/api/v1/daily-quests"),
+  },
+
   users: {
     profile: () => getData<UserProfile>("/api/v1/users/me/profile"),
     member: () => getData<CurrentMember>("/api/v1/users/me/member"),

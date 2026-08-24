@@ -3,6 +3,7 @@ import { createResponse, createErrorResponse } from "../middleware/errorHandler"
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { notifyUserPush } from "../lib/push";
+import { progressQuest } from "../lib/quests";
 import { z } from "zod";
 import { createLogger } from "../lib/logger";
 
@@ -185,6 +186,9 @@ export const videoRoutes = [
             userId,
           );
         }
+
+        // Daily quest progress
+        await progressQuest(env, userId, "submit_video");
 
         // Auto-assign up to 3 reviewers (exclude submitter, prefer least-recently-reviewed)
         const reviewers = await db.query(
@@ -509,6 +513,9 @@ export const reviewRoutes = [
           "UPDATE reviews SET status = 'completed', completed_at = ?, score = ?, feedback_text = ? WHERE id = ? AND reviewer_id = ?",
           [now, body.score ?? null, body.feedbackText ?? null, reviewId, userId],
         );
+
+        // Daily quest progress
+        await progressQuest(env, userId, "give_reviews");
 
         const answers = Array.isArray(body?.answers) ? body.answers : [];
         if (answers.length > 0) {

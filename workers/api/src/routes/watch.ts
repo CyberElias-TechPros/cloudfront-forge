@@ -5,6 +5,7 @@ import { Database } from "../lib/database";
 import { YouTubeService } from "../services/youtube";
 import { z } from "zod";
 import { createLogger } from "../lib/logger";
+import { progressQuest } from "../lib/quests";
 
 function levelForXp(totalXp: number): number {
   return Math.max(1, Math.floor(totalXp / 250) + 1);
@@ -376,6 +377,9 @@ export const watchRoutes = [
           if (!batchResult) {
             throw new Error("Failed to process rewards transaction");
           }
+
+          // Daily quest progress
+          await progressQuest(env, watcherId, "watch_videos");
 
           if (video.user_id && video.user_id !== watcherId) {
             await notifyUser(

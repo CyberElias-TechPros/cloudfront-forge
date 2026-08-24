@@ -2,6 +2,7 @@ import type { Env } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
+import { ensureDailyQuests } from "../lib/quests";
 import { calculateLevel, calculateWeightedScore } from "../lib/utils";
 
 const db = (env: Env) => new Database(env);
@@ -14,6 +15,23 @@ function getPagination(request: Request): { limit: number; offset: number } {
 }
 
 export const gamificationRoutes = [
+  {
+    method: "GET",
+    path: "/api/v1/daily-quests",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const userId = await requireAuth(request, env);
+        const quests = await ensureDailyQuests(env, userId);
+        return createResponse({ items: quests, date: new Date().toISOString().slice(0, 10) });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to fetch daily quests", 500);
+      }
+    },
+  },
+
   {
     method: "GET",
     path: "/api/v1/credits",
