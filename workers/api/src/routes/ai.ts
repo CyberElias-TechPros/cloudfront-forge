@@ -58,6 +58,29 @@ export const aiRoutes = [
           { role: "user", content: message },
         ];
 
+        // --- Daily quota (per-user + global ceiling) ---
+        const DAILY_USER_LIMIT = parseInt(env.AI_DAILY_USER_LIMIT || "20", 10);
+        const DAILY_GLOBAL_LIMIT = parseInt(env.AI_DAILY_GLOBAL_LIMIT || "500", 10);
+        const todayUserCount = await db.querySingle(
+          "SELECT COUNT(*) as cnt FROM ai_messages WHERE user_id = ? AND role = 'user' AND created_at > datetime('now', 'start of day')",
+          [userId],
+        );
+        if ((todayUserCount?.cnt ?? 0) >= DAILY_USER_LIMIT) {
+          return createErrorResponse(
+            "QUOTA_EXCEEDED",
+            `Daily AI limit reached (${DAILY_USER_LIMIT} messages). Resets at midnight.`,
+            429,
+          );
+        }
+        if (DAILY_GLOBAL_LIMIT > 0) {
+          const todayGlobal = await db.querySingle(
+            "SELECT COUNT(*) as cnt FROM ai_messages WHERE role = 'user' AND created_at > datetime('now', 'start of day')",
+          );
+          if ((todayGlobal?.cnt ?? 0) >= DAILY_GLOBAL_LIMIT) {
+            return createErrorResponse("QUOTA_EXCEEDED", "Daily AI capacity reached. Try again tomorrow.", 429);
+          }
+        }
+
         let reply: string;
         try {
           reply = await generateChatCompletion(messages, env);

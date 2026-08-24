@@ -18,9 +18,11 @@ export interface Env {
   REWARD_XP?: string;
   REWARD_CREDITS?: string;
   RATE_LIMIT_MAX_REQUESTS?: string;
-  AUTH_RATE_LIMIT_MAX_REQUESTS?: string;
   RATE_LIMIT_WINDOW?: string;
+  AUTH_RATE_LIMIT_MAX_REQUESTS?: string;
   AUTH_RATE_LIMIT_WINDOW?: string;
+  AI_DAILY_USER_LIMIT?: string;
+  AI_DAILY_GLOBAL_LIMIT?: string;
 }
 
 export interface User {
