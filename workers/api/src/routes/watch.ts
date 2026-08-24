@@ -87,9 +87,106 @@ const watchSchema = z.object({
   watchSeconds: z.number().min(0).max(86400),
   subscribed: z.boolean().default(false),
   commented: z.boolean().default(false),
+  sessionToken: z.string().optional(),
 });
 
+// --- HMAC watch-session helpers (env-flagged, legacy fallback when disabled) ---
+function sessionsEnabled(env: Env): boolean {
+  return env.WATCH_SESSIONS_ENABLED === "1" || env.WATCH_SESSIONS_ENABLED === "true";
+}
+
+async function hmacSign(secret: string, data: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(data));
+  return btoa(String.fromCharCode(...new Uint8Array(sig)));
+}
+
+function extractUserId(request: Request): string | null {
+  const auth = (request as any).__auth;
+  return auth?.userId ?? null;
+}
+
 export const watchRoutes = [
+  // POST /watch/start - issue a signed session token for server-verified playback
+  {
+    method: "POST",
+    path: "/api/v1/watch/start",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        if (!sessionsEnabled(env)) {
+          return createResponse({ sessionToken: null, enabled: false });
+        }
+        const userId = await requireAuth(request, env);
+        const body = (await request.json().catch(() => ({}))) as any;
+        const videoId = body.videoId as string | undefined;
+        if (!videoId) return createErrorResponse("VALIDATION_ERROR", "videoId required", 400);
+
+        const secret = env.WATCH_SESSION_SECRET || env.AI_API_KEY || "fallback-dev-secret";
+        const startTs = Math.floor(Date.now() / 1000);
+        const payload = `${userId}:${videoId}:${startTs}`;
+        const signature = await hmacSign(secret, payload);
+        const token = `${payload}:${signature}`;
+        const expiresAt = startTs + 3600; // 1 hour
+
+        const db = new Database(env);
+        const dbToken = db.uuid();
+        await db.execute(
+          "INSERT INTO watch_session_tokens (id, user_id, video_id, token, start_ts, expires_at, created_at) VALUES (?,?,?,?,?,?,?)",
+          [dbToken, userId, videoId, token, startTs, expiresAt, new Date().toISOString()],
+        );
+
+        return createResponse({ sessionToken: token, enabled: true, startTs });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to start session", 500);
+      }
+    },
+  },
+  // POST /watch/heartbeat - record a periodic player-time sample for slope verification
+  {
+    method: "POST",
+    path: "/api/v1/watch/heartbeat",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        if (!sessionsEnabled(env)) {
+          return createResponse({ ok: true, enabled: false });
+        }
+        const userId = await requireAuth(request, env);
+        const body = (await request.json().catch(() => ({}))) as any;
+        const { sessionToken, playerTime } = body as { sessionToken?: string; playerTime?: number };
+        if (!sessionToken || typeof playerTime !== "number") {
+          return createErrorResponse("VALIDATION_ERROR", "sessionToken and playerTime required", 400);
+        }
+
+        const db = new Database(env);
+        const row = await db.querySingle(
+          "SELECT id FROM watch_session_tokens WHERE token = ? AND user_id = ? AND expires_at > ?",
+          [sessionToken, userId, Math.floor(Date.now() / 1000)],
+        );
+        if (!row) return createErrorResponse("UNAUTHORIZED", "Invalid or expired session token", 401);
+
+        await db.execute(
+          "INSERT INTO watch_heartbeats (id, session_token_id, player_time, received_at) VALUES (?,?,?,?)",
+          [crypto.randomUUID(), row.id, playerTime, Math.floor(Date.now() / 1000)],
+        );
+
+        return createResponse({ ok: true, enabled: true });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to record heartbeat", 500);
+      }
+    },
+  },
   {
     method: "POST",
     path: "/api/v1/watch",

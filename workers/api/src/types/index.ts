@@ -23,6 +23,8 @@ export interface Env {
   AUTH_RATE_LIMIT_WINDOW?: string;
   AI_DAILY_USER_LIMIT?: string;
   AI_DAILY_GLOBAL_LIMIT?: string;
+  WATCH_SESSIONS_ENABLED?: string;
+  WATCH_SESSION_SECRET?: string;
 }
 
 export interface User {
