@@ -460,6 +460,23 @@ export const watchRoutes = [
             });
           }
 
+          // Credit account & transaction
+          batchStatements.push({
+            sql: `INSERT INTO credit_accounts (id, user_id, balance, created_at, updated_at)
+                 VALUES (?, ?, 0, ?, ?)
+                 ON CONFLICT(user_id) DO NOTHING`,
+            params: [db.uuid(), watcherId, now, now],
+          });
+          batchStatements.push({
+            sql: `UPDATE credit_accounts SET balance = balance + ?, updated_at = ? WHERE user_id = ?`,
+            params: [creditsAwarded, now, watcherId],
+          });
+          batchStatements.push({
+            sql: `INSERT INTO credit_transactions (id, user_id, type, amount, balance_after, description, created_at)
+                 VALUES (?, ?, 'earned', ?, ?, 'watch_claim', ?)`,
+            params: [db.uuid(), watcherId, creditsAwarded, 0, now],
+          });
+
           batchStatements.push({
             sql: `INSERT INTO reputation_accounts (id, user_id, score, last_calculated, created_at, updated_at)
                  VALUES (?, ?, 100, ?, ?, ?)
