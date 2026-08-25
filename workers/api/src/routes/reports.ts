@@ -80,6 +80,21 @@ export const reportRoutes = [
           await applyTrustPenalty(db, reportedUserId);
         }
 
+        // Auto-pull video from rotation on 3+ distinct "misleading" reports
+        if (resourceType === "video" && reason === "misleading") {
+          const reportCount = await db.querySingle(
+            `SELECT COUNT(DISTINCT reporter_id) as cnt FROM reports
+             WHERE resource_type = 'video' AND resource_id = ? AND reason = 'misleading'`,
+            [resourceId],
+          );
+          if ((reportCount?.cnt ?? 0) >= 3) {
+            await db.execute(
+              "UPDATE videos SET status = 'removed', updated_at = ? WHERE id = ? AND status = 'active'",
+              [now, resourceId],
+            );
+          }
+        }
+
         // Notify admins
         const admins = await db.query("SELECT user_id FROM admin_users WHERE role IN ('super_admin', 'admin')");
         for (const admin of admins.results) {

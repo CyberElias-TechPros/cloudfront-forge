@@ -328,6 +328,11 @@ export const watchRoutes = [
           return createErrorResponse("NOT_FOUND", "Video not found", 404);
         }
 
+        // Block watching your own video
+        if (video.user_id === watcherId) {
+          return createErrorResponse("FORBIDDEN", "You cannot watch your own video", 403);
+        }
+
         // Short videos: require at most the full length, capped at REQUIRED_WATCH_SEC
         const videoDuration =
           typeof video.duration_seconds === "number" && video.duration_seconds > 0

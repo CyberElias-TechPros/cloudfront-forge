@@ -73,7 +73,16 @@ if (niche) payload.niche = niche;
       setMagicWord("");
     } catch (error) {
       console.error("Submit error:", error);
-      toast.error("Could not submit right now. Check the link and try again.");
+      const msg = error instanceof Error ? error.message : "Could not submit right now.";
+      if (msg.includes("already submitted") || msg.includes("already in the queue")) {
+        toast.error("Duplicate", { description: "You already submitted this video or it's already in the queue." });
+      } else if (msg.includes("24 hours")) {
+        toast.error("Daily limit", { description: "You can only submit one video every 24 hours." });
+      } else if (msg.includes("ratio") || msg.includes("RATIO")) {
+        toast.error("Ratio too low", { description: msg });
+      } else {
+        toast.error("Submit failed", { description: msg });
+      }
     }
   };
 

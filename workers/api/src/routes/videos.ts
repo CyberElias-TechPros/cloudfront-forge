@@ -151,6 +151,41 @@ export const videoRoutes = [
           );
         }
 
+        // Give/take ratio gate: require ratio >= 0.80 (subscriptions_given + watch_hours) / subscriptions_received
+        // New users with no received subscriptions are exempt (ratio treated as neutral 1.0)
+        const rep = await db.querySingle(
+          "SELECT subscriptions_given, subscriptions_received, watch_minutes FROM reputation_accounts WHERE user_id = ?",
+          [userId],
+        );
+        const given = rep?.subscriptions_given ?? 0;
+        const received = rep?.subscriptions_received ?? 0;
+        if (received > 0) {
+          // Only gate users who have actually received subs — new users bypass
+          const watchHours = (rep?.watch_minutes ?? 0) / 60.0;
+          const giveTakeRatio = (given + watchHours) / received;
+          if (giveTakeRatio < 0.80) {
+            return createErrorResponse(
+              "RATIO_GATE",
+              `Your give/take ratio is ${giveTakeRatio.toFixed(2)}. Minimum 0.80 required to submit. Watch more videos to earn trust first.`,
+              403,
+            );
+          }
+        }
+
+        // One video per member per 24 hours
+        const last24h = new Date(Date.now() - 24 * 3600000).toISOString();
+        const recentSubmission = await db.querySingle(
+          "SELECT id FROM videos WHERE user_id = ? AND created_at > ?",
+          [userId, last24h],
+        );
+        if (recentSubmission) {
+          return createErrorResponse(
+            "RATE_LIMITED",
+            "You can only submit one video every 24 hours. Come back tomorrow.",
+            429,
+          );
+        }
+
         const metadata = await fetchYouTubeMetadata(youtubeVideoId, env);
         const finalTitle = validation.data.title?.trim() || metadata.title || "Untitled video";
 
