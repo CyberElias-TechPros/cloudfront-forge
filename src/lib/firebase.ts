@@ -6,6 +6,8 @@ import {
   signOut,
   onAuthStateChanged,
   browserLocalPersistence,
+  inMemoryPersistence,
+  indexedDBLocalPersistence,
   setPersistence,
   type Auth,
 } from "firebase/auth";
@@ -45,7 +47,7 @@ function validateFirebaseConfig(): string | null {
   return null;
 }
 
-function initFirebase(): void {
+async function initFirebase(): Promise<void> {
   if (app) return;
   // Never initialize Firebase during SSR (Node). Auth is browser-only.
   if (typeof window === "undefined") return;
@@ -60,10 +62,16 @@ function initFirebase(): void {
   try {
     app = initializeApp(firebaseConfig);
     authInstance = getAuth(app);
-    // Force localStorage persistence (not IndexedDB) to survive Tracking Prevention
-    setPersistence(authInstance, browserLocalPersistence).catch(() => {
-      console.warn("[Firebase] Could not set localStorage persistence — tracking prevention may block auth");
-    });
+    // Full persistence fallback chain: IndexedDB → LocalStorage → In-Memory
+    if (authInstance) {
+      await setPersistence(authInstance, indexedDBLocalPersistence).catch(() => {
+        console.warn("[Firebase] IndexedDB persistence failed, falling back to localStorage");
+        return setPersistence(authInstance!, browserLocalPersistence).catch(() => {
+          console.warn("[Firebase] localStorage persistence failed, falling back to inMemory");
+          return setPersistence(authInstance!, inMemoryPersistence);
+        });
+      });
+    }
     console.debug("Firebase initialized successfully");
   } catch (error) {
     configError =
@@ -72,7 +80,9 @@ function initFirebase(): void {
   }
 }
 
-initFirebase();
+initFirebase().catch((err) => {
+  console.error("[Firebase] Initialization failed:", err);
+});
 
 export const auth: Auth | null = authInstance;
 export const googleProvider: GoogleAuthProvider | null = authInstance
@@ -142,8 +152,16 @@ export const getIdToken = async (): Promise<string | null> => {
   try {
     const user = authInstance?.currentUser;
     if (user) {
-      return await user.getIdToken();
+      // Force token refresh if token is stale (>5 min old)
+      return await user.getIdToken(/* forceRefresh */ false);
     }
+    // Wait for auth state to settle (max 3s)
+    const start = Date.now();
+    while (!authInstance?.currentUser && Date.now() - start < 3000) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    const user2 = authInstance?.currentUser;
+    if (user2) return await user2.getIdToken();
   } catch {
     // fall through to dev token
   }
