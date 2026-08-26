@@ -76,14 +76,31 @@ async function initFirebase(): Promise<void> {
     }
     console.debug("Firebase initialized successfully");
 
-    // Set up auth ready promise - resolves when auth state is first loaded
+    // Set up auth ready promise - resolves when auth state is settled (user loaded or timeout)
     authReadyPromise = new Promise<void>((resolve) => {
       authReadyResolve = resolve;
       if (authInstance) {
-        onAuthStateChanged(authInstance, () => {
-          if (authReadyResolve) {
-            authReadyResolve();
-            authReadyResolve = null;
+        let resolved = false;
+        const unsubscribe = onAuthStateChanged(authInstance, (user) => {
+          if (!resolved && user !== null) {
+            // User is actually loaded (non-null)
+            resolved = true;
+            unsubscribe();
+            if (authReadyResolve) {
+              authReadyResolve();
+              authReadyResolve = null;
+            }
+          } else if (user === null && authReadyResolve) {
+            // User is null (not logged in) - wait a bit more for potential sign-in
+            // but don't wait forever - give it 3 seconds max
+            setTimeout(() => {
+              if (!resolved && authReadyResolve) {
+                resolved = true;
+                unsubscribe();
+                authReadyResolve();
+                authReadyResolve = null;
+              }
+            }, 3000);
           }
         });
       }
