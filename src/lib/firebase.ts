@@ -34,6 +34,8 @@ const REQUIRED_FIREBASE_ENV_VARS = [
 let app: FirebaseApp | null = null;
 let authInstance: Auth | null = null;
 let configError: string | null = null;
+let authReadyPromise: Promise<void> | null = null;
+let authReadyResolve: (() => void) | null = null;
 
 function validateFirebaseConfig(): string | null {
   const missing = REQUIRED_FIREBASE_ENV_VARS.filter((key) => {
@@ -73,6 +75,19 @@ async function initFirebase(): Promise<void> {
       });
     }
     console.debug("Firebase initialized successfully");
+
+    // Set up auth ready promise - resolves when auth state is first loaded
+    authReadyPromise = new Promise<void>((resolve) => {
+      authReadyResolve = resolve;
+      if (authInstance) {
+        onAuthStateChanged(authInstance, () => {
+          if (authReadyResolve) {
+            authReadyResolve();
+            authReadyResolve = null;
+          }
+        });
+      }
+    });
   } catch (error) {
     configError =
       "Firebase initialization failed: " + (error instanceof Error ? error.message : String(error));
@@ -88,6 +103,13 @@ export const auth: Auth | null = authInstance;
 export const googleProvider: GoogleAuthProvider | null = authInstance
   ? new GoogleAuthProvider()
   : null;
+
+// Wait for auth state to be initially loaded (resolves once on first auth state change)
+export const waitForAuthReady = (): Promise<void> => {
+  if (authReadyPromise) return authReadyPromise;
+  // If authInstance exists but no promise, create a fallback
+  return Promise.resolve();
+};
 
 function assertAuthConfigured(): Auth {
   if (!authInstance || !googleProvider) {
@@ -150,18 +172,14 @@ export const getCurrentUser = (): Promise<User | null> => {
 
 export const getIdToken = async (): Promise<string | null> => {
   try {
+    // Wait for auth state to be initially loaded
+    await waitForAuthReady();
+    
     const user = authInstance?.currentUser;
     if (user) {
       // Force token refresh if token is stale (>5 min old)
       return await user.getIdToken(/* forceRefresh */ false);
     }
-    // Wait for auth state to settle (max 3s)
-    const start = Date.now();
-    while (!authInstance?.currentUser && Date.now() - start < 3000) {
-      await new Promise((r) => setTimeout(r, 100));
-    }
-    const user2 = authInstance?.currentUser;
-    if (user2) return await user2.getIdToken();
   } catch {
     // fall through to dev token
   }
