@@ -72,7 +72,9 @@ function Settings() {
       void queryClient.invalidateQueries({ queryKey: ["youtube", "status"] });
       void refetchYoutubeStatus();
     } else if (search.youtube === "error") {
-      toast.error(`YouTube connection failed${search.reason ? `: ${decodeURIComponent(search.reason)}` : ""}`);
+      toast.error(
+        `YouTube connection failed${search.reason ? `: ${decodeURIComponent(search.reason)}` : ""}`,
+      );
     }
     void navigate({ search: {}, replace: true });
   }, [search.youtube]);
@@ -220,7 +222,9 @@ function Settings() {
 
             <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
               <p className="text-sm font-medium">Quiet hours (UTC)</p>
-              <p className="text-xs text-muted-foreground">Pause push notifications during these hours</p>
+              <p className="text-xs text-muted-foreground">
+                Pause push notifications during these hours
+              </p>
               <div className="flex items-center gap-3">
                 <label className="text-xs text-muted-foreground">From</label>
                 <select
@@ -235,7 +239,9 @@ function Settings() {
                 >
                   <option value="">Off</option>
                   {Array.from({ length: 24 }, (_, i) => (
-                    <option key={i} value={i}>{String(i).padStart(2, "0")}:00</option>
+                    <option key={i} value={i}>
+                      {String(i).padStart(2, "0")}:00
+                    </option>
                   ))}
                 </select>
                 <label className="text-xs text-muted-foreground">to</label>
@@ -251,7 +257,9 @@ function Settings() {
                 >
                   <option value="">Off</option>
                   {Array.from({ length: 24 }, (_, i) => (
-                    <option key={i} value={i}>{String(i).padStart(2, "0")}:00</option>
+                    <option key={i} value={i}>
+                      {String(i).padStart(2, "0")}:00
+                    </option>
                   ))}
                 </select>
               </div>
@@ -262,7 +270,9 @@ function Settings() {
                 <div>
                   <p className="text-sm font-medium">Push notifications</p>
                   <p className="text-xs text-muted-foreground">
-                    {push.subscribed ? "Receiving browser push notifications" : "Enable browser push notifications on this device"}
+                    {push.subscribed
+                      ? "Receiving browser push notifications"
+                      : "Enable browser push notifications on this device"}
                   </p>
                 </div>
                 <Button
@@ -291,14 +301,20 @@ function Settings() {
                 <p className="text-sm font-medium">Dark mode</p>
                 <p className="text-xs text-muted-foreground">Use dark theme across the app</p>
               </div>
-              <Switch checked={true} onCheckedChange={() => toast.info("Dark mode setting coming soon")} />
+              <Switch
+                checked={true}
+                onCheckedChange={() => toast.info("Dark mode setting coming soon")}
+              />
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">Public profile</p>
                 <p className="text-xs text-muted-foreground">Allow others to see your profile</p>
               </div>
-              <Switch checked={true} onCheckedChange={() => toast.info("Public profile setting coming soon")} />
+              <Switch
+                checked={true}
+                onCheckedChange={() => toast.info("Public profile setting coming soon")}
+              />
             </div>
           </CardContent>
         </Card>

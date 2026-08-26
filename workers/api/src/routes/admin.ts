@@ -1,16 +1,7 @@
 import type { Env } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth, requireAdmin } from "../middleware/auth";
+import { requireAdmin } from "../middleware/auth";
 import { Database } from "../lib/database";
-import { z } from "zod";
-
-const createReportSchema = z.object({
-  reportedUserId: z.string().uuid(),
-  resourceType: z.enum(["video", "review", "comment", "user", "community"]),
-  resourceId: z.string().uuid().optional(),
-  reason: z.enum(["spam", "inappropriate", "harassment", "cheating", "misleading", "other"]),
-  description: z.string().max(500),
-});
 
 export const adminRoutes = [
   // Analytics funnel: submit → watch → claim conversion rates
@@ -81,9 +72,9 @@ export const adminRoutes = [
           `SELECT u.*, COALESCE(r.score, 100) as trust_score
            FROM users u
            LEFT JOIN reputation_accounts r ON u.id = r.user_id
-           WHERE u.deleted_at IS NULL AND u.email_verified = ?
+           WHERE ${status === "deleted" ? "u.deleted_at IS NOT NULL" : "u.deleted_at IS NULL"}
            ORDER BY u.created_at DESC LIMIT ? OFFSET ?`,
-          [status === "active", limit, offset],
+          [limit, offset],
         );
 
         const users = result.results.map((u: any) => ({
@@ -257,51 +248,6 @@ export const adminRoutes = [
     },
   },
 
-  {
-    method: "POST",
-    path: "/api/v1/admin/reports",
-    handler: async (request: Request, env: Env): Promise<Response> => {
-      try {
-        const userId = await requireAuth(request, env);
-        const body = (await request.json().catch(() => ({}))) as any;
-
-        const validation = createReportSchema.safeParse(body);
-        if (!validation.success) {
-          return createErrorResponse(
-            "VALIDATION_ERROR",
-            validation.error.errors.map((e) => e.message).join(", "),
-            400,
-          );
-        }
-
-        const db = new Database(env);
-        const now = new Date().toISOString();
-
-        await db.execute(
-          `INSERT INTO reports (id, reporter_id, reported_user_id, resource_type, resource_id, reason, description, status, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            crypto.randomUUID(),
-            userId,
-            body.reportedUserId,
-            body.resourceType,
-            body.resourceId ?? null,
-            body.reason,
-            body.description,
-            "pending",
-            now,
-          ],
-        );
-
-        return createResponse({ message: "Report submitted" }, 201);
-      } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
-          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
-        }
-        return createErrorResponse("INTERNAL_ERROR", "Failed to submit report", 500);
-      }
-    },
-  },
   {
     method: "GET",
     path: "/api/v1/admin/retention",

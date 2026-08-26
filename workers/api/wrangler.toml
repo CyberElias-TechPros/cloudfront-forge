@@ -12,6 +12,11 @@ CORS_ORIGINS = "https://loop.freegameplay.site,https://cloudfront-forge.vercel.a
 YOUTUBE_OAUTH_CLIENT_ID = "365634472671-dvmns559uga32703kf2l9vpgbmts38tl.apps.googleusercontent.com"
 YOUTUBE_OAUTH_REDIRECT_URI = "https://creatorloop-api.autumn-surf-21ec.workers.dev/api/v1/youtube/oauth/callback"
 VAPID_PUBLIC_KEY = "BIfvnJ6Mp68dCFCkywGZlFpPo-hkg6-LeyE0Uz5pZGxOWYejjQFJg_JMxvcRB288LDcK7vAyRMymGJqVEBNpYvk"
+REQUIRED_WATCH_SEC = "180"
+REWARD_XP = "30"
+REWARD_CREDITS = "10"
+REVIEW_XP = "20"
+REVIEW_CREDITS = "5"
 
 # D1 Database
 [[d1_databases]]

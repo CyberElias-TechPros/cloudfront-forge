@@ -17,6 +17,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as GamificationRouteImport } from './routes/gamification'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as MissionsRouteImport } from './routes/missions'
+import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as QueueRouteImport } from './routes/queue'
 import { Route as ReviewsRouteImport } from './routes/reviews'
@@ -66,6 +67,11 @@ const LeaderboardRoute = LeaderboardRouteImport.update({
 const MissionsRoute = MissionsRouteImport.update({
   id: '/missions',
   path: '/missions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -128,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/gamification': typeof GamificationRoute
   '/leaderboard': typeof LeaderboardRoute
   '/missions': typeof MissionsRoute
+  '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
   '/queue': typeof QueueRoute
   '/reviews': typeof ReviewsRouteWithChildren
@@ -148,6 +155,7 @@ export interface FileRoutesByTo {
   '/gamification': typeof GamificationRoute
   '/leaderboard': typeof LeaderboardRoute
   '/missions': typeof MissionsRoute
+  '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
   '/queue': typeof QueueRoute
   '/reviews': typeof ReviewsRouteWithChildren
@@ -169,6 +177,7 @@ export interface FileRoutesById {
   '/gamification': typeof GamificationRoute
   '/leaderboard': typeof LeaderboardRoute
   '/missions': typeof MissionsRoute
+  '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
   '/queue': typeof QueueRoute
   '/reviews': typeof ReviewsRouteWithChildren
@@ -191,6 +200,7 @@ export interface FileRouteTypes {
     | '/gamification'
     | '/leaderboard'
     | '/missions'
+    | '/notifications'
     | '/profile'
     | '/queue'
     | '/reviews'
@@ -211,6 +221,7 @@ export interface FileRouteTypes {
     | '/gamification'
     | '/leaderboard'
     | '/missions'
+    | '/notifications'
     | '/profile'
     | '/queue'
     | '/reviews'
@@ -231,6 +242,7 @@ export interface FileRouteTypes {
     | '/gamification'
     | '/leaderboard'
     | '/missions'
+    | '/notifications'
     | '/profile'
     | '/queue'
     | '/reviews'
@@ -252,6 +264,7 @@ export interface RootRouteChildren {
   GamificationRoute: typeof GamificationRoute
   LeaderboardRoute: typeof LeaderboardRoute
   MissionsRoute: typeof MissionsRoute
+  NotificationsRoute: typeof NotificationsRoute
   ProfileRoute: typeof ProfileRoute
   QueueRoute: typeof QueueRoute
   ReviewsRoute: typeof ReviewsRouteWithChildren
@@ -318,6 +331,13 @@ declare module '@tanstack/react-router' {
       path: '/missions'
       fullPath: '/missions'
       preLoaderRoute: typeof MissionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -425,6 +445,7 @@ const rootRouteChildren: RootRouteChildren = {
   GamificationRoute: GamificationRoute,
   LeaderboardRoute: LeaderboardRoute,
   MissionsRoute: MissionsRoute,
+  NotificationsRoute: NotificationsRoute,
   ProfileRoute: ProfileRoute,
   QueueRoute: QueueRoute,
   ReviewsRoute: ReviewsRouteWithChildren,

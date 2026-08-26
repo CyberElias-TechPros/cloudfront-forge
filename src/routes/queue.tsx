@@ -19,16 +19,39 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useQueueTasks, useWatch, useCreateReport, useAttentionChallenge, useAnswerChallenge, useCommunities } from "@/hooks/use-api";
+import {
+  useQueueTasks,
+  useWatch,
+  useCreateReport,
+  useAttentionChallenge,
+  useAnswerChallenge,
+  useCommunities,
+} from "@/hooks/use-api";
 import { apiClientService } from "@/lib/api-client";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
+/** Minimal shape of the YouTube IFrame API we consume. */
+interface YTPlayer {
+  playVideo: () => void;
+  pauseVideo: () => void;
+  getCurrentTime: () => number;
+  getPlaybackRate: () => number;
+  isMuted: () => boolean;
+  destroy: () => void;
+}
+
 declare global {
   interface Window {
-    YT: any;
-    onYouTubeIframeAPIReady: () => void;
+    YT?: { Player: new (el: HTMLElement, opts: Record<string, unknown>) => YTPlayer };
+    onYouTubeIframeAPIReady?: () => void;
   }
 }
 
@@ -55,7 +78,12 @@ const filters = ["All", "Pending", "In progress", "Verified", "Expired"] as cons
 
 function Queue() {
   const [communityFilter, setCommunityFilter] = useState<string>("");
-  const { data: tasks = [], isLoading, isError, error } = useQueueTasks(communityFilter || undefined);
+  const {
+    data: tasks = [],
+    isLoading,
+    isError,
+    error,
+  } = useQueueTasks(communityFilter || undefined);
   const { data: myCommunities = [] } = useCommunities();
   const watch = useWatch();
   const report = useCreateReport();
@@ -70,14 +98,16 @@ function Queue() {
   const [claimedIds, setClaimedIds] = useState<string[]>([]);
   const [filter, setFilter] = useState<(typeof filters)[number]>("All");
   const [subOpened, setSubOpened] = useState(false);
-  const playerRef = useRef<any>(null);
+  const playerRef = useRef<YTPlayer | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const lastSampleRef = useRef<number | null>(null);
   const playerStateRef = useRef<number>(-1);
   const [ytReady, setYtReady] = useState(false);
   const challengeThresholdRef = useRef<number | null>(null);
   const challengeFiredRef = useRef(false);
-  const [activeChallenge, setActiveChallenge] = useState<{ id: string; question: string } | null>(null);
+  const [activeChallenge, setActiveChallenge] = useState<{ id: string; question: string } | null>(
+    null,
+  );
   const [challengeAnswer, setChallengeAnswer] = useState("");
   const [attentionVoided, setAttentionVoided] = useState(false);
   const sessionTokenRef = useRef<string | null>(null);
@@ -126,7 +156,9 @@ function Queue() {
     setSubOpened(false);
     lastSampleRef.current = null;
     // New video: schedule a mid-watch attention check at a random 40-70% point
-    challengeThresholdRef.current = active ? (0.4 + Math.random() * 0.3) * active.requiredSec : null;
+    challengeThresholdRef.current = active
+      ? (0.4 + Math.random() * 0.3) * active.requiredSec
+      : null;
     challengeFiredRef.current = false;
     setActiveChallenge(null);
     setAttentionVoided(false);
@@ -146,7 +178,11 @@ function Queue() {
       if (p?.getCurrentTime) {
         if (playerStateRef.current !== 1) return; // only credit while actually PLAYING
         let cur = 0;
-        try { cur = p.getCurrentTime() ?? 0; } catch { return; }
+        try {
+          cur = p.getCurrentTime() ?? 0;
+        } catch {
+          return;
+        }
         const last = lastSampleRef.current;
         if (last != null) {
           const delta = cur - last;
@@ -154,11 +190,19 @@ function Queue() {
           if (delta > 0.1 && delta <= 2) {
             // Playback-rate guard: >1.25x stops crediting entirely
             let rate = 1;
-            try { rate = p.getPlaybackRate?.() ?? 1; } catch { /* ignore */ }
+            try {
+              rate = p.getPlaybackRate?.() ?? 1;
+            } catch {
+              /* ignore */
+            }
             if (rate > 1.25) return;
             // Muted playback: credits at half speed
             let muted = false;
-            try { muted = !!p.isMuted?.(); } catch { /* ignore */ }
+            try {
+              muted = !!p.isMuted?.();
+            } catch {
+              /* ignore */
+            }
             const factor = muted ? 0.5 : 1;
             setElapsed((e) => Math.min(e + delta * factor, active.requiredSec));
           }
@@ -180,16 +224,13 @@ function Queue() {
     if (threshold == null || challengeFiredRef.current) return;
     if (elapsed >= threshold && elapsed < active.requiredSec) {
       challengeFiredRef.current = true;
-      getChallenge.mutate(
-        active.id,
-        {
-          onSuccess: (res) => setActiveChallenge({ id: res.challengeId, question: res.question }),
-          onError: () => {
-            // Soft-fail: don't block the user on a challenge fetch error
-            challengeFiredRef.current = false;
-          },
+      getChallenge.mutate(active.id, {
+        onSuccess: (res) => setActiveChallenge({ id: res.challengeId, question: res.question }),
+        onError: () => {
+          // Soft-fail: don't block the user on a challenge fetch error
+          challengeFiredRef.current = false;
         },
-      );
+      });
     }
   }, [elapsed, active, attentionVoided]);
 
@@ -212,15 +253,24 @@ function Queue() {
       if (sessionTokenRef.current && !cancelled) {
         const p = playerRef.current;
         let pt = 0;
-        try { pt = p?.getCurrentTime?.() ?? 0; } catch { /* ignore */ }
+        try {
+          pt = p?.getCurrentTime?.() ?? 0;
+        } catch {
+          /* ignore */
+        }
         apiClientService.watch.heartbeat(sessionTokenRef.current, pt).catch(() => {});
       }
     }, 30_000);
-    return () => { cancelled = true; clearInterval(loopId); };
+    return () => {
+      cancelled = true;
+      clearInterval(loopId);
+    };
   }, [playing, active]);
 
   useEffect(() => {
-    const onVis = () => { if (document.hidden) setPlaying(false); };
+    const onVis = () => {
+      if (document.hidden) setPlaying(false);
+    };
     const onBlur = () => setPlaying(false);
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("blur", onBlur);
@@ -250,7 +300,12 @@ function Queue() {
     document.head.appendChild(tag);
     const prev = window.onYouTubeIframeAPIReady;
     window.onYouTubeIframeAPIReady = () => {
-      if (prev) try { prev(); } catch {}
+      if (prev)
+        try {
+          prev();
+        } catch {
+          // previous ready-callback already ran
+        }
       setYtReady(true);
     };
     const fallback = setTimeout(() => {
@@ -263,25 +318,37 @@ function Queue() {
   useEffect(() => {
     if (!active?.youtubeVideoId || !ytReady || !playerContainerRef.current) return;
     if (playerRef.current?.destroy) {
-      try { playerRef.current.destroy(); } catch {}
+      try {
+        playerRef.current.destroy();
+      } catch {
+        // player teardown is best-effort
+      }
       playerRef.current = null;
     }
     try {
-      playerRef.current = new window.YT.Player(playerContainerRef.current, {
+      const YTApi = window.YT; // captured for the type checker; guarded by ytReady above
+      if (!YTApi) return;
+      playerRef.current = new YTApi.Player(playerContainerRef.current, {
         videoId: active.youtubeVideoId,
         playerVars: { rel: 0, modestbranding: 1, playsinline: 1, origin: window.location.origin },
         events: {
-          onStateChange: (e: any) => {
+          onStateChange: (e: { data: number }) => {
             playerStateRef.current = e.data;
             if (e.data === 1) setPlaying(true);
             else if (e.data === 2 || e.data === 0) setPlaying(false);
           },
         },
       });
-    } catch {}
+    } catch {
+      // YT player creation failed — the plain iframe fallback keeps the watch flow usable
+    }
     return () => {
       if (playerRef.current?.destroy) {
-        try { playerRef.current.destroy(); } catch {}
+        try {
+          playerRef.current.destroy();
+        } catch {
+          // player teardown is best-effort
+        }
         playerRef.current = null;
       }
     };
@@ -294,7 +361,9 @@ function Queue() {
     try {
       if (playing) p.playVideo();
       else p.pauseVideo();
-    } catch {}
+    } catch {
+      // player commands can reject mid-transition — non-fatal
+    }
   }, [playing]);
 
   const pct = Math.round((elapsed / (active?.requiredSec ?? 1)) * 100);
@@ -346,9 +415,15 @@ function Queue() {
             <div className="mt-6 surface p-6 text-center">
               <p className="text-sm font-medium">Sign in to view the queue</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Your session expired or tracking prevention blocked sign-in. Try allowing storage for this site, then reload.
+                Your session expired or tracking prevention blocked sign-in. Try allowing storage
+                for this site, then reload.
               </p>
-              <a href="/auth/signin" className="mt-4 inline-block rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">Sign in</a>
+              <a
+                href="/auth/signin"
+                className="mt-4 inline-block rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+              >
+                Sign in
+              </a>
             </div>
           ) : (
             <div className="mt-6 surface p-6 text-center text-destructive">
@@ -450,7 +525,8 @@ function Queue() {
             {active.magicWord && (
               <div className="mt-3 rounded-lg border border-dashed border-accent/50 bg-accent/10 px-4 py-2.5">
                 <p className="text-xs font-medium text-accent">
-                  Comment hint — include this word in your comment: <span className="font-bold text-foreground">{active.magicWord}</span>
+                  Comment hint — include this word in your comment:{" "}
+                  <span className="font-bold text-foreground">{active.magicWord}</span>
                 </p>
               </div>
             )}
@@ -501,7 +577,10 @@ function Queue() {
                 onClick={() => {
                   const url = active.creatorChannelId
                     ? `https://www.youtube.com/channel/${active.creatorChannelId}?sub_confirmation=1`
-                    : active.youtubeUrl || (active.youtubeVideoId ? `https://www.youtube.com/watch?v=${active.youtubeVideoId}` : "");
+                    : active.youtubeUrl ||
+                      (active.youtubeVideoId
+                        ? `https://www.youtube.com/watch?v=${active.youtubeVideoId}`
+                        : "");
                   if (!url) return;
                   window.open(url, "_blank", "noopener");
                   if (!subOpened) {
@@ -509,7 +588,9 @@ function Queue() {
                     toast.info("Channel opened — tap Subscribe on YouTube, then confirm here");
                   } else {
                     setSubscribed(true);
-                    toast.success("Marked subscribed — points only award after server-side verification via the YouTube API");
+                    toast.success(
+                      "Marked subscribed — points only award after server-side verification via the YouTube API",
+                    );
                   }
                 }}
               />
@@ -519,10 +600,16 @@ function Queue() {
                 done={commented}
                 disabled={!watchDone}
                 onClick={() => {
-                  const url = active.youtubeUrl || (active.youtubeVideoId ? `https://www.youtube.com/watch?v=${active.youtubeVideoId}` : "");
+                  const url =
+                    active.youtubeUrl ||
+                    (active.youtubeVideoId
+                      ? `https://www.youtube.com/watch?v=${active.youtubeVideoId}`
+                      : "");
                   if (url) window.open(url, "_blank", "noopener");
                   setCommented(true);
-                  toast.success("Opened video — leave a genuine comment on YouTube, then return to claim");
+                  toast.success(
+                    "Opened video — leave a genuine comment on YouTube, then return to claim",
+                  );
                 }}
               />
             </div>
@@ -561,7 +648,7 @@ function Queue() {
                 className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground"
               >
                 <option value="">All communities</option>
-                {myCommunities.map((c: any) => (
+                {myCommunities.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
@@ -570,19 +657,19 @@ function Queue() {
             )}
             <div className="flex flex-wrap gap-2">
               {filters.map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setFilter(f)}
-                className={cn(
-                  "rounded-full border border-border px-3 py-1.5 text-xs",
-                  filter === f
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-card text-muted-foreground",
-                )}
-              >
-                {f}
-              </button>
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setFilter(f)}
+                  className={cn(
+                    "rounded-full border border-border px-3 py-1.5 text-xs",
+                    filter === f
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card text-muted-foreground",
+                  )}
+                >
+                  {f}
+                </button>
               ))}
             </div>
           </div>
@@ -619,7 +706,12 @@ function Queue() {
         </section>
       </div>
 
-      <Dialog open={!!activeChallenge && !attentionVoided} onOpenChange={(open) => { if (!open) setActiveChallenge(null); }}>
+      <Dialog
+        open={!!activeChallenge && !attentionVoided}
+        onOpenChange={(open) => {
+          if (!open) setActiveChallenge(null);
+        }}
+      >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Quick attention check</DialogTitle>
@@ -647,7 +739,8 @@ function Queue() {
                       } else {
                         toast.error("Wrong answer — one attempt left. Try again:");
                         getChallenge.mutate(active!.id, {
-                          onSuccess: (r2) => setActiveChallenge({ id: r2.challengeId, question: r2.question }),
+                          onSuccess: (r2) =>
+                            setActiveChallenge({ id: r2.challengeId, question: r2.question }),
                         });
                         setChallengeAnswer("");
                       }

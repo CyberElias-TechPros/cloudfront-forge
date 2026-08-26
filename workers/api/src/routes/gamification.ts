@@ -307,14 +307,18 @@ export const gamificationRoutes = [
         const baseCredits = 5;
         const bonusCredits = Math.round(baseCredits * multiplier);
 
-        // Award credits
+        // Award credits (create the account on first claim so brand-new users
+        // can collect their daily bonus immediately)
         const balance = await database.query("SELECT balance FROM credit_accounts WHERE user_id = ?", [userId]);
-        if (balance.results.length === 0) {
-          return createErrorResponse("NOT_FOUND", "Credit account not found", 404);
-        }
-        const currentBalance = (balance.results[0] as Record<string, unknown>).balance as number;
-        const newId = crypto.randomUUID();
         const now = new Date().toISOString();
+        if (balance.results.length === 0) {
+          await database.execute(
+            "INSERT INTO credit_accounts (id, user_id, balance, created_at, updated_at) VALUES (?, ?, 0, ?, ?)",
+            [crypto.randomUUID(), userId, now, now],
+          );
+        }
+        const currentBalance = (balance.results[0] as Record<string, unknown> | undefined)?.balance as number ?? 0;
+        const newId = crypto.randomUUID();
         await database.execute(
           "INSERT INTO credit_transactions (id, user_id, type, amount, balance_after, description, created_at) VALUES (?, ?, 'earned', ?, ?, 'daily_bonus', ?)",
           [newId, userId, bonusCredits, currentBalance + bonusCredits, now],

@@ -1,6 +1,28 @@
 import { Database } from "../lib/database";
 
 /**
+ * Insert an in-app notification for a badge award (doc: "Badge earned → notify user").
+ */
+async function notifyBadgeEarned(db: Database, userId: string, badgeId: string): Promise<void> {
+  const badge = await db.querySingle("SELECT name, xp_reward, credit_reward FROM badges WHERE id = ?", [
+    badgeId,
+  ]);
+  const name = (badge?.name as string) ?? badgeId;
+  const rewards = badge
+    ? ` You earned ${badge.xp_reward ?? 0} XP and ${badge.credit_reward ?? 0} credits.`
+    : "";
+  await db.execute(
+    "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'BADGE_EARNED', 'Badge Earned!', ?, ?)",
+    [
+      crypto.randomUUID(),
+      userId,
+      `You unlocked the "${name}" badge.${rewards}`,
+      new Date().toISOString(),
+    ],
+  );
+}
+
+/**
  * Award badges based on earned criteria:
  * - review-streak: completed reviews without skipping
  * - review-count: total completed reviews
@@ -38,6 +60,7 @@ export async function sweepBadgeAwards(db: Database): Promise<number> {
             "INSERT INTO user_badges (id, user_id, badge_id, earned_at) VALUES (?, ?, ?, ?)",
             [crypto.randomUUID(), row.user_id, badgeId, now],
           );
+          await notifyBadgeEarned(db, row.user_id, badgeId);
           if (xp) {
             await db.execute(
               "UPDATE xp_accounts SET total_xp = total_xp + ?, updated_at = ? WHERE user_id = ?",
@@ -71,6 +94,7 @@ export async function sweepBadgeAwards(db: Database): Promise<number> {
         "INSERT INTO user_badges (id, user_id, badge_id, earned_at) VALUES (?, ?, 'review-streak-50', ?)",
         [crypto.randomUUID(), row.user_id, now],
       );
+      await notifyBadgeEarned(db, row.user_id, "review-streak-50");
       awarded++;
     }
   }
@@ -90,6 +114,7 @@ export async function sweepBadgeAwards(db: Database): Promise<number> {
         "INSERT INTO user_badges (id, user_id, badge_id, earned_at) VALUES (?, ?, 'supporter-1', ?)",
         [crypto.randomUUID(), row.user_id, now],
       );
+      await notifyBadgeEarned(db, row.user_id, "supporter-1");
       awarded++;
     }
   }

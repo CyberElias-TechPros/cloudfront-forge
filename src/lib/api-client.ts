@@ -333,8 +333,12 @@ export const apiClientService = {
 
   videos: {
     list: () => getData<PaginatedResponse<unknown>>("/api/v1/videos"),
-    create: (data: { youtubeUrl: string; communityId?: string; title?: string; magicWord?: string }) =>
-      postData<{ message: string; videoId: string }>("/api/v1/videos", data),
+    create: (data: {
+      youtubeUrl: string;
+      communityId?: string;
+      title?: string;
+      magicWord?: string;
+    }) => postData<{ message: string; videoId: string }>("/api/v1/videos", data),
   },
 
   reviews: {
@@ -374,7 +378,8 @@ export const apiClientService = {
       getData<PaginatedResponse<Notification>>(
         isRead === undefined ? "/api/v1/notifications" : `/api/v1/notifications?isRead=${isRead}`,
       ),
-    unreadCount: () => getData<PaginatedResponse<Notification>>("/api/v1/notifications?isRead=false&limit=1"),
+    unreadCount: () =>
+      getData<PaginatedResponse<Notification>>("/api/v1/notifications?isRead=false&limit=1"),
     preferences: () => getData<NotificationPreferences>("/api/v1/notifications/preferences"),
     updatePreferences: (data: Partial<NotificationPreferences>) =>
       putData<{ message: string }>("/api/v1/notifications/preferences", data),
@@ -395,7 +400,9 @@ export const apiClientService = {
         data,
       ),
     start: (videoId: string) =>
-      postData<{ sessionToken: string | null; enabled: boolean }>("/api/v1/watch/start", { videoId }),
+      postData<{ sessionToken: string | null; enabled: boolean }>("/api/v1/watch/start", {
+        videoId,
+      }),
     heartbeat: (sessionToken: string, playerTime: number) =>
       postData<{ ok: boolean }>("/api/v1/watch/heartbeat", { sessionToken, playerTime }),
     challenge: (videoId: string) =>
@@ -489,13 +496,6 @@ export const apiClientService = {
       reportId: string,
       data: { status: "resolved" | "dismissed"; resolutionNotes?: string },
     ) => postData<{ message: string }>(`/api/v1/admin/reports/${reportId}/resolve`, data),
-    createReport: (data: {
-      reportedUserId: string;
-      resourceType: "video" | "review" | "comment" | "user" | "community";
-      resourceId?: string;
-      reason: string;
-      description: string;
-    }) => postData<{ message: string; reportId: string }>("/api/v1/admin/reports", data),
     analytics: (days = 30) =>
       getData<{
         period: string;

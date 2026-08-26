@@ -202,7 +202,8 @@ function Missions() {
                     />
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    +{q.reward_xp} XP · +{q.reward_credits} credits · {Math.min(q.progress, q.target_count)}/{q.target_count}
+                    +{q.reward_xp} XP · +{q.reward_credits} credits ·{" "}
+                    {Math.min(q.progress, q.target_count)}/{q.target_count}
                   </p>
                 </div>
               );
@@ -385,7 +386,8 @@ function Missions() {
                     disabled={skipMission.isPending}
                     className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground disabled:opacity-50"
                   >
-                    <RefreshCw className="size-3" /> {skipMission.isPending ? "Skipping..." : "Skip"}
+                    <RefreshCw className="size-3" />{" "}
+                    {skipMission.isPending ? "Skipping..." : "Skip"}
                   </button>
                 ) : null}
                 <span className="text-xs text-muted-foreground">

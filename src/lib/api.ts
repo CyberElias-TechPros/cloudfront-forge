@@ -1,6 +1,11 @@
 import axios from "axios";
 
-const apiUrl = import.meta.env["VITE_API_URL"] || "http://localhost:8787";
+// In dev the Vite server proxies same-origin /api/* requests to the worker (see
+// vite.config.ts), so no CORS and no hard-coded localhost URL is needed. In
+// production VITE_API_URL must point at the deployed worker; the localhost
+// fallback below only exists to preserve the previous behaviour.
+const apiUrl =
+  import.meta.env["VITE_API_URL"] || (import.meta.env.DEV ? "" : "http://localhost:8787");
 
 const apiClient = axios.create({
   baseURL: apiUrl,

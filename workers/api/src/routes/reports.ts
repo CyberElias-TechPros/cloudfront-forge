@@ -69,10 +69,11 @@ export const reportRoutes = [
           return createErrorResponse("CONFLICT", "You already reported this item", 409);
         }
 
+        const reportId = crypto.randomUUID();
         await db.execute(
           `INSERT INTO reports (id, reporter_id, reported_user_id, resource_type, resource_id, reason, description, status, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
-          [crypto.randomUUID(), userId, reportedUserId ?? null, resourceType, resourceId, reason, description ?? null, now, now],
+          [reportId, userId, reportedUserId ?? null, resourceType, resourceId, reason, description ?? null, now, now],
         );
 
         // Apply trust penalty to the reported user if provided
@@ -106,7 +107,7 @@ export const reportRoutes = [
           await notifyUserPush(env, adminId, "Report Filed", `New ${reason} report on ${resourceType}`);
         }
 
-        return createResponse({ message: "Report submitted" }, 201);
+        return createResponse({ message: "Report submitted", reportId }, 201);
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);

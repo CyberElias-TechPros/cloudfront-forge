@@ -15,7 +15,10 @@ VITE_FIREBASE_APP_ID=1:123456789:web:abc123
 VITE_FIREBASE_MEASUREMENT_ID=G-ABC123
 
 # API Configuration
-VITE_API_URL=http://localhost:8787
+# Optional in development: the Vite dev server proxies /api/* to the worker at
+# http://localhost:8787 (override with API_PROXY_TARGET). Set VITE_API_URL only
+# when pointing at a deployed backend.
+# VITE_API_URL=https://your-worker.workers.dev
 
 # Dev Auth (local development only)
 VITE_USE_DEV_AUTH=true

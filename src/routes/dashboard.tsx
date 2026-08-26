@@ -177,7 +177,11 @@ function Dashboard() {
           </div>
           {quests.length === 0 ? (
             <p className="mt-5 text-sm text-muted-foreground">
-              No active quests — <Link to="/missions" className="underline">Browse missions</Link> to earn XP.
+              No active quests —{" "}
+              <Link to="/missions" className="underline">
+                Browse missions
+              </Link>{" "}
+              to earn XP.
             </p>
           ) : (
             <ul className="mt-5 space-y-4">
