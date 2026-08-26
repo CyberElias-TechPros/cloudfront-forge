@@ -12,4 +12,23 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    // Dev-server proxy: the frontend calls same-origin /api/* and Vite forwards the
+    // requests to the local Cloudflare Worker. This removes CORS from local development
+    // entirely (VITE_API_URL can still override for a remote API).
+    server: {
+      // Allow the sandbox/preview proxy host so the app is reachable in hosted previews.
+      allowedHosts: true,
+      proxy: {
+        "/api": {
+          target: process.env["API_PROXY_TARGET"] ?? "http://localhost:8787",
+          changeOrigin: true,
+        },
+        "/health": {
+          target: process.env["API_PROXY_TARGET"] ?? "http://localhost:8787",
+          changeOrigin: true,
+        },
+      },
+    },
+  },
 });

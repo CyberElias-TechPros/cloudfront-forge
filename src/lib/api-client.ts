@@ -489,13 +489,6 @@ export const apiClientService = {
       reportId: string,
       data: { status: "resolved" | "dismissed"; resolutionNotes?: string },
     ) => postData<{ message: string }>(`/api/v1/admin/reports/${reportId}/resolve`, data),
-    createReport: (data: {
-      reportedUserId: string;
-      resourceType: "video" | "review" | "comment" | "user" | "community";
-      resourceId?: string;
-      reason: string;
-      description: string;
-    }) => postData<{ message: string; reportId: string }>("/api/v1/admin/reports", data),
     analytics: (days = 30) =>
       getData<{
         period: string;

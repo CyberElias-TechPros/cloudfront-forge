@@ -17,7 +17,9 @@ async function buildPlatformAwarePrompt(db: Database, userId: string): Promise<s
   // Fetch user profile + stats in parallel
   const [member, videos, xp, streaks, reviews] = await Promise.all([
     db.querySingle(
-      "SELECT display_name, trust_score FROM users WHERE id = ?",
+      `SELECT u.display_name, COALESCE(r.score, 100) as trust_score
+       FROM users u LEFT JOIN reputation_accounts r ON r.user_id = u.id
+       WHERE u.id = ?`,
       [userId],
     ),
     db.query(

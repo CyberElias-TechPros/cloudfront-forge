@@ -12,7 +12,7 @@ Generated: 2026-08-26
 3. [Complete User Flows](#3-complete-user-flows)
 4. [Every Action A User Can Take](#4-every-action-a-user-can-take)
 5. [All API Endpoints](#5-all-api-endpoints)
-6. [Database Schema — All 28 Tables](#6-database-schema--all-28-tables)
+6. [Database Schema — All 40 Tables](#6-database-schema--all-40-tables)
 7. [Authentication & Session Flow](#7-authentication--session-flow)
 8. [Anti-Cheat & Trust System](#8-anti-cheat--trust-system)
 9. [Gamification Economy](#9-gamification-economy)
@@ -645,7 +645,7 @@ PUSH SUBSCRIPTION:
 
 ## 5. All API Endpoints
 
-### Complete Endpoint Map (57 routes)
+### Complete Endpoint Map (81 routes: 80 API + /health)
 
 ```
 HEALTH
@@ -702,7 +702,7 @@ MISSIONS (7 routes)
   POST /api/v1/missions/assignments/:id/skip           → Skip
   POST /api/v1/missions/chain                         → Create chain (admin)
 
-GAMIFICATION (9 routes)
+GAMIFICATION (8 routes)
   GET  /api/v1/daily-quests                           → Today's quests
   GET  /api/v1/credits                               → Credit balance + history
   GET  /api/v1/xp                                     → XP balance + history
@@ -712,7 +712,7 @@ GAMIFICATION (9 routes)
   GET  /api/v1/leaderboards                           → Rankings (weighted score)
   POST /api/v1/gamification/daily-bonus               → Claim daily bonus
 
-NOTIFICATIONS (8 routes)
+NOTIFICATIONS (9 routes)
   GET  /api/v1/notifications                          → List notifications
   POST /api/v1/notifications                          → Create notification
   POST /api/v1/notifications/read-all                 → Mark all read
@@ -735,7 +735,7 @@ AI (5 routes)
   GET  /api/v1/ai/conversations/:id/messages          → Get messages
   DELETE /api/v1/ai/conversations/:id                 → Delete conversation
 
-YOUTUBE (4 routes)
+YOUTUBE (5 routes)
   GET  /api/v1/youtube/oauth/authorize                → Start OAuth flow
   GET  /api/v1/youtube/oauth/callback                 → OAuth callback (redirect)
   POST /api/v1/youtube/oauth/callback                 → OAuth callback (JSON)
@@ -766,7 +766,7 @@ ADMIN (8 routes)
 
 ---
 
-## 6. Database Schema — All 28 Tables
+## 6. Database Schema — All 40 Tables
 
 ### Core User Tables
 
@@ -1130,7 +1130,7 @@ ADMIN (8 routes)
 |--------|------|-------|
 | id | TEXT PK | |
 | user_id | TEXT FK→users | |
-| type | TEXT NOT NULL | review_assigned/watch_claimed/report_filed/etc |
+| type | TEXT NOT NULL | REVIEW_ASSIGNED/WATCH_SESSION_CLAIMED/REPORT_FILED/etc |
 | title | TEXT | 1-200 chars |
 | message | TEXT | 1-1000 chars |
 | data | TEXT | JSON metadata |
@@ -1230,6 +1230,26 @@ ADMIN (8 routes)
 | week1_active | INTEGER DEFAULT 0 | Active in first week? |
 | week4_active | INTEGER DEFAULT 0 | Active in fourth week? |
 
+### AI Tables
+**`ai_conversations`** — AI assistant conversation headers
+| Column | Type | Notes |
+|--------|------|-------|
+| id | TEXT PK | |
+| user_id | TEXT NOT NULL FK→users | |
+| title | TEXT | First 60 chars of the opening message |
+| created_at | DATETIME | |
+| updated_at | DATETIME | |
+
+**`ai_messages`** — AI assistant message history
+| Column | Type | Notes |
+|--------|------|-------|
+| id | TEXT PK | |
+| conversation_id | TEXT NOT NULL FK→ai_conversations CASCADE | |
+| user_id | TEXT NOT NULL FK→users | |
+| role | TEXT NOT NULL | CHECK: system/user/assistant |
+| content | TEXT NOT NULL | |
+| created_at | DATETIME | |
+
 ---
 
 ## 7. Authentication & Session Flow
@@ -1294,7 +1314,7 @@ ADMIN (8 routes)
 
 ### Anomaly Detection (Nightly Cron)
 1. Calculate per-user claim counts over 7 days
-2. If > 5 users, compute mean + stddev
+2. If ≥ 5 users, compute mean + stddev
 3. Flag users with claims > mean + 3*sigma
 4. Apply -2 trust penalty per flag
 5. Results visible in admin low-trust watchlist
@@ -1386,16 +1406,18 @@ ADMIN (8 routes)
 ## 11. Notification System
 
 ### Event-Driven Notifications
-| Event | Recipients | Type |
+| Event | Recipients | Type (stored value) |
 |-------|-----------|------|
-| Video submitted | Community members | video_submitted |
-| Review assigned | Reviewer | review_assigned |
-| Review completed | Video owner | review_completed |
-| Watch claimed | Video owner | watch_claimed |
-| Report filed | All admins | report_filed |
-| Appeal filed | All admins | appeal_filed |
-| Mission completed | User | mission_completed |
-| Badge earned | User | badge_earned |
+| Video submitted | Community members | NEW_VIDEO_SUBMITTED |
+| Review assigned | Reviewer | REVIEW_ASSIGNED |
+| Review started | Video submitter | REVIEW_STARTED |
+| Review completed | Video owner | REVIEW_COMPLETED |
+| Watch claimed | Video owner | WATCH_SESSION_CLAIMED |
+| Report filed | All admins | REPORT_FILED |
+| Appeal filed | All admins | APPEAL_FILED |
+| Mission assigned | User | MISSION_ASSIGNED |
+| Mission completed | User | MISSION_COMPLETED |
+| Badge earned | User | BADGE_EARNED |
 
 ### Delivery Channels
 1. **In-app:** Always delivered to `notifications` table
@@ -1535,7 +1557,7 @@ src/
 │   ├── ad-slot.tsx      → Google AdSense slot
 │   ├── RequirePermission.tsx → Role-based gate
 │   ├── common/          → 7 base components (button, card, input, badge, label, progress, avatar)
-│   └── ui/              → 34 shadcn/ui components
+│   └── ui/              → 46 shadcn/ui components
 ├── lib/
 │   ├── firebase.ts      → Auth init, persistence, token management
 │   ├── api.ts           → Axios client with auth interceptor
@@ -1545,6 +1567,7 @@ src/
 │   ├── dev-auth.ts      → Dev mode mock auth
 │   ├── env-validation.ts → Firebase env var validation
 │   ├── error-capture.ts → Global error capture
+│   ├── error-page.ts    → Error page renderer
 │   └── lovable-error-reporting.ts → Lovable telemetry
 ├── hooks/
 │   ├── use-api.ts       → 30+ React Query hooks
@@ -1573,7 +1596,7 @@ workers/api/src/
 │   ├── rateLimit.ts     → KV-based rate limiting (tiered)
 │   ├── permissions.ts   → Role-based permission system
 │   └── validation.ts    → Schema validation helpers
-├── routes/              → 16 route modules (57 endpoints)
+├── routes/              → 16 route modules (80 endpoints)
 │   ├── auth.ts          → Register, me, profile, permissions
 │   ├── users.ts         → Profile, channels, member view
 │   ├── communities.ts   → CRUD, join, members, settings
@@ -1602,7 +1625,7 @@ workers/api/src/
 │   └── digest.ts        → Weekly email recap
 ├── lib/
 │   ├── database.ts      → D1 wrapper with transactions
-│   ├── firebase-admin.ts → Firebase Admin SDK
+│   ├── db.ts             → D1 query helpers (re-export of database.ts)
 │   ├── push.ts          → VAPID web push
 │   ├── email.ts         → Resend API
 │   ├── analytics.ts     → Event tracking
@@ -1669,7 +1692,9 @@ Request → CORS headers → OPTIONS check → Rate limiting → Auth middleware
 **Backend (Vars):**
 - `FIREBASE_PROJECT_ID`, `AI_PROVIDER`, `AI_MODEL`, `CORS_ORIGINS`
 - `YOUTUBE_OAUTH_CLIENT_ID`, `YOUTUBE_OAUTH_REDIRECT_URI`, `VAPID_PUBLIC_KEY`
-- `ENVIRONMENT`, `REQUIRED_WATCH_SEC`, `REWARD_XP`, `REWARD_CREDITS`
+- `ENVIRONMENT`, `REQUIRED_WATCH_SEC` (180), `REWARD_XP` (30), `REWARD_CREDITS` (10)
+- `REVIEW_XP` (20), `REVIEW_CREDITS` (5) — awarded on review completion
+- Optional: `AI_DAILY_USER_LIMIT` (20), `AI_DAILY_GLOBAL_LIMIT` (500), `RATE_LIMIT_MAX_REQUESTS`, `RATE_LIMIT_WINDOW`, `AUTH_RATE_LIMIT_MAX_REQUESTS`, `AUTH_RATE_LIMIT_WINDOW`, `WATCH_SESSIONS_ENABLED`
 
 ---
 

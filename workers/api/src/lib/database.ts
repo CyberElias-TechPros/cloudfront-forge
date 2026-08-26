@@ -8,12 +8,12 @@ export class Database {
     this.env = env;
   }
 
-  async query(sql: string, params: any[] = []): Promise<{ results: any[]; success: boolean }> {
+  async query<T = any>(sql: string, params: any[] = []): Promise<{ results: T[]; success: boolean }> {
     const logger = createLogger(this.env);
     try {
       const stmt = this.env.DB.prepare(sql);
       const result = params.length > 0 ? await stmt.bind(...params).all() : await stmt.all();
-      return { results: result.results ?? [], success: true };
+      return { results: (result.results ?? []) as T[], success: true };
     } catch (error) {
       logger.error("Database query error", error);
       return { results: [], success: false };

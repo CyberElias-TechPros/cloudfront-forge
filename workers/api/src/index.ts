@@ -24,7 +24,7 @@ const SECURITY_HEADERS = new Headers({
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
   "X-XSS-Protection": "1; mode=block",
-  "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
   "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'",
 });
 
@@ -61,7 +61,11 @@ export default {
         .map((o) => o.trim())
         .filter(Boolean);
       const origin = request.headers.get("Origin") || "";
-      const isAllowedOrigin = corsOrigins.includes(origin);
+      // In development, also accept any localhost origin so the Vite dev server
+      // can talk to the worker without extra CORS_ORIGINS configuration.
+      const isLocalOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+      const isAllowedOrigin =
+        corsOrigins.includes(origin) || (env.ENVIRONMENT === "development" && isLocalOrigin);
       const corsOrigin = isAllowedOrigin ? origin : corsOrigins[0] || "*";
 
       const corsHeaders = new Headers({
@@ -174,7 +178,11 @@ export default {
         .map((o) => o.trim())
         .filter(Boolean);
       const origin = request.headers.get("Origin") || "";
-      const isAllowedOrigin = corsOrigins.includes(origin);
+      // In development, also accept any localhost origin so the Vite dev server
+      // can talk to the worker without extra CORS_ORIGINS configuration.
+      const isLocalOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+      const isAllowedOrigin =
+        corsOrigins.includes(origin) || (env.ENVIRONMENT === "development" && isLocalOrigin);
       const corsOrigin = isAllowedOrigin ? origin : corsOrigins[0] || "*";
       const corsHeaders = applySecurityHeaders(new Headers({
         "Access-Control-Allow-Origin": corsOrigin,

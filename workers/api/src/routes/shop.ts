@@ -110,10 +110,24 @@ export const shopRoutes = [
             [boostedUntil, now, validation.data.videoId, userId],
           );
         } else {
-          await db.execute(
-            `UPDATE streaks SET streak_freezes = streak_freezes + 1, updated_at = ? WHERE user_id = ?`,
-            [now, userId],
+          // Upsert the user's daily_login streak row so the purchased freeze is
+          // never silently dropped (a bare UPDATE no-ops when no row exists yet).
+          const streakRow = await db.querySingle(
+            "SELECT id FROM streaks WHERE user_id = ? AND streak_type = 'daily_login'",
+            [userId],
           );
+          if (streakRow) {
+            await db.execute(
+              `UPDATE streaks SET streak_freezes = streak_freezes + 1, updated_at = ? WHERE user_id = ? AND streak_type = 'daily_login'`,
+              [now, userId],
+            );
+          } else {
+            await db.execute(
+              `INSERT INTO streaks (id, user_id, current_streak, longest_streak, streak_type, streak_freezes, created_at, updated_at)
+               VALUES (?, ?, 0, 0, 'daily_login', 1, ?, ?)`,
+              [crypto.randomUUID(), userId, now, now],
+            );
+          }
         }
 
         const balanceRow = await db.querySingle(

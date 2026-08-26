@@ -316,7 +316,7 @@ export const communityRoutes = [
         }
         const db = new Database(env);
         const community = await db.querySingle(
-          "SELECT id FROM communities WHERE id = ? AND owner_id = ? AND deleted_at IS NULL",
+          "SELECT id FROM communities WHERE id = ? AND owner_id = ?",
           [communityId, userId],
         );
         if (!community) {

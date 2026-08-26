@@ -5,8 +5,11 @@ import { Database } from "../lib/database";
 import { notifyUserPush } from "../lib/push";
 import { progressQuest } from "../lib/quests";
 import { trackEvent } from "../lib/analytics";
+import { calculateLevel } from "../lib/utils";
 import { z } from "zod";
 import { createLogger } from "../lib/logger";
+
+const db = (env: Env) => new Database(env);
 
 function getPagination(request: Request): { limit: number; offset: number } {
   const { searchParams } = new URL(request.url);
@@ -151,6 +154,22 @@ export const videoRoutes = [
           );
         }
 
+        // One submission per member per 24 hours
+        const lastSubmission = await db.querySingle(
+          "SELECT created_at FROM videos WHERE user_id = ? ORDER BY created_at DESC LIMIT 1",
+          [userId],
+        );
+        if (lastSubmission?.created_at) {
+          const lastTs = new Date(lastSubmission.created_at as string).getTime();
+          if (Date.now() - lastTs < 24 * 60 * 60 * 1000) {
+            return createErrorResponse(
+              "SUBMISSION_COOLDOWN",
+              "You can only submit one video every 24 hours. Please try again later.",
+              429,
+            );
+          }
+        }
+
         // Give/take ratio gate: require ratio >= 0.80 (subscriptions_given + watch_hours) / subscriptions_received
         // Grace period: first 3 submissions are free; after that, ratio >= 0.80 required
         // New users with no received subscriptions are exempt (ratio treated as neutral 1.0)
@@ -242,20 +261,27 @@ export const videoRoutes = [
         // Analytics funnel
         await trackEvent(env, "video_submitted", userId, "video", videoId);
 
-        // Auto-assign up to 3 reviewers (exclude submitter, prefer least-recently-reviewed)
+        // Auto-assign up to 3 reviewers (exclude submitter, prefer same-community
+        // members, trust-threshold filtered, least-recently-reviewed weighted)
         const reviewers = await db.query(
           `SELECT u.id FROM users u
+           LEFT JOIN community_members cm
+             ON cm.user_id = u.id AND cm.community_id = ? AND cm.status = 'active'
            WHERE u.id != ? AND u.deleted_at IS NULL
              AND NOT EXISTS (
                SELECT 1 FROM reviews r
                WHERE r.reviewer_id = u.id AND r.video_id = ?
                  AND r.status IN ('assigned','in_progress')
              )
-           ORDER BY (
-             SELECT MAX(r2.assigned_at) FROM reviews r2 WHERE r2.reviewer_id = u.id
-           ) ASC NULLS FIRST
+             AND COALESCE((
+               SELECT ra.score FROM reputation_accounts ra WHERE ra.user_id = u.id
+             ), 100) >= 60
+           ORDER BY (CASE WHEN cm.user_id IS NOT NULL THEN 0 ELSE 1 END),
+             (
+               SELECT MAX(r2.assigned_at) FROM reviews r2 WHERE r2.reviewer_id = u.id
+             ) ASC NULLS FIRST
            LIMIT 3`,
-          [userId, videoId],
+          [communityId ?? null, userId, videoId],
         );
         for (const reviewer of reviewers.results) {
           const nowISO = new Date().toISOString();
@@ -377,7 +403,7 @@ export const reviewRoutes = [
              r.assigned_at as assignedAt,
              r.started_at as startedAt,
              r.completed_at as completedAt,
-             r.due_at as dueAt
+             datetime(r.assigned_at, '+48 hours') as dueAt
            FROM reviews r
            JOIN videos v ON r.video_id = v.id
            JOIN users u ON r.submitter_id = u.id
@@ -433,7 +459,7 @@ export const reviewRoutes = [
              r.assigned_at as assignedAt,
              r.started_at as startedAt,
              r.completed_at as completedAt,
-             r.due_at as dueAt
+             datetime(r.assigned_at, '+48 hours') as dueAt
            FROM reviews r
            JOIN videos v ON r.video_id = v.id
            JOIN users u ON r.submitter_id = u.id
@@ -561,9 +587,29 @@ export const reviewRoutes = [
         const db = new Database(env);
         const now = new Date().toISOString();
 
+        // Load the review (need submitter + current status for rewards/notification)
+        const review = await db.querySingle(
+          "SELECT id, reviewer_id, submitter_id, status FROM reviews WHERE id = ? AND reviewer_id = ?",
+          [reviewId, userId],
+        );
+        if (!review) {
+          return createErrorResponse("NOT_FOUND", "Review not found", 404);
+        }
+
+        const answers = Array.isArray(body?.answers) ? body.answers : [];
+
+        // Score = average of rating answers when provided, else the submitted score
+        const ratingValues = answers
+          .map((a: any) => Number(a?.ratingValue))
+          .filter((v: number) => Number.isFinite(v) && v > 0);
+        const computedScore =
+          ratingValues.length > 0
+            ? Math.round(ratingValues.reduce((a: number, b: number) => a + b, 0) / ratingValues.length)
+            : (body.score ?? null);
+
         await db.execute(
           "UPDATE reviews SET status = 'completed', completed_at = ?, score = ?, feedback_text = ? WHERE id = ? AND reviewer_id = ?",
-          [now, body.score ?? null, body.feedbackText ?? null, reviewId, userId],
+          [now, computedScore, body.feedbackText ?? null, reviewId, userId],
         );
 
         // Daily quest progress
@@ -572,7 +618,92 @@ export const reviewRoutes = [
         // Analytics funnel
         await trackEvent(env, "review_completed", userId, "review", reviewId);
 
-        const answers = Array.isArray(body?.answers) ? body.answers : [];
+        // Reward the reviewer (XP + credits) — one payout per review
+        const REVIEW_XP = parseInt(env.REVIEW_XP || "20", 10);
+        const REVIEW_CREDITS = parseInt(env.REVIEW_CREDITS || "5", 10);
+        const firstCompletion = review.status !== "completed";
+        let xpEarned = 0;
+        let creditsEarned = 0;
+        if (firstCompletion) {
+          xpEarned = REVIEW_XP;
+          creditsEarned = REVIEW_CREDITS;
+
+          await db.execute(
+            "INSERT INTO xp_transactions (id, user_id, amount, type, description, reference_id, created_at) VALUES (?, ?, ?, 'review', 'Review completed', ?, ?)",
+            [crypto.randomUUID(), userId, xpEarned, reviewId, now],
+          );
+          const xpAccount = await db.querySingle("SELECT * FROM xp_accounts WHERE user_id = ?", [
+            userId,
+          ]);
+          if (xpAccount) {
+            const totalXp = (xpAccount.total_xp ?? 0) + xpEarned;
+            const { level } = calculateLevel(totalXp);
+            await db.execute(
+              "UPDATE xp_accounts SET total_xp = ?, level = ?, updated_at = ? WHERE user_id = ?",
+              [totalXp, level, now, userId],
+            );
+          } else {
+            await db.execute(
+              "INSERT INTO xp_accounts (id, user_id, total_xp, level, xp_to_next_level, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+              [crypto.randomUUID(), userId, xpEarned, 1, 100, now, now],
+            );
+          }
+
+          await db.execute(
+            "INSERT INTO credit_transactions (id, user_id, amount, type, description, reference_id, created_at) VALUES (?, ?, ?, 'earned', 'Review completed', ?, ?)",
+            [crypto.randomUUID(), userId, creditsEarned, reviewId, now],
+          );
+          const creditAccount = await db.querySingle(
+            "SELECT * FROM credit_accounts WHERE user_id = ?",
+            [userId],
+          );
+          if (creditAccount) {
+            await db.execute(
+              "UPDATE credit_accounts SET balance = balance + ?, updated_at = ? WHERE user_id = ?",
+              [creditsEarned, now, userId],
+            );
+          } else {
+            await db.execute(
+              "INSERT INTO credit_accounts (id, user_id, balance, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+              [crypto.randomUUID(), userId, creditsEarned, now, now],
+            );
+          }
+
+          // Update the video owner's reputation (+1, audit-logged)
+          const submitterId = review.submitter_id as string | null;
+          if (submitterId && submitterId !== userId) {
+            await db.execute(
+              "INSERT INTO reputation_accounts (id, user_id, score, last_calculated, created_at, updated_at) VALUES (?, ?, 100, ?, ?, ?) ON CONFLICT(user_id) DO NOTHING",
+              [crypto.randomUUID(), submitterId, now, now, now],
+            );
+            await db.execute(
+              "UPDATE reputation_accounts SET score = MIN(100, score + 1), updated_at = ? WHERE user_id = ?",
+              [now, submitterId],
+            );
+            await db.execute(
+              "INSERT INTO reputation_events (id, user_id, event_type, points_change, description, created_at) VALUES (?, ?, 'review_received', 1, 'Video received a completed peer review', ?)",
+              [crypto.randomUUID(), submitterId, now],
+            );
+
+            // Notify the video owner
+            await db.execute(
+              "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'REVIEW_COMPLETED', 'Review Completed', ?, ?)",
+              [
+                crypto.randomUUID(),
+                submitterId,
+                `Your video received a completed review${computedScore ? ` with a score of ${computedScore}/5` : ""}.`,
+                now,
+              ],
+            );
+            await notifyUserPush(
+              env,
+              submitterId,
+              "Review Completed",
+              `Your video received a completed review${computedScore ? ` with a score of ${computedScore}/5` : ""}.`,
+            );
+          }
+        }
+
         if (answers.length > 0) {
           await db.execute("DELETE FROM review_answers WHERE review_id = ?", [reviewId]);
           const statements = answers
@@ -593,7 +724,11 @@ export const reviewRoutes = [
           }
         }
 
-        return createResponse({ message: "Review completed successfully" });
+        return createResponse({
+          message: "Review completed successfully",
+          xpEarned,
+          creditsEarned,
+        });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
@@ -680,19 +815,23 @@ export const reviewRoutes = [
         const body = (await request.json()) as { helpful: boolean };
         await database.query("UPDATE reviews SET helpful = ? WHERE id = ?", [body.helpful ? 1 : 0, reviewId]);
 
-        // Boost reviewer trust by 1 per helpful review
+        // Boost reviewer trust by 1 per helpful review (base 100, capped at 100)
         if (body.helpful) {
+          const nowTs = new Date().toISOString();
           await database.query(
-            `INSERT INTO reputation_accounts (id, user_id, score, created_at, updated_at)
-             VALUES (?, ?, 1, ?, ?)
-             ON CONFLICT(user_id) DO UPDATE SET score = score + 1, updated_at = ?`,
-            [
-              crypto.randomUUID(),
-              reviewRow.reviewer_id,
-              new Date().toISOString(),
-              new Date().toISOString(),
-              new Date().toISOString(),
-            ],
+            `INSERT INTO reputation_accounts (id, user_id, score, last_calculated, created_at, updated_at)
+             VALUES (?, ?, 100, ?, ?, ?)
+             ON CONFLICT(user_id) DO NOTHING`,
+            [crypto.randomUUID(), reviewRow.reviewer_id, nowTs, nowTs, nowTs],
+          );
+          await database.query(
+            `UPDATE reputation_accounts SET score = MIN(100, score + 1), updated_at = ? WHERE user_id = ?`,
+            [nowTs, reviewRow.reviewer_id],
+          );
+          await database.query(
+            `INSERT INTO reputation_events (id, user_id, event_type, points_change, description, created_at)
+             VALUES (?, ?, 'helpful_review', 1, 'Review rated helpful by the video submitter', ?)`,
+            [crypto.randomUUID(), reviewRow.reviewer_id, nowTs],
           );
         }
 
@@ -709,44 +848,77 @@ export const reviewRoutes = [
 
 // Helper: Extract YouTube video ID from URL
 function extractYouTubeId(url: string): string | null {
-  const regExp =
-    /(?:youtube\.com\/(?:[^/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S{11}(?:\S+|$))|youtu\.be\/([a-zA-Z0-9_-]{11}))/i;
-  const match = url.match(regExp);
-  return match ? (match[1] ?? match[0]) : null;
+  const VALID_ID = /^[a-zA-Z0-9_-]{11}$/;
+  const trimmed = url.trim();
+
+  // Bare 11-character video ID
+  if (VALID_ID.test(trimmed)) return trimmed;
+
+  try {
+    const u = new URL(trimmed);
+    if (u.hostname === "youtu.be") {
+      const id = u.pathname.split("/").filter(Boolean)[0] ?? "";
+      return VALID_ID.test(id) ? id : null;
+    }
+    if (/(^|\.)youtube\.com$/i.test(u.hostname)) {
+      // watch?v=<id>
+      const v = u.searchParams.get("v");
+      if (v && VALID_ID.test(v)) return v;
+      // /embed/<id>, /shorts/<id>, /live/<id>, /v/<id>, /e/<id>
+      const m = u.pathname.match(/^\/(?:embed|shorts|live|v|e)\/([a-zA-Z0-9_-]{11})/);
+      if (m) return m[1];
+    }
+  } catch {
+    // Not a parseable URL — fall through
+  }
+  return null;
 }
 
-// Helper: Fetch YouTube metadata
+// Helper: Fetch YouTube metadata.
+// Degrades gracefully: without an API key (or on API/quota errors) we still return
+// a usable record — the thumbnail is constructible from the video ID alone — so
+// video submission keeps working instead of hard-failing with a 500.
 async function fetchYouTubeMetadata(videoId: string, env: Env): Promise<any> {
   const cached = (await env.KV_CACHE.get<any>(`youtube:meta:${videoId}`, { type: "json" })) as any;
   if (cached && cached.channelId) return cached;
 
-  if (!env.YOUTUBE_API_KEY || env.YOUTUBE_API_KEY === "placeholder") {
-    throw new Error("YOUTUBE_API_KEY not configured");
-  }
-
-  const response = await fetch(
-    `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${videoId}&key=${env.YOUTUBE_API_KEY}`,
-  );
-
-  if (!response.ok) {
-    throw new Error("YouTube API error");
-  }
-
-  const data = (await response.json()) as any;
-  const video = data.items?.[0];
-
-  if (!video) {
-    throw new Error("YouTube video not found or unavailable");
-  }
-
-  const meta = {
-    title: video.snippet?.title ?? "",
-    description: video.snippet?.description ?? "",
-    thumbnailUrl: video.snippet?.thumbnails?.medium?.url ?? null,
-    durationSeconds: parseDuration(video.contentDetails?.duration),
-    channelId: video.snippet?.channelId ?? null,
-    channelTitle: video.snippet?.channelTitle ?? null,
+  const fallback = {
+    title: null,
+    description: null,
+    thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+    durationSeconds: null,
+    channelId: null,
+    channelTitle: null,
   };
+
+  if (!env.YOUTUBE_API_KEY || env.YOUTUBE_API_KEY === "placeholder") {
+    return fallback;
+  }
+
+  let meta = fallback;
+  try {
+    const response = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${videoId}&key=${env.YOUTUBE_API_KEY}`,
+    );
+
+    if (response.ok) {
+      const data = (await response.json()) as any;
+      const video = data.items?.[0];
+
+      if (video) {
+        meta = {
+          title: video.snippet?.title ?? "",
+          description: video.snippet?.description ?? "",
+          thumbnailUrl: video.snippet?.thumbnails?.medium?.url ?? fallback.thumbnailUrl,
+          durationSeconds: parseDuration(video.contentDetails?.duration),
+          channelId: video.snippet?.channelId ?? null,
+          channelTitle: video.snippet?.channelTitle ?? null,
+        };
+      }
+    }
+  } catch {
+    // Network/API failure — keep the fallback metadata
+  }
 
   await env.KV_CACHE.put(`youtube:meta:${videoId}`, JSON.stringify(meta), {
     expirationTtl: 86400,
