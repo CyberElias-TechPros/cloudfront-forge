@@ -139,9 +139,15 @@ function Gamification() {
             onClick={() =>
               dailyBonus.mutate(undefined, {
                 onSuccess: (data) =>
-                  toast.success(`+${data.credits} credits claimed! (${data.multiplier}× streak multiplier)`),
-                onError: (err: any) =>
-                  toast.error(err?.message?.includes("409") ? "Already claimed today" : "Failed to claim bonus"),
+                  toast.success(
+                    `+${data.credits} credits claimed! (${data.multiplier}× streak multiplier)`,
+                  ),
+                onError: (err: unknown) =>
+                  toast.error(
+                    (err instanceof Error ? err.message : String(err)).includes("409")
+                      ? "Already claimed today"
+                      : "Failed to claim bonus",
+                  ),
               })
             }
           >
@@ -322,9 +328,7 @@ function Gamification() {
                   </p>
                 )}
                 {activeVideos.length === 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Submit a video to unlock boosts.
-                  </p>
+                  <p className="text-xs text-muted-foreground">Submit a video to unlock boosts.</p>
                 )}
               </div>
             </CardContent>

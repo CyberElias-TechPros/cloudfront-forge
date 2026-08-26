@@ -160,12 +160,30 @@ function Admin() {
                     <td className="py-2 pr-4 tabular-nums">{c.date}</td>
                     <td className="py-2 pr-4 text-right tabular-nums">{c.total}</td>
                     <td className="py-2 pr-4 text-right tabular-nums">
-                      <span className={cn("font-medium", c.week1Retention >= 50 ? "text-green-400" : c.week1Retention >= 25 ? "text-yellow-400" : "text-red-400")}>
+                      <span
+                        className={cn(
+                          "font-medium",
+                          c.week1Retention >= 50
+                            ? "text-green-400"
+                            : c.week1Retention >= 25
+                              ? "text-yellow-400"
+                              : "text-red-400",
+                        )}
+                      >
                         {c.week1Retention}%
                       </span>
                     </td>
                     <td className="py-2 text-right tabular-nums">
-                      <span className={cn("font-medium", c.week4Retention >= 30 ? "text-green-400" : c.week4Retention >= 10 ? "text-yellow-400" : "text-red-400")}>
+                      <span
+                        className={cn(
+                          "font-medium",
+                          c.week4Retention >= 30
+                            ? "text-green-400"
+                            : c.week4Retention >= 10
+                              ? "text-yellow-400"
+                              : "text-red-400",
+                        )}
+                      >
                         {c.week4Retention}%
                       </span>
                     </td>

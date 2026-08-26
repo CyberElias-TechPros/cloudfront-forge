@@ -22,7 +22,9 @@ export function AdSlot({ className }: { className?: string }) {
     try {
       (window.adsbygoogle = window.adsbygoogle || []).push({});
       pushedRef.current = true;
-    } catch {}
+    } catch {
+      // AdSense script not ready yet — retried on next render
+    }
   }, [slotId]);
 
   if (!slotId) return null;

@@ -45,8 +45,14 @@ const queryKeys = {
 
 function shouldRetryAuth(failureCount: number, error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
-  if (msg.includes("429") || msg.includes("Too many requests") || msg.includes("RATE_LIMITED")) return false;
-  if (msg.includes("401") || msg.includes("Authentication required") || msg.includes("AUTH_REQUIRED")) return false;
+  if (msg.includes("429") || msg.includes("Too many requests") || msg.includes("RATE_LIMITED"))
+    return false;
+  if (
+    msg.includes("401") ||
+    msg.includes("Authentication required") ||
+    msg.includes("AUTH_REQUIRED")
+  )
+    return false;
   return failureCount < 1;
 }
 
@@ -250,8 +256,7 @@ export function useCompleteMission() {
 export function useSkipMission() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (assignmentId: string) =>
-      apiClientService.missions.skip(assignmentId),
+    mutationFn: (assignmentId: string) => apiClientService.missions.skip(assignmentId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.assignments });
     },
@@ -829,8 +834,13 @@ export function useSubmissions() {
 export function useSubmitVideo() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { youtubeUrl: string; communityId?: string; title?: string; magicWord?: string }) =>
-      apiClientService.videos.create(data),
+    mutationFn: (data: {
+      youtubeUrl: string;
+      communityId?: string;
+      title?: string;
+      magicWord?: string;
+      niche?: string;
+    }) => apiClientService.videos.create(data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["feed", "submissions"] });
     },

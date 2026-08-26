@@ -36,9 +36,9 @@ function Submit() {
   const { data: submissions = [] } = useSubmissions();
   const submitVideo = useSubmitVideo();
   const [niche, setNiche] = useState("Tech");
-const [link, setLink] = useState(sharedLink ?? "");
-const [title, setTitle] = useState("");
-const [magicWord, setMagicWord] = useState("");
+  const [link, setLink] = useState(sharedLink ?? "");
+  const [title, setTitle] = useState("");
+  const [magicWord, setMagicWord] = useState("");
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -47,11 +47,13 @@ const [magicWord, setMagicWord] = useState("");
       return;
     }
     try {
-const payload: { youtubeUrl: string; title?: string; magicWord?: string; niche?: string } = { youtubeUrl: link };
-if (title.trim()) payload.title = title.trim();
-if (magicWord.trim()) payload.magicWord = magicWord.trim();
-if (niche) payload.niche = niche;
-      await submitVideo.mutateAsync(payload as any);
+      const payload: { youtubeUrl: string; title?: string; magicWord?: string; niche?: string } = {
+        youtubeUrl: link,
+      };
+      if (title.trim()) payload.title = title.trim();
+      if (magicWord.trim()) payload.magicWord = magicWord.trim();
+      if (niche) payload.niche = niche;
+      await submitVideo.mutateAsync(payload);
       const shareText = encodeURIComponent(
         `Just submitted a video to LoopSquad! Watch and review it here: ${typeof window !== "undefined" ? window.location.origin : ""}/queue`,
       );
@@ -75,9 +77,13 @@ if (niche) payload.niche = niche;
       console.error("Submit error:", error);
       const msg = error instanceof Error ? error.message : "Could not submit right now.";
       if (msg.includes("already submitted") || msg.includes("already in the queue")) {
-        toast.error("Duplicate", { description: "You already submitted this video or it's already in the queue." });
+        toast.error("Duplicate", {
+          description: "You already submitted this video or it's already in the queue.",
+        });
       } else if (msg.includes("24 hours")) {
-        toast.error("Daily limit", { description: "You can only submit one video every 24 hours." });
+        toast.error("Daily limit", {
+          description: "You can only submit one video every 24 hours.",
+        });
       } else if (msg.includes("ratio") || msg.includes("RATIO")) {
         toast.error("Ratio too low", { description: msg });
       } else {
@@ -114,7 +120,10 @@ if (niche) payload.niche = niche;
 
           <div>
             <label htmlFor="title" className="text-sm font-medium">
-              Title shown to the squad <span className="text-xs text-muted-foreground">(optional — auto-filled from YouTube if blank)</span>
+              Title shown to the squad{" "}
+              <span className="text-xs text-muted-foreground">
+                (optional — auto-filled from YouTube if blank)
+              </span>
             </label>
             <input
               id="title"
@@ -127,7 +136,10 @@ if (niche) payload.niche = niche;
 
           <div>
             <label htmlFor="magic-word" className="text-sm font-medium">
-              Comment keyword <span className="text-xs text-muted-foreground">(optional — viewers include this word in their comment to prove they watched)</span>
+              Comment keyword{" "}
+              <span className="text-xs text-muted-foreground">
+                (optional — viewers include this word in their comment to prove they watched)
+              </span>
             </label>
             <input
               id="magic-word"
@@ -163,10 +175,18 @@ if (niche) payload.niche = niche;
             <p className="flex items-center gap-2 text-sm font-medium">
               <Timer className="size-4 text-accent" /> Fixed by platform rules
             </p>
-<p className="mt-1 text-sm text-muted-foreground">
-              Every video requires a verified watch capped at 3 min (180s) — shorter videos use their full length; in-focus, not muted, with random attention checks. You don't set this; the rules do (see <a href="/rules" className="underline">Fairness Rules</a>).
+            <p className="mt-1 text-sm text-muted-foreground">
+              Every video requires a verified watch capped at 3 min (180s) — shorter videos use
+              their full length; in-focus, not muted, with random attention checks. You don't set
+              this; the rules do (see{" "}
+              <a href="/rules" className="underline">
+                Fairness Rules
+              </a>
+              ).
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">Target is automatically 20 watches per video.</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Target is automatically 20 watches per video.
+            </p>
           </div>
 
           <div className="rounded-lg border border-border bg-secondary/30 p-4">
@@ -174,7 +194,11 @@ if (niche) payload.niche = niche;
               <Sparkles className="size-4 text-accent" /> Want queue priority?
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Buy a Boost from the <a href="/gamification" className="underline">Shop</a> to pin your video top-of-queue for 24 hours.
+              Buy a Boost from the{" "}
+              <a href="/gamification" className="underline">
+                Shop
+              </a>{" "}
+              to pin your video top-of-queue for 24 hours.
             </p>
           </div>
 

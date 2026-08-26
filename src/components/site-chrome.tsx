@@ -103,7 +103,12 @@ export function SiteHeader() {
         <nav className="ml-4 hidden items-center gap-0.5 lg:flex">
           {visibleGroups.map((group, gi) => (
             <div key={group.label} className="relative shrink-0">
-              {gi > 0 && <span className="absolute -left-0.5 top-1/2 h-5 w-px -translate-y-1/2 bg-border" aria-hidden="true" />}
+              {gi > 0 && (
+                <span
+                  className="absolute -left-0.5 top-1/2 h-5 w-px -translate-y-1/2 bg-border"
+                  aria-hidden="true"
+                />
+              )}
               <button
                 type="button"
                 onClick={() => setOpenGroup(openGroup === group.label ? null : group.label)}
@@ -116,12 +121,19 @@ export function SiteHeader() {
               >
                 {group.label}
                 <ChevronDown
-                  className={cn("size-3.5 transition-transform", openGroup === group.label && "rotate-180")}
+                  className={cn(
+                    "size-3.5 transition-transform",
+                    openGroup === group.label && "rotate-180",
+                  )}
                 />
               </button>
               {openGroup === group.label && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setOpenGroup(null)} aria-hidden="true" />
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setOpenGroup(null)}
+                    aria-hidden="true"
+                  />
                   <div className="absolute left-0 top-full z-50 mt-1.5 w-48 rounded-lg border border-border bg-card p-1.5 shadow-lg">
                     {group.links.map((l) => (
                       <Link

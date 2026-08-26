@@ -191,7 +191,7 @@ export const getIdToken = async (): Promise<string | null> => {
   try {
     // Wait for auth state to be initially loaded
     await waitForAuthReady();
-    
+
     const user = authInstance?.currentUser;
     if (user) {
       // Force token refresh if token is stale (>5 min old)

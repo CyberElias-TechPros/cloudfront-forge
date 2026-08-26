@@ -27,7 +27,9 @@ async function enrichWithChannel(env: Env, userId: string): Promise<void> {
         [channelId, new Date().toISOString(), userId],
       );
     }
-  } catch {}
+  } catch {
+    // channel resolution is best-effort; the OAuth connection itself already succeeded
+  }
 }
 
 export const youtubeRoutes = [

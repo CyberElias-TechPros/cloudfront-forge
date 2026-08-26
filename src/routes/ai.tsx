@@ -111,7 +111,7 @@ export default function AiAssistant() {
       });
 
       if (!res.ok || !res.body) {
-        const errBody = await res.json().catch(() => ({})) as { error?: { message?: string } };
+        const errBody = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
         throw new Error(errBody?.error?.message ?? `Request failed (${res.status})`);
       }
 
