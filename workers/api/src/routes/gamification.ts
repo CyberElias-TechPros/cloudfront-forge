@@ -282,14 +282,34 @@ export const gamificationRoutes = [
       try {
         const userId = await requireAuth(request, env);
         const database = db(env);
-        const today = new Date().toISOString().split("T")[0];
+        const now = new Date().toISOString();
+        const today = now.split("T")[0];
 
-        // Check if bonus already claimed today
+        // Claim verification (fast path): a bonus already recorded today is a
+        // conflict. This also covers users whose claim predates the
+        // last_daily_bonus_date guard column.
         const existing = await database.query(
           "SELECT id FROM credit_transactions WHERE user_id = ? AND description = ? AND DATE(created_at) = ?",
           [userId, "daily_bonus", today],
         );
         if (existing.results.length > 0) {
+          return createErrorResponse("CONFLICT", "Daily bonus already claimed today", 409);
+        }
+
+        // Ensure a credit account exists (brand-new users can claim immediately)
+        await database.execute(
+          "INSERT INTO credit_accounts (id, user_id, balance, created_at, updated_at) VALUES (?, ?, 0, ?, ?) ON CONFLICT(user_id) DO NOTHING",
+          [crypto.randomUUID(), userId, now, now],
+        );
+
+        // Atomic claim lock: exactly one concurrent request can stamp today's
+        // date; any other gets zero changed rows and a 409 (prevents the
+        // old check-then-insert race crediting twice).
+        const claimLock = await database.execute(
+          "UPDATE credit_accounts SET last_daily_bonus_date = ?, updated_at = ? WHERE user_id = ? AND (last_daily_bonus_date IS NULL OR last_daily_bonus_date <> ?)",
+          [today, now, userId, today],
+        );
+        if (!claimLock.success || claimLock.meta?.changes !== 1) {
           return createErrorResponse("CONFLICT", "Daily bonus already claimed today", 409);
         }
 
@@ -307,26 +327,25 @@ export const gamificationRoutes = [
         const baseCredits = 5;
         const bonusCredits = Math.round(baseCredits * multiplier);
 
-        // Award credits (create the account on first claim so brand-new users
-        // can collect their daily bonus immediately)
-        const balance = await database.query("SELECT balance FROM credit_accounts WHERE user_id = ?", [userId]);
-        const now = new Date().toISOString();
-        if (balance.results.length === 0) {
-          await database.execute(
-            "INSERT INTO credit_accounts (id, user_id, balance, created_at, updated_at) VALUES (?, ?, 0, ?, ?)",
-            [crypto.randomUUID(), userId, now, now],
-          );
-        }
-        const currentBalance = (balance.results[0] as Record<string, unknown> | undefined)?.balance as number ?? 0;
-        const newId = crypto.randomUUID();
-        await database.execute(
-          "INSERT INTO credit_transactions (id, user_id, type, amount, balance_after, description, created_at) VALUES (?, ?, 'earned', ?, ?, 'daily_bonus', ?)",
-          [newId, userId, bonusCredits, currentBalance + bonusCredits, now],
+        const balance = await database.query(
+          "SELECT balance FROM credit_accounts WHERE user_id = ?",
+          [userId],
         );
-        await database.execute(
-          "UPDATE credit_accounts SET balance = balance + ?, updated_at = ? WHERE user_id = ?",
-          [bonusCredits, now, userId],
-        );
+        const currentBalance =
+          (balance.results[0] as Record<string, unknown> | undefined)?.balance as number ?? 0;
+
+        // Award credits atomically (the claim lock above makes a retry after
+        // partial failure impossible to double-pay).
+        await database.batch([
+          {
+            sql: "INSERT INTO credit_transactions (id, user_id, type, amount, balance_after, description, created_at) VALUES (?, ?, 'earned', ?, ?, 'daily_bonus', ?)",
+            params: [crypto.randomUUID(), userId, bonusCredits, currentBalance + bonusCredits, now],
+          },
+          {
+            sql: "UPDATE credit_accounts SET balance = balance + ?, updated_at = ? WHERE user_id = ?",
+            params: [bonusCredits, now, userId],
+          },
+        ]);
 
         return createResponse({
           credits: bonusCredits,

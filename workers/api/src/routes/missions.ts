@@ -251,70 +251,89 @@ export const missionRoutes = [
           return createErrorResponse("NOT_FOUND", "Assignment not found", 404);
         }
 
-        await db.execute(
-          "UPDATE mission_assignments SET status = 'completed', completed_at = ? WHERE id = ?",
-          [now, assignmentId],
-        );
-
-        const xpResult = await db.execute(
-          "INSERT INTO xp_transactions (id, user_id, amount, type, description, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-          [crypto.randomUUID(), userId, assignment.xp_reward, "mission", "Completed mission", now],
-        );
-
-        const xpAccount = await db.querySingle("SELECT * FROM xp_accounts WHERE user_id = ?", [
-          userId,
-        ]);
-        if (xpAccount) {
-          await db.execute(
-            "UPDATE xp_accounts SET total_xp = total_xp + ?, updated_at = ? WHERE user_id = ?",
-            [assignment.xp_reward, now, userId],
-          );
-        } else {
-          await db.execute(
-            "INSERT INTO xp_accounts (id, user_id, total_xp, level, xp_to_next_level, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [crypto.randomUUID(), userId, assignment.xp_reward, 1, 100, now, now],
+        // Claim verification: rewards are paid out exactly once. Reject
+        // terminal states up front, then take an atomic claim lock — only a
+        // single concurrent request can transition the row to 'completed'.
+        if (assignment.status === "completed" || assignment.status === "skipped") {
+          return createErrorResponse(
+            "CONFLICT",
+            `Mission already ${assignment.status} — rewards can only be claimed once`,
+            409,
           );
         }
 
-        const creditResult = await db.execute(
-          "INSERT INTO credit_transactions (id, user_id, amount, type, description, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-          [
-            crypto.randomUUID(),
-            userId,
-            assignment.credit_reward,
-            "earned",
-            "Mission completed",
-            now,
-          ],
+        const claimLock = await db.execute(
+          "UPDATE mission_assignments SET status = 'completed', completed_at = ?, updated_at = ? WHERE id = ? AND user_id = ? AND status IN ('assigned', 'in_progress')",
+          [now, now, assignmentId, userId, assignmentId, userId],
         );
+        if (!claimLock.success || claimLock.meta?.changes !== 1) {
+          return createErrorResponse(
+            "CONFLICT",
+            "Mission already completed — rewards can only be claimed once",
+            409,
+          );
+        }
 
+        // Persist all reward writes as one atomic batch so a mid-way failure
+        // can never leave the ledger partially updated.
         const creditAccount = await db.querySingle(
-          "SELECT * FROM credit_accounts WHERE user_id = ?",
+          "SELECT balance FROM credit_accounts WHERE user_id = ?",
           [userId],
         );
-        if (creditAccount) {
-          await db.execute(
-            "UPDATE credit_accounts SET balance = balance + ?, updated_at = ? WHERE user_id = ?",
-            [assignment.credit_reward, now, userId],
-          );
-        } else {
-          await db.execute(
-            "INSERT INTO credit_accounts (id, user_id, balance, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-            [crypto.randomUUID(), userId, assignment.credit_reward, now, now],
-          );
-        }
+        const balanceAfter =
+          ((creditAccount?.balance as number | undefined) ?? 0) + assignment.credit_reward;
 
-        await db.execute(
-          "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-          [
-            crypto.randomUUID(),
-            userId,
-            "MISSION_COMPLETED",
-            "Mission Completed!",
-            `You completed "${assignment.title}" and earned ${assignment.xp_reward} XP and ${assignment.credit_reward} credits.`,
-            now,
-          ],
-        );
+        const statements: Array<{ sql: string; params: unknown[] }> = [
+          {
+            sql: `INSERT INTO xp_accounts (id, user_id, total_xp, level, xp_to_next_level, created_at, updated_at)
+                  VALUES (?, ?, ?, 1, 100, ?, ?)
+                  ON CONFLICT(user_id) DO UPDATE SET total_xp = total_xp + ?, updated_at = ?`,
+            params: [
+              db.uuid(),
+              userId,
+              assignment.xp_reward,
+              now,
+              now,
+              assignment.xp_reward,
+              now,
+            ],
+          },
+          {
+            sql: "INSERT INTO xp_transactions (id, user_id, amount, type, description, created_at) VALUES (?, ?, ?, 'mission', 'Completed mission', ?)",
+            params: [db.uuid(), userId, assignment.xp_reward, now],
+          },
+          {
+            sql: `INSERT INTO credit_accounts (id, user_id, balance, created_at, updated_at)
+                  VALUES (?, ?, ?, ?, ?)
+                  ON CONFLICT(user_id) DO UPDATE SET balance = balance + ?, updated_at = ?`,
+            params: [
+              db.uuid(),
+              userId,
+              assignment.credit_reward,
+              now,
+              now,
+              assignment.credit_reward,
+              now,
+            ],
+          },
+          {
+            sql: "INSERT INTO credit_transactions (id, user_id, type, amount, balance_after, description, created_at) VALUES (?, ?, 'earned', ?, ?, 'Mission completed', ?)",
+            params: [db.uuid(), userId, assignment.credit_reward, balanceAfter, now],
+          },
+          {
+            sql: "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'MISSION_COMPLETED', 'Mission Completed!', ?, ?)",
+            params: [
+              db.uuid(),
+              userId,
+              `You completed "${assignment.title}" and earned ${assignment.xp_reward} XP and ${assignment.credit_reward} credits.`,
+              now,
+            ],
+          },
+        ];
+        const batchOk = await db.batch(statements);
+        if (!batchOk) {
+          throw new Error("Failed to record mission rewards");
+        }
 
         return createResponse({
           message: "Mission completed!",
@@ -433,7 +452,7 @@ export const missionRoutes = [
 async function notifyUser(db: Database, userId: string, type: string, title: string, message: string): Promise<void> {
   const now = new Date().toISOString();
   await db.execute(
-    `INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+    "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)",
     [db.uuid(), userId, type, title, message, now],
   );
 }
