@@ -17,8 +17,10 @@
 -- ============================================================
 
 -- 1) Columns verified MISSING on production (2026-08-26 schema dump)
-ALTER TABLE videos ADD COLUMN niche TEXT;
-ALTER TABLE credit_transactions ADD COLUMN balance_after INTEGER;
+-- Guard: skip if already present so the script can be re-run safely.
+-- Uncomment only the lines that are actually missing on your target DB.
+-- ALTER TABLE videos ADD COLUMN IF NOT EXISTS niche TEXT;
+-- ALTER TABLE credit_transactions ADD COLUMN IF NOT EXISTS balance_after INTEGER;
 
 -- 2) Idempotent objects from migrations 013-016 and 019
 CREATE TABLE IF NOT EXISTS credit_purchases (
