@@ -57,6 +57,30 @@ VITE_API_URL=http://localhost:8787
 | GET | `/api/v1/auth/me` | Bearer | Get current user |
 | GET | `/api/v1/auth/permissions` | Bearer | Get user permissions |
 
+### NGN Top-up Endpoints (naira point purchases)
+
+Users buy credits by bank transfer to the payout account
+(**Delgra Ltd**, **Moniepoint MFB**, account **6674684361**) and submit the
+transfer reference. An admin approves (credits are issued) or rejects.
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/topups` | Bearer | Credit packs, payout account, pending status |
+| POST | `/api/v1/topups` | Bearer | Submit a completed transfer (`tierId`, `transferReference`) |
+| GET | `/api/v1/topups/mine` | Bearer | The caller's top-up history |
+| GET | `/api/v1/admin/topups?status=pending\|approved\|rejected` | Admin | Review queue |
+| POST | `/api/v1/admin/topups/:id/approve` | Admin | Approve and issue credits |
+| POST | `/api/v1/admin/topups/:id/reject` | Admin | Reject (optional `reason` in body) |
+
+Notes:
+
+- One pending request per user at a time; a transfer reference can only have
+  one pending request (duplicate submissions return `409 CONFLICT`).
+- Approve/reject are idempotent-safe: the status transition is an atomic
+  conditional update, so concurrent reviews return `409 CONFLICT`.
+- Approved top-ups are recorded in `credit_transactions` with
+  `type = 'admin'` and `reference_id` set to the top-up request id.
+
 ### Expected Responses
 
 #### Successful Response (200)

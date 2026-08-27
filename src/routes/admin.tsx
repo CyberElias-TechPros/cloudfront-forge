@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AlertTriangle, BarChart3, CheckCircle2, Settings2, Users, XCircle } from "lucide-react";
 import { PageHeader, Shell, StatCard } from "@/components/page-parts";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   useAdminReports,
   useAdminMetrics,
@@ -11,6 +12,9 @@ import {
   useUserPermissions,
   useAdminAnalytics,
   useAdminRetention,
+  useAdminTopups,
+  useApproveTopup,
+  useRejectTopup,
 } from "@/hooks/use-api";
 
 export const Route = createFileRoute("/admin")({
@@ -42,6 +46,10 @@ function Admin() {
   const resolveReportMutation = useResolveReport();
   const usersQuery = useAdminUsers("active");
   const users = usersQuery.data ?? [];
+  const topupsQuery = useAdminTopups("pending");
+  const topups = topupsQuery.data ?? [];
+  const approveTopup = useApproveTopup();
+  const rejectTopup = useRejectTopup();
   const isAdmin = permissionsData?.role === "admin" || permissionsData?.role === "super_admin";
 
   if (memberLoading) {
@@ -317,6 +325,71 @@ function Admin() {
                 </li>
               ))}
             </ul>
+          </section>
+
+          <section className="surface p-6">
+            <h2 className="text-3xl">NGN top-ups</h2>
+            {topups.length ? (
+              <ul className="mt-4 space-y-3">
+                {topups.map((t) => (
+                  <li key={t.id} className="rounded-lg bg-secondary/60 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-medium">{t.display_name ?? t.email ?? "Member"}</p>
+                      <span className="text-sm font-semibold tabular-nums">
+                        ₦{t.ngn_amount.toLocaleString()} → {t.credits_amount} credits
+                      </span>
+                    </div>
+                    <p className="mt-1 font-mono text-xs text-muted-foreground">
+                      Ref: {t.transfer_reference}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(t.created_at).toLocaleString()}
+                    </p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+                        onClick={() => {
+                          void approveTopup.mutate(t.id, {
+                            onSuccess: (res) =>
+                              toast.success(
+                                `Top-up approved — ${res.credits} credits issued (balance ${res.balance})`,
+                              ),
+                            onError: (e: unknown) =>
+                              toast.error(e instanceof Error ? e.message : String(e)),
+                          });
+                        }}
+                      >
+                        <CheckCircle2 className="size-3.5" /> Approve
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold"
+                        onClick={() => {
+                          const reason =
+                            window.prompt(
+                              "Reason for rejection (shown to the member)",
+                              "Payment not found",
+                            ) ?? "Payment not found";
+                          void rejectTopup.mutate(
+                            { id: t.id, reason },
+                            {
+                              onSuccess: () => toast.success("Top-up rejected"),
+                              onError: (e: unknown) =>
+                                toast.error(e instanceof Error ? e.message : String(e)),
+                            },
+                          );
+                        }}
+                      >
+                        <XCircle className="size-3.5" /> Reject
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-4 text-sm text-muted-foreground">No pending NGN top-ups</p>
+            )}
           </section>
         </div>
       </div>

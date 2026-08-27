@@ -293,6 +293,39 @@ const putData = async <T, D extends object = object>(url: string, data?: D): Pro
   return response.data.data as T;
 };
 
+export interface TopupTier {
+  id: string;
+  name: string;
+  ngn: number;
+  credits: number;
+  bonus: number;
+}
+
+export interface NgnBankDetails {
+  accountName: string;
+  accountNumber: string;
+  bankName: string;
+}
+
+export interface TopupRequest {
+  id: string;
+  user_id: string;
+  tier_id: string;
+  ngn_amount: number;
+  credits_amount: number;
+  transfer_reference: string;
+  status: "pending" | "approved" | "rejected";
+  reject_reason: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+export interface TopupAdminItem extends TopupRequest {
+  display_name: string | null;
+  email: string | null;
+}
+
 export const apiClientService = {
   auth: {
     register: (data: {
@@ -465,6 +498,22 @@ export const apiClientService = {
         boostedUntil: string | null;
         balance: number;
       }>("/api/v1/shop/purchase", data),
+  },
+
+  topups: {
+    catalog: () =>
+      getData<{ tiers: TopupTier[]; bank: NgnBankDetails; pending: boolean }>("/api/v1/topups"),
+    request: (data: { tierId: string; transferReference: string }) =>
+      postData<{ message: string; request: TopupRequest }>("/api/v1/topups", data),
+    mine: () => getData<{ items: TopupRequest[] }>("/api/v1/topups/mine"),
+    adminList: (status: "pending" | "approved" | "rejected" = "pending") =>
+      getData<{ items: TopupAdminItem[] }>(`/api/v1/admin/topups?status=${status}`),
+    approve: (id: string) =>
+      postData<{ message: string; credits: number; balance: number }>(
+        `/api/v1/admin/topups/${id}/approve`,
+      ),
+    reject: (id: string, reason?: string) =>
+      postData<{ message: string }>(`/api/v1/admin/topups/${id}/reject`, { reason }),
   },
 
   users: {

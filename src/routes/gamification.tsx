@@ -1,5 +1,20 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Award, Calendar, Flame, Gift, Rocket, Snowflake, Star, Trophy, Zap } from "lucide-react";
+import {
+  Award,
+  Banknote,
+  Calendar,
+  Check,
+  Clock,
+  Copy,
+  Flame,
+  Gift,
+  Rocket,
+  Snowflake,
+  Star,
+  Trophy,
+  Zap,
+} from "lucide-react";
 import { PageHeader, Shell, StatCard } from "@/components/page-parts";
 import {
   useCredits,
@@ -12,10 +27,14 @@ import {
   usePurchase,
   useCurrentMember,
   useDailyBonus,
+  useTopupCatalog,
+  useMyTopups,
+  useRequestTopup,
 } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 
@@ -334,6 +353,8 @@ function Gamification() {
             </CardContent>
           </Card>
 
+          <BuyCreditsCard />
+
           <Card>
             <CardHeader>
               <CardTitle>Squad ranking</CardTitle>
@@ -402,6 +423,189 @@ function Gamification() {
         </div>
       </div>
     </Shell>
+  );
+}
+
+function BuyCreditsCard() {
+  const { data: catalog, isLoading: catalogLoading } = useTopupCatalog();
+  const { data: mine = [] } = useMyTopups();
+  const requestTopup = useRequestTopup();
+  const [tierId, setTierId] = useState<string>("starter");
+  const [reference, setReference] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  if (!catalog) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Buy credits</CardTitle>
+          <CardDescription>Top up with naira via bank transfer</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground">
+            {catalogLoading
+              ? "Loading top-up options…"
+              : "Top-ups are not available right now. Please try again later."}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const bank = catalog.bank;
+  const selected = catalog.tiers.find((t) => t.id === tierId) ?? catalog.tiers[0];
+  const hasPending = catalog.pending || mine.some((t) => t.status === "pending");
+
+  const copyAccount = async () => {
+    try {
+      await navigator.clipboard.writeText(bank.accountNumber);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard unavailable (e.g. insecure context) — the number stays on
+      // screen for manual copying.
+    }
+  };
+
+  const submit = () => {
+    if (!selected) return;
+    requestTopup.mutate(
+      { tierId: selected.id, transferReference: reference.trim() },
+      {
+        onSuccess: () => {
+          setReference("");
+          toast.success("Transfer submitted! We'll verify it and credit your points shortly.");
+        },
+        onError: (e: Error) => toast.error(e.message),
+      },
+    );
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Buy credits</CardTitle>
+        <CardDescription>Top up with naira via bank transfer</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          <div className="grid gap-2">
+            {catalog.tiers.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTierId(t.id)}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors",
+                  t.id === tierId
+                    ? "border-accent bg-secondary/60"
+                    : "border-border hover:bg-secondary/30",
+                )}
+              >
+                <span>
+                  <span className="block text-sm font-medium">
+                    {t.name} — ₦{t.ngn.toLocaleString()}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    {t.credits} credits{t.bonus > 0 ? ` (incl. ${t.bonus} bonus)` : ""}
+                  </span>
+                </span>
+                <Banknote
+                  className={cn(
+                    "size-4",
+                    t.id === tierId ? "text-accent" : "text-muted-foreground",
+                  )}
+                />
+              </button>
+            ))}
+          </div>
+
+          <div className="rounded-lg border border-border bg-secondary/40 p-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Transfer to
+            </p>
+            <p className="mt-2 font-medium">{bank.accountName}</p>
+            <p className="text-muted-foreground">{bank.bankName}</p>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <span className="text-lg font-semibold tabular-nums tracking-wide">
+                {bank.accountNumber}
+              </span>
+              <Button variant="ghost" size="sm" onClick={() => void copyAccount()}>
+                {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+              </Button>
+            </div>
+            {selected && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Send exactly{" "}
+                <span className="font-medium text-foreground">
+                  ₦{selected.ngn.toLocaleString()}
+                </span>{" "}
+                and keep the transfer reference you receive.
+              </p>
+            )}
+          </div>
+
+          {hasPending ? (
+            <div className="rounded-lg border border-warning/40 bg-warning/10 p-3">
+              <p className="flex items-center gap-2 text-xs font-medium">
+                <Clock className="size-4 text-warning" /> Awaiting verification
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Your transfer reference is under review. Credits are added as soon as an admin
+                confirms the payment.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Input
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="Transfer reference (e.g. MP-123456789)"
+                className="font-mono text-xs"
+              />
+              <Button
+                size="sm"
+                className="w-full"
+                disabled={reference.trim().length < 4 || requestTopup.isPending}
+                onClick={submit}
+              >
+                <Banknote className="size-4 mr-2" />
+                {requestTopup.isPending ? "Submitting…" : "I've transferred — submit reference"}
+              </Button>
+            </div>
+          )}
+
+          {mine.length > 0 && (
+            <div className="space-y-2 border-t border-border/60 pt-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                My top-ups
+              </p>
+              {mine.slice(0, 5).map((t) => (
+                <div key={t.id} className="flex items-center justify-between text-xs">
+                  <span className="font-mono text-muted-foreground">{t.transfer_reference}</span>
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-[10px] uppercase tracking-widest",
+                      t.status === "approved"
+                        ? "bg-success/15 text-success"
+                        : t.status === "pending"
+                          ? "bg-warning/15 text-warning"
+                          : "bg-destructive/15 text-destructive",
+                    )}
+                  >
+                    {t.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground">
+            Payments are verified manually — credits are usually added within 24 hours of approval.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
