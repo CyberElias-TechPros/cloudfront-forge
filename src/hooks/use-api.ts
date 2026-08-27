@@ -20,6 +20,8 @@ import apiClientService, {
   type PaginatedResponse,
   type NotificationPreferences,
   type UserPermissions,
+  type TopupRequest,
+  type TopupAdminItem,
 } from "@/lib/api-client";
 
 const queryKeys = {
@@ -40,6 +42,9 @@ const queryKeys = {
   adminMetrics: ["admin", "metrics"] as const,
   adminReports: (status: string) => ["admin", "reports", status] as const,
   adminUsers: (status: string) => ["admin", "users", status] as const,
+  adminTopups: (status: string) => ["admin", "topups", status] as const,
+  topupCatalog: ["topups", "catalog"] as const,
+  myTopups: ["topups", "mine"] as const,
   userPermissions: ["auth", "permissions"] as const,
 };
 
@@ -357,6 +362,84 @@ export function useDailyBonus() {
     mutationFn: () => apiClientService.gamification.dailyBonus(),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.credits });
+    },
+  });
+}
+
+export function useTopupCatalog() {
+  return useQuery({
+    queryKey: queryKeys.topupCatalog,
+    queryFn: async () => {
+      try {
+        return await apiClientService.topups.catalog();
+      } catch (error) {
+        console.warn("[useTopupCatalog] API unavailable:", error);
+        return null;
+      }
+    },
+  });
+}
+
+export function useMyTopups() {
+  return useQuery({
+    queryKey: queryKeys.myTopups,
+    queryFn: async () => {
+      try {
+        const res = await apiClientService.topups.mine();
+        return res.items;
+      } catch (error) {
+        console.warn("[useMyTopups] API unavailable:", error);
+        return [] as TopupRequest[];
+      }
+    },
+  });
+}
+
+export function useRequestTopup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { tierId: string; transferReference: string }) =>
+      apiClientService.topups.request(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.topupCatalog });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.myTopups });
+    },
+  });
+}
+
+export function useAdminTopups(status: "pending" | "approved" | "rejected" = "pending") {
+  return useQuery({
+    queryKey: queryKeys.adminTopups(status),
+    queryFn: async () => {
+      try {
+        const res = await apiClientService.topups.adminList(status);
+        return res.items;
+      } catch (error) {
+        console.warn("[useAdminTopups] API unavailable:", error);
+        return [] as TopupAdminItem[];
+      }
+    },
+  });
+}
+
+export function useApproveTopup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClientService.topups.approve(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "topups"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.credits });
+    },
+  });
+}
+
+export function useRejectTopup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      apiClientService.topups.reject(id, reason),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "topups"] });
     },
   });
 }
