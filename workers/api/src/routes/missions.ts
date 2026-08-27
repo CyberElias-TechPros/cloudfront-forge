@@ -264,7 +264,7 @@ export const missionRoutes = [
 
         const claimLock = await db.execute(
           "UPDATE mission_assignments SET status = 'completed', completed_at = ?, updated_at = ? WHERE id = ? AND user_id = ? AND status IN ('assigned', 'in_progress')",
-          [now, now, assignmentId, userId, assignmentId, userId],
+          [now, now, assignmentId, userId],
         );
         if (!claimLock.success || claimLock.meta?.changes !== 1) {
           return createErrorResponse(
