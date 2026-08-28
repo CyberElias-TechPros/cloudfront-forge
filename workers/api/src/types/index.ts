@@ -17,6 +17,12 @@ export interface Env {
   REQUIRED_WATCH_SEC?: string;
   REWARD_XP?: string;
   REWARD_CREDITS?: string;
+  WATCH_REWARD_XP?: string;
+  WATCH_REWARD_CREDITS?: string;
+  SUBSCRIBE_REWARD_XP?: string;
+  SUBSCRIBE_REWARD_CREDITS?: string;
+  COMMENT_REWARD_XP?: string;
+  COMMENT_REWARD_CREDITS?: string;
   REVIEW_XP?: string;
   REVIEW_CREDITS?: string;
   RATE_LIMIT_MAX_REQUESTS?: string;

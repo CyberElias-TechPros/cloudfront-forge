@@ -184,6 +184,11 @@ export interface CurrentMember {
   isAdmin: boolean;
 }
 
+export interface RewardComponent {
+  xp: number;
+  credits: number;
+}
+
 export interface QueueTask {
   id: string;
   creatorId?: string | null;
@@ -195,6 +200,13 @@ export interface QueueTask {
   durationSec: number;
   requiredSec: number;
   reward: number;
+  rewardBreakdown?: {
+    watch: RewardComponent;
+    subscribe: RewardComponent;
+    comment: RewardComponent;
+  };
+  rewardedXp?: number;
+  rewardedCredits?: number;
   status: "pending" | "watching" | "verified" | "expired";
   postedAgo: string;
   thumbHue: number;
@@ -428,10 +440,20 @@ export const apiClientService = {
       commented: boolean;
       sessionToken?: string;
     }) =>
-      postData<{ status: string; claimable: boolean; xpAwarded: number; creditsAwarded: number }>(
-        "/api/v1/watch",
-        data,
-      ),
+      postData<{
+        status: string;
+        claimable: boolean;
+        xpAwarded: number;
+        creditsAwarded: number;
+        watchVerified: boolean;
+        subscribed: boolean;
+        commented: boolean;
+        rewardBreakdown?: {
+          watch: RewardComponent;
+          subscribe: RewardComponent;
+          comment: RewardComponent;
+        };
+      }>("/api/v1/watch", data),
     start: (videoId: string) =>
       postData<{ sessionToken: string | null; enabled: boolean }>("/api/v1/watch/start", {
         videoId,

@@ -15,6 +15,14 @@ VAPID_PUBLIC_KEY = "BIfvnJ6Mp68dCFCkywGZlFpPo-hkg6-LeyE0Uz5pZGxOWYejjQFJg_JMxvcR
 REQUIRED_WATCH_SEC = "180"
 REWARD_XP = "30"
 REWARD_CREDITS = "10"
+# Tiered engagement rewards: watch, subscribe and comment each pay their own
+# points (defaults sum to the 30 XP / 10 credits above).
+WATCH_REWARD_XP = "10"
+WATCH_REWARD_CREDITS = "4"
+SUBSCRIBE_REWARD_XP = "10"
+SUBSCRIBE_REWARD_CREDITS = "3"
+COMMENT_REWARD_XP = "10"
+COMMENT_REWARD_CREDITS = "3"
 REVIEW_XP = "20"
 REVIEW_CREDITS = "5"
 

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { createLogger } from "../lib/logger";
 import { progressQuest } from "../lib/quests";
 import { trackEvent } from "../lib/analytics";
+import { getRewardSplit } from "../lib/rewards";
 
 function levelForXp(totalXp: number): number {
   return Math.max(1, Math.floor(totalXp / 250) + 1);
@@ -320,8 +321,6 @@ export const watchRoutes = [
       const logger = createLogger(env);
       try {
         const REQUIRED_WATCH_SEC = parseInt(env.REQUIRED_WATCH_SEC || "180", 10);
-        const REWARD_XP = parseInt(env.REWARD_XP || "30", 10);
-        const REWARD_CREDITS = parseInt(env.REWARD_CREDITS || "10", 10);
         const watcherId = await requireAuth(request, env);
         const body = await request.json().catch(() => ({}));
         const validation = watchSchema.safeParse(body);
@@ -414,9 +413,14 @@ export const watchRoutes = [
         const effectiveSubscribed =
           verifiedSubscribed === null ? subscribed : verifiedSubscribed && subscribed;
 
-        const watchClaimable =
-          effectiveWatchSeconds >= requiredWatchSec && effectiveSubscribed && verifiedCommented;
-        const claimable = watchClaimable && !attentionBlocked;
+        // Tiered rewards: watch, subscribe and comment each pay independently so
+        // nothing is compulsory, but completing all three on a video earns the
+        // full reward. Each component is paid at most once per video.
+        const rewards = getRewardSplit(env);
+        const watchDone = effectiveWatchSeconds >= requiredWatchSec;
+        const subDone = effectiveSubscribed;
+        const commentDone = verifiedCommented;
+        const status = watchDone && subDone && commentDone ? "claimed" : watchDone ? "verified" : "started";
 
         if (existing) {
           await db.execute(
@@ -424,10 +428,10 @@ export const watchRoutes = [
              status = ?, verified_at = ?, updated_at = ? WHERE id = ?`,
             [
               watchSeconds,
-              effectiveSubscribed ? 1 : 0,
-              verifiedCommented ? 1 : 0,
-              claimable ? "claimed" : effectiveWatchSeconds >= requiredWatchSec ? "verified" : "started",
-              claimable ? now : existing.verified_at,
+              subDone ? 1 : 0,
+              commentDone ? 1 : 0,
+              status,
+              watchDone ? now : existing.verified_at,
               now,
               existing.id,
             ],
@@ -442,10 +446,10 @@ export const watchRoutes = [
               videoId,
               watcherId,
               watchSeconds,
-              claimable ? "claimed" : effectiveWatchSeconds >= requiredWatchSec ? "verified" : "started",
-              effectiveSubscribed ? 1 : 0,
-              verifiedCommented ? 1 : 0,
-              claimable ? now : null,
+              status,
+              subDone ? 1 : 0,
+              commentDone ? 1 : 0,
+              watchDone ? now : null,
               now,
               now,
             ],
@@ -454,17 +458,28 @@ export const watchRoutes = [
 
         let xpAwarded = 0;
         let creditsAwarded = 0;
-        // Idempotent + self-healing: a session only counts as rewarded once the
-        // XP/credit amounts have actually been persisted (a previous attempt can
-        // have marked the row 'claimed' before its reward batch failed).
-        const alreadyRewarded =
-          existing?.status === "claimed" &&
-          (((existing.xp_awarded as number) ?? 0) > 0 ||
-            ((existing.credits_awarded as number) ?? 0) > 0);
+        // Idempotent + self-healing: recompute the target reward from the
+        // components completed so far and pay only the difference. A previous
+        // attempt can have marked the row claimed before its reward batch
+        // failed; the delta below makes retries safe.
+        const alreadyXp = existing ? ((existing.xp_awarded as number) ?? 0) : 0;
+        const alreadyCredits = existing ? ((existing.credits_awarded as number) ?? 0) : 0;
+        const watchNewlyPaid = watchDone && alreadyXp < rewards.watch.xp;
+        const subNewlyPaid = subDone && alreadyXp >= rewards.watch.xp && alreadyXp < rewards.watch.xp + rewards.subscribe.xp;
+        const targetXp =
+          (watchDone ? rewards.watch.xp : 0) +
+          (subDone ? rewards.subscribe.xp : 0) +
+          (commentDone ? rewards.comment.xp : 0);
+        const targetCredits =
+          (watchDone ? rewards.watch.credits : 0) +
+          (subDone ? rewards.subscribe.credits : 0) +
+          (commentDone ? rewards.comment.credits : 0);
+        const xpDelta = Math.max(0, targetXp - alreadyXp);
+        const creditsDelta = Math.max(0, targetCredits - alreadyCredits);
 
-        if (claimable && !alreadyRewarded && effectiveSubscribed) {
-          xpAwarded = REWARD_XP;
-          creditsAwarded = REWARD_CREDITS;
+        if ((xpDelta > 0 || creditsDelta > 0) && !attentionBlocked) {
+          xpAwarded = xpDelta;
+          creditsAwarded = creditsDelta;
 
           const batchStatements: Array<{ sql: string; params: unknown[] }> = [];
 
@@ -515,21 +530,32 @@ export const watchRoutes = [
             params: [db.uuid(), watcherId, now, now, now],
           });
 
+          // Reputation updates are applied only when a component is newly paid,
+          // so a member who claims watch → subscribe → comment in separate
+          // visits doesn't double-count watch minutes or subscriptions.
           batchStatements.push({
             sql: `UPDATE reputation_accounts
-             SET score = MIN(100, score + 1),
+             SET score = MIN(100, score + ?),
                  watch_minutes = watch_minutes + ?,
                  subscriptions_given = subscriptions_given + ?,
                  updated_at = ?
            WHERE user_id = ?`,
-            params: [Math.round(effectiveWatchSeconds / 60), effectiveSubscribed ? 1 : 0, now, watcherId],
+            params: [
+              watchNewlyPaid ? 1 : 0,
+              watchNewlyPaid ? Math.round(effectiveWatchSeconds / 60) : 0,
+              subNewlyPaid ? 1 : 0,
+              now,
+              watcherId,
+            ],
           });
 
-          batchStatements.push({
-            sql: `INSERT INTO reputation_events (id, user_id, event_type, points_change, description, created_at)
-                 VALUES (?, ?, 'watch_claim', 1, 'Verified watch claim completed', ?)`,
-            params: [db.uuid(), watcherId, now],
-          });
+          if (watchNewlyPaid) {
+            batchStatements.push({
+              sql: `INSERT INTO reputation_events (id, user_id, event_type, points_change, description, created_at)
+                   VALUES (?, ?, 'watch_claim', 1, 'Verified watch claim completed', ?)`,
+              params: [db.uuid(), watcherId, now],
+            });
+          }
 
           if (video.user_id && video.user_id !== watcherId) {
             batchStatements.push({
@@ -539,20 +565,22 @@ export const watchRoutes = [
               params: [db.uuid(), video.user_id, now, now, now],
             });
 
-            batchStatements.push({
-              sql: `UPDATE reputation_accounts
-               SET score = MIN(100, score + 1),
-                   subscriptions_received = subscriptions_received + ?,
-                   updated_at = ?
-             WHERE user_id = ?`,
-              params: [effectiveSubscribed ? 1 : 0, now, video.user_id],
-            });
+            if (subNewlyPaid) {
+              batchStatements.push({
+                sql: `UPDATE reputation_accounts
+                 SET score = MIN(100, score + 1),
+                     subscriptions_received = subscriptions_received + 1,
+                     updated_at = ?
+               WHERE user_id = ?`,
+                params: [now, video.user_id],
+              });
 
-            batchStatements.push({
-              sql: `INSERT INTO reputation_events (id, user_id, event_type, points_change, description, created_at)
-                 VALUES (?, ?, 'subscription_received', 1, 'Video watched and claimed by a squad member', ?)`,
-              params: [db.uuid(), video.user_id, now],
-            });
+              batchStatements.push({
+                sql: `INSERT INTO reputation_events (id, user_id, event_type, points_change, description, created_at)
+                     VALUES (?, ?, 'subscription_received', 1, 'Subscribed to a squad member channel', ?)`,
+                params: [db.uuid(), video.user_id, now],
+              });
+            }
           }
 
           const batchResult = await db.batch(batchStatements);
@@ -560,42 +588,44 @@ export const watchRoutes = [
             throw new Error("Failed to process rewards transaction");
           }
 
-          // Record the awarded amounts so retries don't double-pay
+          // Record the cumulative awarded amounts so retries don't double-pay
           await db.execute(
             "UPDATE watch_sessions SET xp_awarded = ?, credits_awarded = ?, updated_at = ? WHERE video_id = ? AND watcher_id = ?",
-            [xpAwarded, creditsAwarded, now, videoId, watcherId],
+            [targetXp, targetCredits, now, videoId, watcherId],
           );
 
-          // Daily quest progress
-          await progressQuest(env, watcherId, "watch_videos");
+          // Daily quest progress, analytics and owner notification fire once,
+          // when the watch component itself is first paid.
+          if (watchNewlyPaid) {
+            await progressQuest(env, watcherId, "watch_videos");
+            await trackEvent(env, "watch_claimed", watcherId, "video", videoId);
 
-          // Analytics funnel
-          await trackEvent(env, "watch_claimed", watcherId, "video", videoId);
-
-          if (video.user_id && video.user_id !== watcherId) {
-            await notifyUser(
-              db,
-              video.user_id,
-              "WATCH_SESSION_CLAIMED",
-              "Your video was watched",
-              `Someone completed watching your video and earned rewards.`,
-            );
+            if (video.user_id && video.user_id !== watcherId) {
+              await notifyUser(
+                db,
+                video.user_id,
+                "WATCH_SESSION_CLAIMED",
+                "Your video was watched",
+                `Someone completed watching your video and earned rewards.`,
+              );
+            }
           }
         }
 
-        const status =
-          claimable && effectiveSubscribed
-            ? "claimed"
-            : effectiveWatchSeconds >= requiredWatchSec
-              ? "verified"
-              : "started";
-
         return createResponse({
           status,
-          claimable: effectiveSubscribed && effectiveWatchSeconds >= requiredWatchSec,
+          claimable: watchDone && !attentionBlocked,
           attentionBlocked,
           xpAwarded,
           creditsAwarded,
+          watchVerified: watchDone,
+          subscribed: subDone,
+          commented: commentDone,
+          rewardBreakdown: {
+            watch: rewards.watch,
+            subscribe: rewards.subscribe,
+            comment: rewards.comment,
+          },
           subReason,
         });
       } catch (error) {
