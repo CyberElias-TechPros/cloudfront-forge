@@ -16,17 +16,17 @@ import { useLeaderboard } from "@/hooks/use-api";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "LoopSquad — Fair Sub4Sub Growth for WhatsApp Creator Groups" },
+      { title: "LoopSquad — Creator Feedback & Growth Community" },
       {
         name: "description",
         content:
-          "Gamified follow-for-follow for YouTube creators: verified watch time, real subscribes, points and streaks so nobody gets cheated.",
+          "A community where YouTube creators give each other real feedback: watch, comment and grow together, with creator insights to track your channel.",
       },
-      { property: "og:title", content: "LoopSquad — Fair Sub4Sub Growth for Creator Groups" },
+      { property: "og:title", content: "LoopSquad — Creator Feedback & Growth Community" },
       {
         property: "og:description",
         content:
-          "Verified watch time, real subscribes, and a leaderboard that rewards creators who actually show up.",
+          "Real feedback and mutual support from fellow creators, plus creator insights to track your growth.",
       },
     ],
   }),
@@ -102,8 +102,9 @@ function Landing() {
               <span className="text-gradient">Nobody gets cheated.</span>
             </h1>
             <p className="mt-5 max-w-xl text-base text-muted-foreground">
-              LoopSquad turns your group&apos;s sub-for-sub chaos into a fair game: verified watch
-              time, real subscribes, honest comments, and points that decide whose video goes next.
+              LoopSquad helps your creator group support each other for real: members watch your
+              videos, leave genuine feedback, and share what works — with creator insights to track
+              your growth.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Link

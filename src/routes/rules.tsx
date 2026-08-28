@@ -9,7 +9,7 @@ export const Route = createFileRoute("/rules")({
       {
         name: "description",
         content:
-          "How points, the give/take ratio, verified watch time and anti-cheat sweeps keep the sub-for-sub loop honest.",
+          "How points, the give/take ratio, verified watch time and anti-cheat sweeps keep the community fair.",
       },
       { property: "og:title", content: "Fairness Rules & Scoring — LoopSquad" },
       {

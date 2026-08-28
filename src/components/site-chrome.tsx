@@ -27,6 +27,7 @@ const navGroups = [
   {
     label: "Tools",
     links: [
+      { to: "/insights", label: "Insights" },
       { to: "/ai", label: "AI Assistant" },
       { to: "/admin", label: "Admin" },
     ],
@@ -263,7 +264,7 @@ export function SiteFooter() {
   return (
     <footer className="mt-20 border-t border-border/70">
       <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <p>LoopSquad — fair growth for WhatsApp creator groups.</p>
+        <p>LoopSquad — creator feedback &amp; growth community.</p>
       </div>
     </footer>
   );

@@ -15,6 +15,7 @@ import { Route as AiRouteImport } from './routes/ai'
 import { Route as CommunitiesRouteImport } from './routes/communities'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as GamificationRouteImport } from './routes/gamification'
+import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as MissionsRouteImport } from './routes/missions'
 import { Route as NotificationsRouteImport } from './routes/notifications'
@@ -57,6 +58,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const GamificationRoute = GamificationRouteImport.update({
   id: '/gamification',
   path: '/gamification',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InsightsRoute = InsightsRouteImport.update({
+  id: '/insights',
+  path: '/insights',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeaderboardRoute = LeaderboardRouteImport.update({
@@ -132,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/communities': typeof CommunitiesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/gamification': typeof GamificationRoute
+  '/insights': typeof InsightsRoute
   '/leaderboard': typeof LeaderboardRoute
   '/missions': typeof MissionsRoute
   '/notifications': typeof NotificationsRoute
@@ -153,6 +160,7 @@ export interface FileRoutesByTo {
   '/communities': typeof CommunitiesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/gamification': typeof GamificationRoute
+  '/insights': typeof InsightsRoute
   '/leaderboard': typeof LeaderboardRoute
   '/missions': typeof MissionsRoute
   '/notifications': typeof NotificationsRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/communities': typeof CommunitiesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/gamification': typeof GamificationRoute
+  '/insights': typeof InsightsRoute
   '/leaderboard': typeof LeaderboardRoute
   '/missions': typeof MissionsRoute
   '/notifications': typeof NotificationsRoute
@@ -198,6 +207,7 @@ export interface FileRouteTypes {
     | '/communities'
     | '/dashboard'
     | '/gamification'
+    | '/insights'
     | '/leaderboard'
     | '/missions'
     | '/notifications'
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
     | '/communities'
     | '/dashboard'
     | '/gamification'
+    | '/insights'
     | '/leaderboard'
     | '/missions'
     | '/notifications'
@@ -240,6 +251,7 @@ export interface FileRouteTypes {
     | '/communities'
     | '/dashboard'
     | '/gamification'
+    | '/insights'
     | '/leaderboard'
     | '/missions'
     | '/notifications'
@@ -262,6 +274,7 @@ export interface RootRouteChildren {
   CommunitiesRoute: typeof CommunitiesRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   GamificationRoute: typeof GamificationRoute
+  InsightsRoute: typeof InsightsRoute
   LeaderboardRoute: typeof LeaderboardRoute
   MissionsRoute: typeof MissionsRoute
   NotificationsRoute: typeof NotificationsRoute
@@ -317,6 +330,13 @@ declare module '@tanstack/react-router' {
       path: '/gamification'
       fullPath: '/gamification'
       preLoaderRoute: typeof GamificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/insights': {
+      id: '/insights'
+      path: '/insights'
+      fullPath: '/insights'
+      preLoaderRoute: typeof InsightsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leaderboard': {
@@ -443,6 +463,7 @@ const rootRouteChildren: RootRouteChildren = {
   CommunitiesRoute: CommunitiesRouteWithChildren,
   DashboardRoute: DashboardRoute,
   GamificationRoute: GamificationRoute,
+  InsightsRoute: InsightsRoute,
   LeaderboardRoute: LeaderboardRoute,
   MissionsRoute: MissionsRoute,
   NotificationsRoute: NotificationsRoute,

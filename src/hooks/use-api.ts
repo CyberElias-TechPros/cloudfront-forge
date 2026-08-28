@@ -22,6 +22,7 @@ import apiClientService, {
   type UserPermissions,
   type TopupRequest,
   type TopupAdminItem,
+  type CreatorInsights,
 } from "@/lib/api-client";
 
 const queryKeys = {
@@ -37,6 +38,7 @@ const queryKeys = {
   badges: ["gamification", "badges"] as const,
   leaderboard: ["gamification", "leaderboard"] as const,
   profile: ["users", "me", "profile"] as const,
+  creatorInsights: ["users", "me", "insights"] as const,
   notifications: ["notifications"] as const,
   notificationPreferences: ["notifications", "preferences"] as const,
   adminMetrics: ["admin", "metrics"] as const,
@@ -870,6 +872,32 @@ export function useCurrentMember() {
     queryFn: async (): Promise<Member> => {
       const data = await apiClientService.users.member();
       return currentMemberFromApi(data);
+    },
+    retry: shouldRetryAuth,
+    enabled: typeof window !== "undefined" && !!localStorage.getItem("authToken"),
+  });
+}
+
+export function useCreatorInsights() {
+  return useQuery({
+    queryKey: queryKeys.creatorInsights,
+    queryFn: async (): Promise<CreatorInsights> => {
+      try {
+        return await apiClientService.users.insights();
+      } catch (error) {
+        console.warn("[useCreatorInsights] API unavailable:", error);
+        return {
+          totals: {
+            videos: 0,
+            watchesReceived: 0,
+            subsReceived: 0,
+            commentsReceived: 0,
+            watchMinutesReceived: 0,
+          },
+          videos: [],
+          earnings: { xp: 0, level: 1, credits: 0, reviewsGiven: 0 },
+        } as CreatorInsights;
+      }
     },
     retry: shouldRetryAuth,
     enabled: typeof window !== "undefined" && !!localStorage.getItem("authToken"),

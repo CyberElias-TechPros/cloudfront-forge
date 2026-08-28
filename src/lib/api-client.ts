@@ -338,6 +338,37 @@ export interface TopupAdminItem extends TopupRequest {
   email: string | null;
 }
 
+export interface CreatorVideoInsight {
+  id: string;
+  title: string;
+  status: string;
+  youtubeVideoId: string | null;
+  postedAt: string;
+  boosted: boolean;
+  watchTarget: number;
+  watches: number;
+  subs: number;
+  comments: number;
+  watchSeconds: number;
+}
+
+export interface CreatorInsights {
+  totals: {
+    videos: number;
+    watchesReceived: number;
+    subsReceived: number;
+    commentsReceived: number;
+    watchMinutesReceived: number;
+  };
+  videos: CreatorVideoInsight[];
+  earnings: {
+    xp: number;
+    level: number;
+    credits: number;
+    reviewsGiven: number;
+  };
+}
+
 export const apiClientService = {
   auth: {
     register: (data: {
@@ -541,6 +572,7 @@ export const apiClientService = {
   users: {
     profile: () => getData<UserProfile>("/api/v1/users/me/profile"),
     member: () => getData<CurrentMember>("/api/v1/users/me/member"),
+    insights: () => getData<CreatorInsights>("/api/v1/users/me/insights"),
     updateProfile: (data: { displayName?: string; bio?: string; niche?: string }) =>
       putData<UserProfile>("/api/v1/users/me/profile", data),
   },
