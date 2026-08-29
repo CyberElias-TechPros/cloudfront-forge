@@ -402,12 +402,23 @@ export function useMyTopups() {
 export function useRequestTopup() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { tierId: string; transferReference: string }) =>
-      apiClientService.topups.request(data),
+    mutationFn: (data: {
+      tierId: string;
+      proofImage?: string;
+      proofImageName?: string;
+      proofImageType?: string;
+      transferReference?: string;
+    }) => apiClientService.topups.request(data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.topupCatalog });
       void queryClient.invalidateQueries({ queryKey: queryKeys.myTopups });
     },
+  });
+}
+
+export function useUploadTopupProof() {
+  return useMutation({
+    mutationFn: (file: File) => apiClientService.topups.uploadProof(file),
   });
 }
 

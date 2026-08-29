@@ -66,14 +66,24 @@ transfer reference. An admin approves (credits are issued) or rejects.
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/api/v1/topups` | Bearer | Credit packs, payout account, pending status |
-| POST | `/api/v1/topups` | Bearer | Submit a completed transfer (`tierId`, `transferReference`) |
+| POST | `/api/v1/topups/proof` | Bearer | Upload a receipt screenshot (multipart `image`, JPEG/PNG/WebP ≤5MB) → `{ path, name, type }` |
+| POST | `/api/v1/topups` | Bearer | Submit a completed transfer (`tierId`, plus `proofImage` and/or `transferReference`) |
 | GET | `/api/v1/topups/mine` | Bearer | The caller's top-up history |
 | GET | `/api/v1/admin/topups?status=pending\|approved\|rejected` | Admin | Review queue |
+| GET | `/api/v1/admin/topups/:id/proof` | Admin | Serve the uploaded receipt image |
 | POST | `/api/v1/admin/topups/:id/approve` | Admin | Approve and issue credits |
 | POST | `/api/v1/admin/topups/:id/reject` | Admin | Reject (optional `reason` in body) |
 
 Notes:
 
+- Proof of payment is the primary path: upload the screenshot first via
+  `POST /api/v1/topups/proof`, then pass the returned `path` as `proofImage` on
+  `POST /api/v1/topups`. The transfer reference (`transferReference`, ≥4 chars)
+  is an optional fallback for members who prefer to quote it instead. At least
+  one of the two is required.
+- Receipts are stored in the `ASSETS_BUCKET` R2 bucket under
+  `topup-proofs/...` (JPEG/PNG/WebP, ≤5MB). Admins view them via
+  `GET /api/v1/admin/topups/:id/proof`.
 - One pending request per user at a time; a transfer reference can only have
   one pending request (duplicate submissions return `409 CONFLICT`).
 - Approve/reject are idempotent-safe: the status transition is an atomic

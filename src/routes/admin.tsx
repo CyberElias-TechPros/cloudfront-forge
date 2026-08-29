@@ -1,8 +1,10 @@
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AlertTriangle, BarChart3, CheckCircle2, Settings2, Users, XCircle } from "lucide-react";
 import { PageHeader, Shell, StatCard } from "@/components/page-parts";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import apiClientService from "@/lib/api-client";
 import {
   useAdminReports,
   useAdminMetrics,
@@ -339,9 +341,15 @@ function Admin() {
                         ₦{t.ngn_amount.toLocaleString()} → {t.credits_amount} credits
                       </span>
                     </div>
-                    <p className="mt-1 font-mono text-xs text-muted-foreground">
-                      Ref: {t.transfer_reference}
-                    </p>
+                    {t.proof_image_path ? (
+                      <div className="mt-2">
+                        <ProofThumb id={t.id} name={t.proof_image_name} />
+                      </div>
+                    ) : (
+                      <p className="mt-1 font-mono text-xs text-muted-foreground">
+                        Ref: {t.transfer_reference}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground">
                       {new Date(t.created_at).toLocaleString()}
                     </p>
@@ -394,5 +402,67 @@ function Admin() {
         </div>
       </div>
     </Shell>
+  );
+}
+
+// Fetches the receipt for a top-up (via the admin-only proof endpoint) and
+// shows an inline thumbnail that opens at full size. The object URL is created
+// locally and revoked on unmount or when the id changes.
+function ProofThumb({ id, name }: { id: string; name?: string | null }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    setState("loading");
+    setUrl(null);
+    apiClientService.topups
+      .proofBlob(id)
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+        setState("ready");
+      })
+      .catch(() => {
+        if (!cancelled) setState("error");
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [id]);
+
+  if (state === "loading") {
+    return (
+      <div className="grid h-24 place-items-center rounded-lg border border-border bg-secondary/40 text-xs text-muted-foreground">
+        Loading proof…
+      </div>
+    );
+  }
+
+  if (state === "error" || !url) {
+    return (
+      <p className="text-xs text-destructive">
+        Proof could not be loaded — {name ? `"${name}"` : "see original transfer reference"}.
+      </p>
+    );
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      title="Open full size"
+      className="block w-fit rounded-lg border border-border"
+    >
+      <img
+        src={url}
+        alt={name ?? "Transfer receipt"}
+        className="max-h-40 rounded-lg object-contain bg-black/5"
+      />
+    </a>
   );
 }

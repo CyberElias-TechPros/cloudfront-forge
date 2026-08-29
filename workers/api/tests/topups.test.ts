@@ -14,6 +14,20 @@ describe("topup routes (NGN point purchases)", () => {
     expect(typeof submit?.handler).toBe("function");
   });
 
+  it("exposes the proof-of-payment upload endpoint", () => {
+    const proof = topupRoutes.find((r) => r.path === "/api/v1/topups/proof" && r.method === "POST");
+    expect(proof).toBeDefined();
+    expect(typeof proof?.handler).toBe("function");
+  });
+
+  it("exposes the admin proof-serving endpoint", () => {
+    const proofServe = topupRoutes.find(
+      (r) => r.method === "GET" && "pattern" in r && (r as any).pattern?.includes("proof"),
+    );
+    expect(proofServe).toBeDefined();
+    expect(typeof proofServe?.handler).toBe("function");
+  });
+
   it("exposes the user top-up history endpoint", () => {
     const mine = topupRoutes.find((r) => r.path === "/api/v1/topups/mine" && r.method === "GET");
     expect(mine).toBeDefined();
