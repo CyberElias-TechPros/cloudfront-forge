@@ -833,6 +833,35 @@ export const reviewRoutes = [
              VALUES (?, ?, 'helpful_review', 1, 'Review rated helpful by the video submitter', ?)`,
             [crypto.randomUUID(), reviewRow.reviewer_id, nowTs],
           );
+
+          // Quality reward: the first time a review is marked helpful, the
+          // reviewer earns a small XP bonus (idempotent — only on the 0/null →
+          // 1 transition, so re-ratings don't double-pay).
+          if (((reviewRow.helpful as number | null) ?? 0) !== 1) {
+            const REVIEW_HELPFUL_XP = parseInt(env.REVIEW_HELPFUL_XP || "5", 10);
+            const reviewerId = reviewRow.reviewer_id as string;
+            const xpAccount = await database.querySingle(
+              "SELECT * FROM xp_accounts WHERE user_id = ?",
+              [reviewerId],
+            );
+            if (xpAccount) {
+              const totalXp = Number(xpAccount.total_xp ?? 0) + REVIEW_HELPFUL_XP;
+              const { level } = calculateLevel(totalXp);
+              await database.execute(
+                "UPDATE xp_accounts SET total_xp = ?, level = ?, updated_at = ? WHERE user_id = ?",
+                [totalXp, level, nowTs, reviewerId],
+              );
+            } else {
+              await database.execute(
+                "INSERT INTO xp_accounts (id, user_id, total_xp, level, xp_to_next_level, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                [crypto.randomUUID(), reviewerId, REVIEW_HELPFUL_XP, 1, 100, nowTs, nowTs],
+              );
+            }
+            await database.execute(
+              "INSERT INTO xp_transactions (id, user_id, amount, type, description, reference_id, created_at) VALUES (?, ?, ?, 'review_helpful', 'Review rated helpful', ?, ?)",
+              [crypto.randomUUID(), reviewerId, REVIEW_HELPFUL_XP, reviewId, nowTs],
+            );
+          }
         }
 
         return createResponse({ message: "Rating saved" });

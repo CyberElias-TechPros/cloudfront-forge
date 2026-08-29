@@ -230,19 +230,19 @@ Generated: 2026-08-26
     d. Backend verifies:
        - Video exists and is active
        - Not own video (self-watch block)
-       - Not already claimed (double-claim guard)
        - Watch seconds >= required (180s or video length)
        - If YouTube connected: verify subscription via OAuth API
        - If YouTube connected: verify watch time via Analytics API
        - If magic word set: verify comment via commentThreads API + author-channel match
-       - If attention check failed: block claim
-    e. If all pass:
-       - Award +30 XP (to xp_accounts + xp_transactions)
-       - Award +10 credits (to credit_accounts + credit_transactions)
-       - Award +1 reputation (to reputation_accounts + reputation_events)
-       - Update watch_minutes, subscriptions_given/received
-       - Set watch_session status = 'claimed'
-       - Notify video owner (in-app)
+       - If attention check failed: block the watch component
+    e. Tiered rewards — each step pays on its own (nothing is compulsory):
+       - Watch     → +10 XP · +4 credits, +1 reputation, watch_minutes
+       - Subscribe → +10 XP · +3 credits, subscriptions_given/received
+       - Comment   → +10 XP · +3 credits
+       - Full engagement (all three) → +30 XP · +10 credits total
+       - Only the newly completed components are paid (idempotent, no double-pay)
+       - Set watch_session status = 'verified' (watch done) → 'claimed' (all three)
+       - Notify video owner (in-app) when the watch component is first paid
        - Progress daily quest (watch_videos)
        - Track analytics event (watch_claimed)
     f. Returns { status, claimable, xpAwarded, creditsAwarded, subReason }
@@ -359,12 +359,12 @@ NIGHTLY (cron at midnight):
 ### Flow 9: Gamification & Economy
 ```
 CREDITS:
-- Earn: +10 per watch claim, +daily bonus, +missions, +badge rewards
+- Earn: up to +7 per watch claim (watch +4 · feedback +3; subscribe is trust-only), +daily bonus, +missions, +badge rewards
 - Spend: Video boost (50cr), Streak freeze (30cr)
 - Track: credit_accounts (balance) + credit_transactions (ledger)
 
 XP (Experience Points):
-- Earn: +30 per watch claim, +missions, +daily quests, +badge rewards
+- Earn: up to +20 per watch claim (watch +10 · feedback +10; subscribe is trust-only), +missions, +daily quests, +badge rewards
 - Level up: formula floor(50 * level^2 * 0.8) XP per level
 - Track: xp_accounts (total_xp, level) + xp_transactions (ledger)
 
@@ -524,7 +524,7 @@ PUSH SUBSCRIPTION:
 | Send heartbeat | POST /watch/heartbeat | — |
 | Get attention challenge | POST /watch/challenge | — |
 | Answer challenge | POST /watch/challenge/:id/answer | +1 trust (pass) / -5 trust (fail) |
-| Claim watch | POST /watch | +30 XP, +10 credits, +1 reputation |
+| Claim watch | POST /watch | up to +20 XP (watch 10 · feedback 10) · +7 credits (4/3) · +1 reputation · subscribe = trust-only |
 
 ### Review Actions
 | Action | Endpoint | Rewards |
@@ -1331,12 +1331,12 @@ ADMIN (8 routes)
 ## 9. Gamification Economy
 
 ### XP (Experience Points)
-- **Earn:** +30 per watch claim, +missions, +daily quests, +badge rewards
+- **Earn:** up to +20 per watch claim (watch +10 · feedback +10; subscribe is trust-only), +missions, +daily quests, +badge rewards
 - **Level formula:** `floor(50 * level^2 * 0.8)` XP per level
 - **Track:** `xp_accounts` (total_xp, level) + `xp_transactions` (ledger)
 
 ### Credits
-- **Earn:** +10 per watch claim, +daily bonus, +missions, +badge rewards
+- **Earn:** up to +7 per watch claim (watch +4 · feedback +3; subscribe is trust-only), +daily bonus, +missions, +badge rewards
 - **Spend:** Video boost (50cr), Streak freeze (30cr)
 - **Track:** `credit_accounts` (balance) + `credit_transactions` (ledger)
 

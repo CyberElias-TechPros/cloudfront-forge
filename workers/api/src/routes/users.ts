@@ -365,4 +365,141 @@ export const userRoutes = [
       }
     },
   },
+
+  // GET /users/me/insights — the caller's own channel performance on LoopSquad.
+  // Creator-facing analytics: how their videos are performing (watches, subs,
+  // comments, watch time received) plus their own earning/review activity.
+  {
+    method: "GET",
+    path: "/api/v1/users/me/insights",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const userId = await requireAuth(request, env);
+        const db = new Database(env);
+
+        const videosResult = await db.query(
+          `SELECT id, title, youtube_video_id, status, created_at, boosted_until, watch_target
+           FROM videos WHERE user_id = ? AND status != 'removed' ORDER BY created_at DESC`,
+          [userId],
+        );
+        const videos = videosResult.results as any[];
+
+        const statsResult = await db.query(
+          `SELECT video_id,
+                  COUNT(*) AS watches,
+                  SUM(CASE WHEN subscribed = 1 THEN 1 ELSE 0 END) AS subs,
+                  SUM(CASE WHEN commented = 1 THEN 1 ELSE 0 END) AS comments,
+                  COALESCE(SUM(watch_seconds), 0) AS watch_seconds
+           FROM watch_sessions
+           WHERE video_id IN (SELECT id FROM videos WHERE user_id = ?)
+           GROUP BY video_id`,
+          [userId],
+        );
+        const statsByVideo = new Map<string, any>();
+        for (const s of statsResult.results) {
+          statsByVideo.set(s.video_id, s);
+        }
+
+        const reviewsGiven = await db.querySingle(
+          "SELECT COUNT(*) AS count FROM reviews WHERE reviewer_id = ? AND status = 'completed'",
+          [userId],
+        );
+        const reviewsReceived = await db.querySingle(
+          "SELECT COUNT(*) AS count, AVG(score) AS avg_score FROM reviews WHERE submitter_id = ? AND status = 'completed'",
+          [userId],
+        );
+        const helpfulGiven = await db.querySingle(
+          "SELECT COUNT(*) AS count FROM reviews WHERE reviewer_id = ? AND helpful = 1",
+          [userId],
+        );
+        const xp = await db.querySingle(
+          "SELECT total_xp, level FROM xp_accounts WHERE user_id = ?",
+          [userId],
+        );
+        const credits = await db.querySingle(
+          "SELECT balance FROM credit_accounts WHERE user_id = ?",
+          [userId],
+        );
+
+        // Daily trend of watches received over the last 14 days.
+        const trendSince = new Date(Date.now() - 14 * 86_400_000).toISOString();
+        const trendResult = await db.query(
+          `SELECT date(ws.created_at) AS day,
+                  COUNT(*) AS watches,
+                  COALESCE(SUM(ws.watch_seconds), 0) AS watch_seconds
+           FROM watch_sessions ws
+           JOIN videos v ON v.id = ws.video_id
+           WHERE v.user_id = ? AND ws.created_at >= ?
+           GROUP BY date(ws.created_at)
+           ORDER BY day ASC`,
+          [userId, trendSince],
+        );
+
+        let watchesReceived = 0;
+        let subsReceived = 0;
+        let commentsReceived = 0;
+        let watchSecondsReceived = 0;
+
+        const perVideo = videos.map((v) => {
+          const s = statsByVideo.get(v.id) ?? { watches: 0, subs: 0, comments: 0, watch_seconds: 0 };
+          const watches = Number(s.watches ?? 0);
+          const subs = Number(s.subs ?? 0);
+          const comments = Number(s.comments ?? 0);
+          const watchSeconds = Number(s.watch_seconds ?? 0);
+          watchesReceived += watches;
+          subsReceived += subs;
+          commentsReceived += comments;
+          watchSecondsReceived += watchSeconds;
+          return {
+            id: v.id,
+            title: v.title ?? "Untitled video",
+            status: v.status,
+            youtubeVideoId: v.youtube_video_id ?? null,
+            postedAt: v.created_at,
+            boosted: !!(v.boosted_until && v.boosted_until > new Date().toISOString()),
+            watchTarget: Number(v.watch_target ?? 0),
+            watches,
+            subs,
+            comments,
+            watchSeconds,
+          };
+        });
+
+        return createResponse({
+          totals: {
+            videos: videos.length,
+            watchesReceived,
+            subsReceived,
+            commentsReceived,
+            watchMinutesReceived: Math.round(watchSecondsReceived / 60),
+          },
+          videos: perVideo,
+          trend: trendResult.results.map((r: any) => ({
+            day: r.day,
+            watches: Number(r.watches ?? 0),
+            watchSeconds: Number(r.watch_seconds ?? 0),
+          })),
+          reviews: {
+            received: Number(reviewsReceived?.count ?? 0),
+            averageScore:
+              reviewsReceived?.avg_score != null
+                ? Math.round(Number(reviewsReceived.avg_score) * 10) / 10
+                : null,
+            helpfulGiven: Number(helpfulGiven?.count ?? 0),
+          },
+          earnings: {
+            xp: Number(xp?.total_xp ?? 0),
+            level: Number(xp?.level ?? 1),
+            credits: Number(credits?.balance ?? 0),
+            reviewsGiven: Number(reviewsGiven?.count ?? 0),
+          },
+        });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to fetch insights", 500);
+      }
+    },
+  },
 ];

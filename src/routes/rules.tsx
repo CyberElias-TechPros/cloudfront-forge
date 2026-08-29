@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Ban, Coins, Handshake, ScrollText, ShieldCheck, Timer } from "lucide-react";
 import { PageHeader, Shell } from "@/components/page-parts";
+import { AdSlot } from "@/components/ad-slot";
 
 export const Route = createFileRoute("/rules")({
   head: () => ({
@@ -9,7 +10,7 @@ export const Route = createFileRoute("/rules")({
       {
         name: "description",
         content:
-          "How points, the give/take ratio, verified watch time and anti-cheat sweeps keep the sub-for-sub loop honest.",
+          "How points, the give/take ratio, verified watch time and anti-cheat sweeps keep the community fair.",
       },
       { property: "og:title", content: "Fairness Rules & Scoring — LoopSquad" },
       {
@@ -22,14 +23,14 @@ export const Route = createFileRoute("/rules")({
 });
 
 const scoring = [
-  ["Verified watch (3 min+)", "+30 pts"],
-  ["Subscribe confirmed", "+15 pts"],
-  ["Genuine comment", "+20 pts"],
-  ["Daily quest set complete", "+50 pts"],
-  ["7-day streak bonus", "+100 pts"],
-  ["Fake watch detected", "-40 pts"],
-  ["Unsubscribe within 30 days", "-60 pts"],
-  ["Clickbait upheld by 3 reports", "-80 pts"],
+  ["Verified watch (variable length)", "+10 XP"],
+  ["Genuine feedback (comment)", "+10 XP"],
+  ["Optional support (subscribe)", "No points — trust signal"],
+  ["Daily quest set complete", "+50 XP"],
+  ["7-day streak bonus", "+100 XP"],
+  ["Fake watch detected", "-40 XP"],
+  ["Unsubscribe within 30 days", "-60 XP"],
+  ["Clickbait upheld by 3 reports", "-80 XP"],
 ];
 
 const sections = [
@@ -51,7 +52,7 @@ const sections = [
   {
     icon: Coins,
     title: "Points are the currency",
-    body: "Points buy queue priority and spotlight slots. They cannot be bought with money, transferred, or given by admins — only earned by participating.",
+    body: "Points buy queue priority and spotlight slots. Earn them by watching, subscribing and commenting — each step pays its own points, so nothing is compulsory. You can also top up with naira via bank transfer, starting at ₦1,000.",
   },
   {
     icon: Ban,
@@ -109,6 +110,8 @@ function Rules() {
           </p>
         </section>
       </div>
+
+      <AdSlot className="mt-6" />
     </Shell>
   );
 }

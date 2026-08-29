@@ -2,6 +2,8 @@ import type { Env } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
+import { getRewardSplit } from "../lib/rewards";
+import { resolveRequiredWatchSeconds } from "../lib/utils";
 
 function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
@@ -76,7 +78,7 @@ export const feedRoutes = [
           `SELECT v.id, v.title, v.duration_seconds, v.status, v.created_at, v.user_id,
                   v.youtube_video_id, v.youtube_url, v.channel_id, v.magic_word,
                   u.display_name, u.photo_url,
-                  ws.status AS watch_status
+                  ws.status AS watch_status, ws.xp_awarded, ws.credits_awarded
            FROM videos v
            LEFT JOIN users u ON v.user_id = u.id
            LEFT JOIN watch_sessions ws ON ws.video_id = v.id AND ws.watcher_id = ?
@@ -97,6 +99,8 @@ export const feedRoutes = [
                 : "pending";
           const REQUIRED_WATCH_SEC = parseInt(env.REQUIRED_WATCH_SEC || "180", 10);
           const duration = typeof v.duration_seconds === "number" && v.duration_seconds > 0 ? v.duration_seconds : null;
+          const requiredSec = resolveRequiredWatchSeconds(v.id, duration, REQUIRED_WATCH_SEC);
+          const rewards = getRewardSplit(env);
           return {
             id: v.id,
             creatorId: v.user_id,
@@ -106,8 +110,15 @@ export const feedRoutes = [
             title: v.title ?? "Untitled video",
             niche: "Creator",
             durationSec: v.duration_seconds ?? 0,
-            requiredSec: duration ? Math.min(REQUIRED_WATCH_SEC, duration) : REQUIRED_WATCH_SEC,
-            reward: 30,
+            requiredSec,
+            reward: rewards.totalXp,
+            rewardBreakdown: {
+              watch: rewards.watch,
+              subscribe: rewards.subscribe,
+              comment: rewards.comment,
+            },
+            rewardedXp: v.xp_awarded ?? 0,
+            rewardedCredits: v.credits_awarded ?? 0,
             status,
             postedAgo: timeAgo(v.created_at),
             thumbHue: hueFromId(v.id),

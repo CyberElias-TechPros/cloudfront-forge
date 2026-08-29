@@ -12,7 +12,7 @@ The audit cross-checked the spec against the code and confirmed the following ar
 
 - **Frontend routes (19)** — all paths/flags (public/protected/role-gated) match `src/routes/`.
 - **Cron jobs (6)** — `overdue-missions` (7d), `overdue-reviews` (48h), `streak-reset` (48h + freeze consumption), `anomaly-scoring` (≥5 users, mean+3σ, −2 trust), `badge-awards`, `weekly-digest` (Sundays), all logged to `job_runs`. Cron schedule `0 0 * * *`.
-- **Economy** — watch claim +30 XP / +10 credits / +1 trust; daily bonus 5cr × min(1+streak×0.1, 3.0); shop Boost 50cr / Freeze 30cr (24h boost, queue-first ordering); quests watch 2 (15XP/20cr), review 1 (10XP/15cr), submit 1 (20XP/25cr); level formula `floor(50·level²·0.8)`; leaderboard `round(xp·0.4 + credits·0.3 + rep·0.3)` with weekly/monthly/all-time + rookie/rising/veteran cohort filters.
+- **Economy** — watch claim up to +20 XP (watch 10 / feedback 10) / +7 credits (4/3) / +1 trust; subscribe is optional support with no points (trust-only); daily bonus 5cr × min(1+streak×0.1, 3.0); shop Boost 50cr / Freeze 30cr (24h boost, queue-first ordering); quests watch 2 (15XP/20cr), review 1 (10XP/15cr), submit 1 (20XP/25cr); level formula `floor(50·level²·0.8)`; leaderboard `round(xp·0.4 + credits·0.3 + rep·0.3)` with weekly/monthly/all-time + rookie/rising/veteran cohort filters.
 - **Anti-cheat** — self-watch block, double-claim guard, duplicate-video 409, ratio gate 0.80 (new users exempt, 3-submission grace), multi-account channel conflict, attention checks (arithmetic, SHA-256 answer, 40–70% threshold, 2 attempts, TTL 120s, +1/−5 trust, 24h claim block), HMAC session token (`userId:videoId:startTs`, 1h TTL), 30s heartbeats, playback-rate/mute/visibility/seek guards in the player.
 - **Auth** — Firebase Google popup, `authToken` in localStorage, 30s auth-refresh interval, 3s `waitForAuthReady`, axios Bearer interceptor, backend JWT verification (RSASSA-PKCS1-v1_5 + SHA-256, aud/iss/exp checks, dev base64url tokens), user auto-creation, `last_active` updates.
 - **Permissions** — super_admin (10 perms), admin (all but `manage_users`), moderator, member — exact match.
@@ -123,7 +123,7 @@ logs (which surface silently-swallowed D1 errors).
 
 - End-to-end suite: register → community create/join/settings → video submit
   (24h limit, duplicate block, bad-URL reject) → attention challenge (pass & block)
-  → **watch claim: +30 XP / +10 credits, no double-pay** → review start/complete
+  → **watch claim: up to +20 XP (watch 10 / feedback 10) / +7 credits (4/3), per-component no double-pay, subscribe = trust-only** → review start/complete
   (+20 XP / +5 cr, submitter notified & reputation +1) → helpful rating → daily
   bonus (existing & brand-new users, idempotent) → quests completed by real actions →
   mission assign/complete → shop purchase (boost + freeze, correct balances) →

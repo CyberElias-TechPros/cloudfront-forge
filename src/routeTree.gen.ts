@@ -12,19 +12,24 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AiRouteImport } from './routes/ai'
+import { Route as CollaborateRouteImport } from './routes/collaborate'
 import { Route as CommunitiesRouteImport } from './routes/communities'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as GamificationRouteImport } from './routes/gamification'
+import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as MissionsRouteImport } from './routes/missions'
 import { Route as NotificationsRouteImport } from './routes/notifications'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as QueueRouteImport } from './routes/queue'
+import { Route as ResourcesRouteImport } from './routes/resources'
 import { Route as ReviewsRouteImport } from './routes/reviews'
 import { Route as RulesRouteImport } from './routes/rules'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SubmitRouteImport } from './routes/submit'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthSigninRouteImport } from './routes/auth/signin'
 import { Route as CommunitiesCommunityIdRouteImport } from './routes/communities/$communityId'
 import { Route as ReviewsReviewIdRouteImport } from './routes/reviews/$reviewId'
@@ -44,6 +49,11 @@ const AiRoute = AiRouteImport.update({
   path: '/ai',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CollaborateRoute = CollaborateRouteImport.update({
+  id: '/collaborate',
+  path: '/collaborate',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CommunitiesRoute = CommunitiesRouteImport.update({
   id: '/communities',
   path: '/communities',
@@ -57,6 +67,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const GamificationRoute = GamificationRouteImport.update({
   id: '/gamification',
   path: '/gamification',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InsightsRoute = InsightsRouteImport.update({
+  id: '/insights',
+  path: '/insights',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeaderboardRoute = LeaderboardRouteImport.update({
@@ -74,6 +89,11 @@ const NotificationsRoute = NotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -82,6 +102,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const QueueRoute = QueueRouteImport.update({
   id: '/queue',
   path: '/queue',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResourcesRoute = ResourcesRouteImport.update({
+  id: '/resources',
+  path: '/resources',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReviewsRoute = ReviewsRouteImport.update({
@@ -109,6 +134,11 @@ const SubmitRoute = SubmitRouteImport.update({
   path: '/submit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthSigninRoute = AuthSigninRouteImport.update({
   id: '/auth/signin',
   path: '/auth/signin',
@@ -129,19 +159,24 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/ai': typeof AiRoute
+  '/collaborate': typeof CollaborateRoute
   '/communities': typeof CommunitiesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/gamification': typeof GamificationRoute
+  '/insights': typeof InsightsRoute
   '/leaderboard': typeof LeaderboardRoute
   '/missions': typeof MissionsRoute
   '/notifications': typeof NotificationsRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/queue': typeof QueueRoute
+  '/resources': typeof ResourcesRoute
   '/reviews': typeof ReviewsRouteWithChildren
   '/rules': typeof RulesRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/submit': typeof SubmitRoute
+  '/terms': typeof TermsRoute
   '/auth/signin': typeof AuthSigninRoute
   '/communities/$communityId': typeof CommunitiesCommunityIdRoute
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
@@ -150,19 +185,24 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/ai': typeof AiRoute
+  '/collaborate': typeof CollaborateRoute
   '/communities': typeof CommunitiesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/gamification': typeof GamificationRoute
+  '/insights': typeof InsightsRoute
   '/leaderboard': typeof LeaderboardRoute
   '/missions': typeof MissionsRoute
   '/notifications': typeof NotificationsRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/queue': typeof QueueRoute
+  '/resources': typeof ResourcesRoute
   '/reviews': typeof ReviewsRouteWithChildren
   '/rules': typeof RulesRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/submit': typeof SubmitRoute
+  '/terms': typeof TermsRoute
   '/auth/signin': typeof AuthSigninRoute
   '/communities/$communityId': typeof CommunitiesCommunityIdRoute
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
@@ -172,19 +212,24 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/ai': typeof AiRoute
+  '/collaborate': typeof CollaborateRoute
   '/communities': typeof CommunitiesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/gamification': typeof GamificationRoute
+  '/insights': typeof InsightsRoute
   '/leaderboard': typeof LeaderboardRoute
   '/missions': typeof MissionsRoute
   '/notifications': typeof NotificationsRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/queue': typeof QueueRoute
+  '/resources': typeof ResourcesRoute
   '/reviews': typeof ReviewsRouteWithChildren
   '/rules': typeof RulesRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/submit': typeof SubmitRoute
+  '/terms': typeof TermsRoute
   '/auth/signin': typeof AuthSigninRoute
   '/communities/$communityId': typeof CommunitiesCommunityIdRoute
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
@@ -195,19 +240,24 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/ai'
+    | '/collaborate'
     | '/communities'
     | '/dashboard'
     | '/gamification'
+    | '/insights'
     | '/leaderboard'
     | '/missions'
     | '/notifications'
+    | '/privacy'
     | '/profile'
     | '/queue'
+    | '/resources'
     | '/reviews'
     | '/rules'
     | '/search'
     | '/settings'
     | '/submit'
+    | '/terms'
     | '/auth/signin'
     | '/communities/$communityId'
     | '/reviews/$reviewId'
@@ -216,19 +266,24 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/ai'
+    | '/collaborate'
     | '/communities'
     | '/dashboard'
     | '/gamification'
+    | '/insights'
     | '/leaderboard'
     | '/missions'
     | '/notifications'
+    | '/privacy'
     | '/profile'
     | '/queue'
+    | '/resources'
     | '/reviews'
     | '/rules'
     | '/search'
     | '/settings'
     | '/submit'
+    | '/terms'
     | '/auth/signin'
     | '/communities/$communityId'
     | '/reviews/$reviewId'
@@ -237,19 +292,24 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/ai'
+    | '/collaborate'
     | '/communities'
     | '/dashboard'
     | '/gamification'
+    | '/insights'
     | '/leaderboard'
     | '/missions'
     | '/notifications'
+    | '/privacy'
     | '/profile'
     | '/queue'
+    | '/resources'
     | '/reviews'
     | '/rules'
     | '/search'
     | '/settings'
     | '/submit'
+    | '/terms'
     | '/auth/signin'
     | '/communities/$communityId'
     | '/reviews/$reviewId'
@@ -259,19 +319,24 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   AiRoute: typeof AiRoute
+  CollaborateRoute: typeof CollaborateRoute
   CommunitiesRoute: typeof CommunitiesRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   GamificationRoute: typeof GamificationRoute
+  InsightsRoute: typeof InsightsRoute
   LeaderboardRoute: typeof LeaderboardRoute
   MissionsRoute: typeof MissionsRoute
   NotificationsRoute: typeof NotificationsRoute
+  PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   QueueRoute: typeof QueueRoute
+  ResourcesRoute: typeof ResourcesRoute
   ReviewsRoute: typeof ReviewsRouteWithChildren
   RulesRoute: typeof RulesRoute
   SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRoute
   SubmitRoute: typeof SubmitRoute
+  TermsRoute: typeof TermsRoute
   AuthSigninRoute: typeof AuthSigninRoute
 }
 
@@ -298,6 +363,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/collaborate': {
+      id: '/collaborate'
+      path: '/collaborate'
+      fullPath: '/collaborate'
+      preLoaderRoute: typeof CollaborateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/communities': {
       id: '/communities'
       path: '/communities'
@@ -317,6 +389,13 @@ declare module '@tanstack/react-router' {
       path: '/gamification'
       fullPath: '/gamification'
       preLoaderRoute: typeof GamificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/insights': {
+      id: '/insights'
+      path: '/insights'
+      fullPath: '/insights'
+      preLoaderRoute: typeof InsightsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leaderboard': {
@@ -340,6 +419,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -352,6 +438,13 @@ declare module '@tanstack/react-router' {
       path: '/queue'
       fullPath: '/queue'
       preLoaderRoute: typeof QueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resources': {
+      id: '/resources'
+      path: '/resources'
+      fullPath: '/resources'
+      preLoaderRoute: typeof ResourcesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reviews': {
@@ -387,6 +480,13 @@ declare module '@tanstack/react-router' {
       path: '/submit'
       fullPath: '/submit'
       preLoaderRoute: typeof SubmitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/signin': {
@@ -440,19 +540,24 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   AiRoute: AiRoute,
+  CollaborateRoute: CollaborateRoute,
   CommunitiesRoute: CommunitiesRouteWithChildren,
   DashboardRoute: DashboardRoute,
   GamificationRoute: GamificationRoute,
+  InsightsRoute: InsightsRoute,
   LeaderboardRoute: LeaderboardRoute,
   MissionsRoute: MissionsRoute,
   NotificationsRoute: NotificationsRoute,
+  PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   QueueRoute: QueueRoute,
+  ResourcesRoute: ResourcesRoute,
   ReviewsRoute: ReviewsRouteWithChildren,
   RulesRoute: RulesRoute,
   SearchRoute: SearchRoute,
   SettingsRoute: SettingsRoute,
   SubmitRoute: SubmitRoute,
+  TermsRoute: TermsRoute,
   AuthSigninRoute: AuthSigninRoute,
 }
 export const routeTree = rootRouteImport

@@ -83,16 +83,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "LoopSquad — Fair YouTube Growth for WhatsApp Groups" },
+      { title: "LoopSquad — Creator Feedback & Growth Community" },
       {
         name: "description",
         content:
-          "Gamified, cheat-proof follow-for-follow for WhatsApp creator groups: verified watch time, real subscribes and points.",
+          "A community where YouTube creators give each other real feedback: watch, comment, and grow together with creator insights.",
       },
-      { property: "og:title", content: "LoopSquad — Fair YouTube Growth" },
+      { property: "og:title", content: "LoopSquad — Creator Feedback & Growth Community" },
       {
         property: "og:description",
-        content: "Verified watch time, real subscribes and a leaderboard that rewards showing up.",
+        content:
+          "Real feedback and mutual support from fellow creators, with insights to track your growth.",
       },
       { property: "og:type", content: "website" },
       { property: "og:image", content: "/og-image.png" },

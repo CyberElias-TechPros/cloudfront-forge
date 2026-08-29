@@ -184,6 +184,11 @@ export interface CurrentMember {
   isAdmin: boolean;
 }
 
+export interface RewardComponent {
+  xp: number;
+  credits: number;
+}
+
 export interface QueueTask {
   id: string;
   creatorId?: string | null;
@@ -195,6 +200,13 @@ export interface QueueTask {
   durationSec: number;
   requiredSec: number;
   reward: number;
+  rewardBreakdown?: {
+    watch: RewardComponent;
+    subscribe: RewardComponent;
+    comment: RewardComponent;
+  };
+  rewardedXp?: number;
+  rewardedCredits?: number;
   status: "pending" | "watching" | "verified" | "expired";
   postedAgo: string;
   thumbHue: number;
@@ -326,6 +338,53 @@ export interface TopupAdminItem extends TopupRequest {
   email: string | null;
 }
 
+export interface CreatorVideoInsight {
+  id: string;
+  title: string;
+  status: string;
+  youtubeVideoId: string | null;
+  postedAt: string;
+  boosted: boolean;
+  watchTarget: number;
+  watches: number;
+  subs: number;
+  comments: number;
+  watchSeconds: number;
+}
+
+export interface CreatorInsights {
+  totals: {
+    videos: number;
+    watchesReceived: number;
+    subsReceived: number;
+    commentsReceived: number;
+    watchMinutesReceived: number;
+  };
+  videos: CreatorVideoInsight[];
+  trend: { day: string; watches: number; watchSeconds: number }[];
+  reviews: {
+    received: number;
+    averageScore: number | null;
+    helpfulGiven: number;
+  };
+  earnings: {
+    xp: number;
+    level: number;
+    credits: number;
+    reviewsGiven: number;
+  };
+}
+
+export interface DiscoverMember {
+  id: string;
+  name: string;
+  avatar: string;
+  niche: string;
+  experience: string | null;
+  goals: string | null;
+  intent: string;
+}
+
 export const apiClientService = {
   auth: {
     register: (data: {
@@ -428,10 +487,20 @@ export const apiClientService = {
       commented: boolean;
       sessionToken?: string;
     }) =>
-      postData<{ status: string; claimable: boolean; xpAwarded: number; creditsAwarded: number }>(
-        "/api/v1/watch",
-        data,
-      ),
+      postData<{
+        status: string;
+        claimable: boolean;
+        xpAwarded: number;
+        creditsAwarded: number;
+        watchVerified: boolean;
+        subscribed: boolean;
+        commented: boolean;
+        rewardBreakdown?: {
+          watch: RewardComponent;
+          subscribe: RewardComponent;
+          comment: RewardComponent;
+        };
+      }>("/api/v1/watch", data),
     start: (videoId: string) =>
       postData<{ sessionToken: string | null; enabled: boolean }>("/api/v1/watch/start", {
         videoId,
@@ -519,8 +588,16 @@ export const apiClientService = {
   users: {
     profile: () => getData<UserProfile>("/api/v1/users/me/profile"),
     member: () => getData<CurrentMember>("/api/v1/users/me/member"),
+    insights: () => getData<CreatorInsights>("/api/v1/users/me/insights"),
     updateProfile: (data: { displayName?: string; bio?: string; niche?: string }) =>
       putData<UserProfile>("/api/v1/users/me/profile", data),
+  },
+
+  discover: {
+    collaborators: (intent: string) =>
+      getData<{ items: DiscoverMember[]; intent: string }>(
+        `/api/v1/discover/collaborators?intent=${encodeURIComponent(intent)}`,
+      ),
   },
 
   feed: {
