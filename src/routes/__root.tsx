@@ -146,7 +146,13 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
   const pathname = router.state?.location?.pathname ?? "/";
-  const isPublic = pathname === "/" || pathname === "/rules" || pathname.startsWith("/auth/");
+  const isPublic =
+    pathname === "/" ||
+    pathname === "/rules" ||
+    pathname === "/resources" ||
+    pathname === "/privacy" ||
+    pathname === "/terms" ||
+    pathname.startsWith("/auth/");
 
   // Register service worker for Web Push
   useEffect(() => {
