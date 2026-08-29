@@ -11,14 +11,14 @@ export const NGN_BANK_DETAILS = {
   bankName: "Moniepoint MFB",
 } as const;
 
-// Fixed credit packs. Base rate is ~₦100/credit with a volume bonus on
+// Fixed credit packs. Base rate is ~₦50/credit with a volume bonus on
 // larger packs. Kept deliberately affordable: the biggest pack is capped at
 // ₦10,000 so entry stays cheap and more members keep the site active.
 export const TOPUP_TIERS = [
-  { id: "starter", name: "Starter", ngn: 1000, credits: 10, bonus: 0 },
-  { id: "builder", name: "Builder", ngn: 2500, credits: 27, bonus: 2 },
-  { id: "creator", name: "Creator", ngn: 5000, credits: 55, bonus: 5 },
-  { id: "studio", name: "Studio", ngn: 10000, credits: 110, bonus: 10 },
+  { id: "starter", name: "Starter", ngn: 1000, credits: 20, bonus: 0 },
+  { id: "builder", name: "Builder", ngn: 2500, credits: 54, bonus: 4 },
+  { id: "creator", name: "Creator", ngn: 5000, credits: 110, bonus: 10 },
+  { id: "studio", name: "Studio", ngn: 10000, credits: 220, bonus: 20 },
 ] as const;
 
 const tierById: Record<string, (typeof TOPUP_TIERS)[number]> = Object.fromEntries(
@@ -27,6 +27,13 @@ const tierById: Record<string, (typeof TOPUP_TIERS)[number]> = Object.fromEntrie
 
 const requestSchema = z.object({
   tierId: z.string().min(1).max(32),
+  // Proof of payment is the primary path: a `proof:<path>` token returned by
+  // POST /topups/proof, pointing at the receipt stored in R2. The transfer
+  // reference is kept as an optional fallback for members whose bank statement
+  // shows a reference they'd rather quote than screenshot.
+  proofImage: z.string().min(1).max(512).optional(),
+  proofImageName: z.string().max(255).optional(),
+  proofImageType: z.string().max(64).optional(),
   transferReference: z
     .string()
     .trim()
@@ -35,10 +42,17 @@ const requestSchema = z.object({
     .regex(
       /^[A-Za-z0-9\-_/+]+$/,
       "Transfer reference may only contain letters, numbers, dashes, underscores, slashes or plus signs",
-    ),
+    )
+    .optional(),
 });
 
 const TOPUP_STATUSES = ["pending", "approved", "rejected"] as const;
+
+// Receipt images uploaded via POST /topups/proof. Admin browsers can render
+// every one of these natively, so we deliberately exclude HEIC/other formats
+// to keep the review queue trustworthy.
+const ALLOWED_PROOF_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_PROOF_SIZE = 5 * 1024 * 1024; // 5MB
 
 export const topupRoutes = [
   // GET /topups — NGN catalog: packs, payout account, and whether the caller
@@ -68,6 +82,57 @@ export const topupRoutes = [
     },
   },
 
+  // POST /topups/proof — upload a screenshot of the completed bank transfer.
+  // Stores the receipt in the ASSETS_BUCKET R2 bucket and returns the object
+  // key (`path`) plus the original file name/type so the caller can attach it
+  // to a top-up request.
+  {
+    method: "POST",
+    path: "/api/v1/topups/proof",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const userId = await requireAuth(request, env);
+        const form = await request.formData().catch(() => null);
+        if (!form) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            "Expected multipart/form-data with an 'image' field",
+            400,
+          );
+        }
+        const file = form.get("image");
+        if (!(file instanceof File)) {
+          return createErrorResponse("VALIDATION_ERROR", "Missing proof-of-payment image", 400);
+        }
+        if (!ALLOWED_PROOF_TYPES.has(file.type)) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            "Proof must be a JPEG, PNG or WebP image",
+            400,
+          );
+        }
+        if (file.size > MAX_PROOF_SIZE) {
+          return createErrorResponse("VALIDATION_ERROR", "Proof image must be 5MB or smaller", 400);
+        }
+
+        const bytes = await file.arrayBuffer();
+        const ext = file.type === "image/jpeg" ? "jpg" : file.type === "image/png" ? "png" : "webp";
+        const path = `topup-proofs/${userId}/${crypto.randomUUID()}.${ext}`;
+
+        await env.ASSETS_BUCKET.put(path, bytes, {
+          httpMetadata: { contentType: file.type },
+        });
+
+        return createResponse({ path, name: file.name || path, type: file.type }, 201);
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to upload proof", 500);
+      }
+    },
+  },
+
   // POST /topups — submit a completed bank transfer for review.
   {
     method: "POST",
@@ -89,6 +154,20 @@ export const topupRoutes = [
           return createErrorResponse("VALIDATION_ERROR", "Unknown top-up pack", 400);
         }
 
+        const proofImage = validation.data.proofImage ?? "";
+        const transferRef = (validation.data.transferReference ?? "").trim();
+        if (!proofImage && transferRef.length < 4) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            "Upload a proof of payment or provide the transfer reference",
+            400,
+          );
+        }
+        // transfer_reference is NOT NULL and has a unique-pending index. When
+        // only a proof was uploaded we store a synthetic `proof:<path>` token —
+        // the path is unique per upload, so the unique constraint stays intact.
+        const referenceToken = transferRef.length >= 4 ? transferRef : `proof:${proofImage}`;
+
         const db = new Database(env);
         const now = new Date().toISOString();
 
@@ -107,9 +186,23 @@ export const topupRoutes = [
         const id = db.uuid();
         const insert = await db.execute(
           `INSERT INTO topup_requests
-             (id, user_id, tier_id, ngn_amount, credits_amount, transfer_reference, status, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
-          [id, userId, tier.id, tier.ngn, tier.credits, validation.data.transferReference, now, now],
+             (id, user_id, tier_id, ngn_amount, credits_amount, transfer_reference,
+              proof_image_path, proof_image_name, proof_image_type,
+              status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+          [
+            id,
+            userId,
+            tier.id,
+            tier.ngn,
+            tier.credits,
+            referenceToken,
+            proofImage || null,
+            proofImage ? (validation.data.proofImageName ?? proofImage) : null,
+            proofImage ? (validation.data.proofImageType ?? null) : null,
+            now,
+            now,
+          ],
         );
         if (!insert.success) {
           // The partial unique index on pending references rejects a
@@ -121,10 +214,7 @@ export const topupRoutes = [
           );
         }
 
-        const row = await db.querySingle(
-          "SELECT * FROM topup_requests WHERE id = ?",
-          [id],
-        );
+        const row = await db.querySingle("SELECT * FROM topup_requests WHERE id = ?", [id]);
         return createResponse({ message: "Top-up submitted for review", request: row }, 201);
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
@@ -195,6 +285,46 @@ export const topupRoutes = [
     },
   },
 
+  // GET /admin/topups/:id/proof — serve the receipt image for review. Admin
+  // only; streams the object straight out of R2.
+  {
+    method: "GET",
+    pattern: "^\\\\/api\\\\/v1/admin/topups/([^/]+)/proof$",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        await requireAdmin(request, env);
+        const topupId = new URL(request.url).pathname.split("/")[5] ?? "";
+        const db = new Database(env);
+        const topup = await db.querySingle(
+          "SELECT proof_image_path FROM topup_requests WHERE id = ?",
+          [topupId],
+        );
+        if (!topup?.proof_image_path) {
+          return createErrorResponse("NOT_FOUND", "No proof image for this top-up", 404);
+        }
+
+        const object = await env.ASSETS_BUCKET.get(topup.proof_image_path);
+        if (!object) {
+          return createErrorResponse("NOT_FOUND", "Proof image not found", 404);
+        }
+
+        const headers = new Headers();
+        object.writeHttpMetadata(headers);
+        headers.set("Content-Type", object.httpMetadata?.contentType ?? "image/jpeg");
+        headers.set("Cache-Control", "private, max-age=300");
+        return new Response(object.body, { headers });
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        if (error.message === "FORBIDDEN") {
+          return createErrorResponse("FORBIDDEN", "Admin access required", 403);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to load proof", 500);
+      }
+    },
+  },
+
   // POST /admin/topups/:id/approve — issue the credits.
   {
     method: "POST",
@@ -206,10 +336,7 @@ export const topupRoutes = [
         const db = new Database(env);
         const now = new Date().toISOString();
 
-        const topup = await db.querySingle(
-          "SELECT * FROM topup_requests WHERE id = ?",
-          [topupId],
-        );
+        const topup = await db.querySingle("SELECT * FROM topup_requests WHERE id = ?", [topupId]);
         if (!topup) {
           return createErrorResponse("NOT_FOUND", "Top-up not found", 404);
         }
@@ -231,6 +358,16 @@ export const topupRoutes = [
         const balanceAfter =
           ((balanceRow?.balance as number | undefined) ?? 0) + topup.credits_amount;
 
+        // Use the member's quoted reference when they provided one; otherwise
+        // fall back to the uploaded receipt's file name (never the synthetic
+        // `proof:<path>` token we persist to satisfy NOT NULL).
+        const transferLabel = topup.proof_image_name
+          ? topup.proof_image_name
+          : typeof topup.transfer_reference === "string" &&
+              topup.transfer_reference.startsWith("proof:")
+            ? "proof of payment"
+            : topup.transfer_reference;
+
         const batchOk = await db.batch([
           {
             sql: `INSERT INTO credit_accounts (id, user_id, balance, created_at, updated_at)
@@ -251,7 +388,7 @@ export const topupRoutes = [
               topup.user_id,
               topup.credits_amount,
               balanceAfter,
-              `NGN top-up (ref: ${topup.transfer_reference})`,
+              `NGN top-up (ref: ${transferLabel})`,
               topupId,
               now,
             ],
@@ -306,10 +443,7 @@ export const topupRoutes = [
         const db = new Database(env);
         const now = new Date().toISOString();
 
-        const topup = await db.querySingle(
-          "SELECT * FROM topup_requests WHERE id = ?",
-          [topupId],
-        );
+        const topup = await db.querySingle("SELECT * FROM topup_requests WHERE id = ?", [topupId]);
         if (!topup) {
           return createErrorResponse("NOT_FOUND", "Top-up not found", 404);
         }

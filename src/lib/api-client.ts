@@ -326,6 +326,9 @@ export interface TopupRequest {
   ngn_amount: number;
   credits_amount: number;
   transfer_reference: string;
+  proof_image_path: string | null;
+  proof_image_name: string | null;
+  proof_image_type: string | null;
   status: "pending" | "approved" | "rejected";
   reject_reason: string | null;
   reviewed_by: string | null;
@@ -572,8 +575,25 @@ export const apiClientService = {
   topups: {
     catalog: () =>
       getData<{ tiers: TopupTier[]; bank: NgnBankDetails; pending: boolean }>("/api/v1/topups"),
-    request: (data: { tierId: string; transferReference: string }) =>
-      postData<{ message: string; request: TopupRequest }>("/api/v1/topups", data),
+    uploadProof: async (file: File) => {
+      const formData = new FormData();
+      formData.append("image", file);
+      const response = await apiClient.post("/api/v1/topups/proof", formData);
+      return response.data.data as { path: string; name: string; type: string };
+    },
+    proofBlob: async (id: string) => {
+      const response = await apiClient.get(`/api/v1/admin/topups/${id}/proof`, {
+        responseType: "blob",
+      });
+      return response.data as Blob;
+    },
+    request: (data: {
+      tierId: string;
+      proofImage?: string;
+      proofImageName?: string;
+      proofImageType?: string;
+      transferReference?: string;
+    }) => postData<{ message: string; request: TopupRequest }>("/api/v1/topups", data),
     mine: () => getData<{ items: TopupRequest[] }>("/api/v1/topups/mine"),
     adminList: (status: "pending" | "approved" | "rejected" = "pending") =>
       getData<{ items: TopupAdminItem[] }>(`/api/v1/admin/topups?status=${status}`),

@@ -22,6 +22,12 @@
 -- ALTER TABLE videos ADD COLUMN IF NOT EXISTS niche TEXT;
 -- ALTER TABLE credit_transactions ADD COLUMN IF NOT EXISTS balance_after INTEGER;
 
+-- 1b) Proof-of-payment columns (migration 027 — additive, transfer_reference
+-- untouched). Uncomment when deploying the proof-upload feature:
+-- ALTER TABLE topup_requests ADD COLUMN IF NOT EXISTS proof_image_path TEXT;
+-- ALTER TABLE topup_requests ADD COLUMN IF NOT EXISTS proof_image_name TEXT;
+-- ALTER TABLE topup_requests ADD COLUMN IF NOT EXISTS proof_image_type TEXT;
+
 -- 2) Idempotent objects from migrations 013-016 and 019
 CREATE TABLE IF NOT EXISTS credit_purchases (
   id TEXT PRIMARY KEY,

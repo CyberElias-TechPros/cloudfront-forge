@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Award,
@@ -9,10 +9,13 @@ import {
   Copy,
   Flame,
   Gift,
+  ImagePlus,
   Rocket,
   Snowflake,
   Star,
   Trophy,
+  Upload,
+  X,
   Zap,
 } from "lucide-react";
 import { PageHeader, Shell, StatCard } from "@/components/page-parts";
@@ -30,6 +33,7 @@ import {
   useTopupCatalog,
   useMyTopups,
   useRequestTopup,
+  useUploadTopupProof,
 } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -426,13 +430,23 @@ function Gamification() {
   );
 }
 
+const ACCEPTED_PROOF_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_PROOF_BYTES = 5 * 1024 * 1024; // match backend limit
+
 function BuyCreditsCard() {
   const { data: catalog, isLoading: catalogLoading } = useTopupCatalog();
   const { data: mine = [] } = useMyTopups();
   const requestTopup = useRequestTopup();
+  const uploadProof = useUploadTopupProof();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [tierId, setTierId] = useState<string>("starter");
   const [reference, setReference] = useState("");
   const [copied, setCopied] = useState(false);
+  // Uploaded proof: server path + local preview (revoked on change/unmount).
+  const [proofImage, setProofImage] = useState<string>("");
+  const [proofName, setProofName] = useState<string>("");
+  const [proofType, setProofType] = useState<string>("");
+  const [previewUrl, setPreviewUrl] = useState<string>("");
 
   if (!catalog) {
     return (
@@ -455,6 +469,17 @@ function BuyCreditsCard() {
   const bank = catalog.bank;
   const selected = catalog.tiers.find((t) => t.id === tierId) ?? catalog.tiers[0];
   const hasPending = catalog.pending || mine.some((t) => t.status === "pending");
+  const hasProof = proofImage.length > 0;
+  const canSubmit = hasProof || reference.trim().length >= 4;
+
+  const clearProof = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setProofImage("");
+    setProofName("");
+    setProofType("");
+    setPreviewUrl("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const copyAccount = async () => {
     try {
@@ -467,18 +492,57 @@ function BuyCreditsCard() {
     }
   };
 
+  const onFileSelected = (file: File | undefined) => {
+    if (!file) return;
+    if (!ACCEPTED_PROOF_TYPES.includes(file.type)) {
+      toast.error("Upload a JPEG, PNG or WebP screenshot of the transfer.");
+      return;
+    }
+    if (file.size > MAX_PROOF_BYTES) {
+      toast.error("Proof image must be 5MB or smaller.");
+      return;
+    }
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(URL.createObjectURL(file));
+    setProofName(file.name);
+    setProofType(file.type);
+    setReference("");
+    uploadProof.mutate(file, {
+      onSuccess: (res) => {
+        setProofImage(res.path);
+        toast.success("Proof uploaded — you can now submit your top-up.");
+      },
+      onError: (e: Error) => {
+        clearProof();
+        toast.error(e.message);
+      },
+    });
+  };
+
   const submit = () => {
     if (!selected) return;
-    requestTopup.mutate(
-      { tierId: selected.id, transferReference: reference.trim() },
-      {
-        onSuccess: () => {
-          setReference("");
-          toast.success("Transfer submitted! We'll verify it and credit your points shortly.");
-        },
-        onError: (e: Error) => toast.error(e.message),
+    const payload: {
+      tierId: string;
+      proofImage?: string;
+      proofImageName?: string;
+      proofImageType?: string;
+      transferReference?: string;
+    } = { tierId: selected.id };
+    if (hasProof) {
+      payload.proofImage = proofImage;
+      payload.proofImageName = proofName;
+      payload.proofImageType = proofType;
+    }
+    const ref = reference.trim();
+    if (ref.length >= 4) payload.transferReference = ref;
+    requestTopup.mutate(payload, {
+      onSuccess: () => {
+        clearProof();
+        setReference("");
+        toast.success("Transfer submitted! We'll verify it and credit your points shortly.");
       },
-    );
+      onError: (e: Error) => toast.error(e.message),
+    });
   };
 
   return (
@@ -540,7 +604,7 @@ function BuyCreditsCard() {
                 <span className="font-medium text-foreground">
                   ₦{selected.ngn.toLocaleString()}
                 </span>{" "}
-                and keep the transfer reference you receive.
+                then screenshot the confirmation page.
               </p>
             )}
           </div>
@@ -551,26 +615,87 @@ function BuyCreditsCard() {
                 <Clock className="size-4 text-warning" /> Awaiting verification
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Your transfer reference is under review. Credits are added as soon as an admin
-                confirms the payment.
+                Your proof of payment is under review. Credits are added as soon as an admin
+                confirms the transfer.
               </p>
             </div>
           ) : (
             <div className="space-y-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => onFileSelected(e.target.files?.[0])}
+              />
+              {hasProof ? (
+                <div className="overflow-hidden rounded-lg border border-border">
+                  <div className="relative">
+                    {previewUrl ? (
+                      <img
+                        src={previewUrl}
+                        alt="Transfer receipt"
+                        className="max-h-48 w-full object-contain bg-black/5"
+                      />
+                    ) : (
+                      <div className="grid h-28 place-items-center text-muted-foreground">
+                        <Upload className="size-5 animate-pulse" />
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      aria-label="Remove proof"
+                      onClick={clearProof}
+                      className="absolute right-2 top-2 grid size-6 place-items-center rounded-full bg-card text-muted-foreground shadow hover:text-destructive"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                  <p className="truncate border-t border-border/60 bg-secondary/40 px-3 py-1.5 text-xs text-muted-foreground">
+                    {proofName}
+                  </p>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border p-5 text-muted-foreground transition-colors hover:border-accent hover:bg-secondary/30"
+                >
+                  {uploadProof.isPending ? (
+                    <Upload className="size-5 animate-pulse" />
+                  ) : (
+                    <ImagePlus className="size-5" />
+                  )}
+                  <span className="text-xs font-medium">
+                    {uploadProof.isPending
+                      ? "Uploading proof…"
+                      : "Tap to upload your transfer receipt"}
+                  </span>
+                  <span className="text-[10px]">JPEG, PNG or WebP · up to 5MB</span>
+                </button>
+              )}
+              <p className="text-[10px] text-muted-foreground">
+                Need the reference too?{" "}
+                <span className="text-foreground">Only if your bank shows one.</span>
+              </p>
               <Input
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
-                placeholder="Transfer reference (e.g. MP-123456789)"
+                placeholder="Transfer reference (optional)"
                 className="font-mono text-xs"
               />
               <Button
                 size="sm"
                 className="w-full"
-                disabled={reference.trim().length < 4 || requestTopup.isPending}
+                disabled={!canSubmit || requestTopup.isPending}
                 onClick={submit}
               >
                 <Banknote className="size-4 mr-2" />
-                {requestTopup.isPending ? "Submitting…" : "I've transferred — submit reference"}
+                {requestTopup.isPending
+                  ? "Submitting…"
+                  : hasProof
+                    ? "I've transferred — submit proof"
+                    : "I've transferred — submit reference"}
               </Button>
             </div>
           )}
@@ -582,7 +707,12 @@ function BuyCreditsCard() {
               </p>
               {mine.slice(0, 5).map((t) => (
                 <div key={t.id} className="flex items-center justify-between text-xs">
-                  <span className="font-mono text-muted-foreground">{t.transfer_reference}</span>
+                  <span className="truncate font-mono text-muted-foreground">
+                    {t.proof_image_name ??
+                      (t.transfer_reference.startsWith("proof:")
+                        ? "Proof of payment"
+                        : t.transfer_reference)}
+                  </span>
                   <span
                     className={cn(
                       "rounded-full px-2 py-0.5 text-[10px] uppercase tracking-widest",
