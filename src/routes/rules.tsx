@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Ban, Coins, Handshake, ScrollText, ShieldCheck, Timer } from "lucide-react";
 import { PageHeader, Shell } from "@/components/page-parts";
+import { AdSlot } from "@/components/ad-slot";
 
 export const Route = createFileRoute("/rules")({
   head: () => ({
@@ -109,6 +110,8 @@ function Rules() {
           </p>
         </section>
       </div>
+
+      <AdSlot className="mt-6" />
     </Shell>
   );
 }

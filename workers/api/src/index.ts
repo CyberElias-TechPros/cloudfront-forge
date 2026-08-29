@@ -19,6 +19,7 @@ import { searchRoutes } from "./routes/search";
 import { reportRoutes } from "./routes/reports";
 import { shopRoutes } from "./routes/shop";
 import { topupRoutes } from "./routes/topups";
+import { discoverRoutes } from "./routes/discover";
 import { runAllJobs } from "./jobs";
 
 const SECURITY_HEADERS = new Headers({
@@ -142,8 +143,9 @@ export default {
         ...youtubeRoutes,
         ...searchRoutes,
         ...reportRoutes,
-  ...shopRoutes,
+        ...shopRoutes,
         ...topupRoutes,
+        ...discoverRoutes,
       ];
 
       const route = allRoutes.find(

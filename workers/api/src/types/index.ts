@@ -26,6 +26,7 @@ export interface Env {
   DAILY_CLAIM_LIMIT?: string;
   REVIEW_XP?: string;
   REVIEW_CREDITS?: string;
+  REVIEW_HELPFUL_XP?: string;
   RATE_LIMIT_MAX_REQUESTS?: string;
   RATE_LIMIT_WINDOW?: string;
   AUTH_RATE_LIMIT_MAX_REQUESTS?: string;

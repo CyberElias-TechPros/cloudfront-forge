@@ -404,6 +404,14 @@ export const userRoutes = [
           "SELECT COUNT(*) AS count FROM reviews WHERE reviewer_id = ? AND status = 'completed'",
           [userId],
         );
+        const reviewsReceived = await db.querySingle(
+          "SELECT COUNT(*) AS count, AVG(score) AS avg_score FROM reviews WHERE submitter_id = ? AND status = 'completed'",
+          [userId],
+        );
+        const helpfulGiven = await db.querySingle(
+          "SELECT COUNT(*) AS count FROM reviews WHERE reviewer_id = ? AND helpful = 1",
+          [userId],
+        );
         const xp = await db.querySingle(
           "SELECT total_xp, level FROM xp_accounts WHERE user_id = ?",
           [userId],
@@ -411,6 +419,20 @@ export const userRoutes = [
         const credits = await db.querySingle(
           "SELECT balance FROM credit_accounts WHERE user_id = ?",
           [userId],
+        );
+
+        // Daily trend of watches received over the last 14 days.
+        const trendSince = new Date(Date.now() - 14 * 86_400_000).toISOString();
+        const trendResult = await db.query(
+          `SELECT date(ws.created_at) AS day,
+                  COUNT(*) AS watches,
+                  COALESCE(SUM(ws.watch_seconds), 0) AS watch_seconds
+           FROM watch_sessions ws
+           JOIN videos v ON v.id = ws.video_id
+           WHERE v.user_id = ? AND ws.created_at >= ?
+           GROUP BY date(ws.created_at)
+           ORDER BY day ASC`,
+          [userId, trendSince],
         );
 
         let watchesReceived = 0;
@@ -452,6 +474,19 @@ export const userRoutes = [
             watchMinutesReceived: Math.round(watchSecondsReceived / 60),
           },
           videos: perVideo,
+          trend: trendResult.results.map((r: any) => ({
+            day: r.day,
+            watches: Number(r.watches ?? 0),
+            watchSeconds: Number(r.watch_seconds ?? 0),
+          })),
+          reviews: {
+            received: Number(reviewsReceived?.count ?? 0),
+            averageScore:
+              reviewsReceived?.avg_score != null
+                ? Math.round(Number(reviewsReceived.avg_score) * 10) / 10
+                : null,
+            helpfulGiven: Number(helpfulGiven?.count ?? 0),
+          },
           earnings: {
             xp: Number(xp?.total_xp ?? 0),
             level: Number(xp?.level ?? 1),

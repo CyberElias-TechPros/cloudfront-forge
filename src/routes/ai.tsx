@@ -31,6 +31,16 @@ interface ChatMessage {
   created_at?: string;
 }
 
+const prompts = [
+  {
+    label: "Review my title",
+    prompt: "Give me honest feedback on this video title and suggest improvements: ",
+  },
+  { label: "5 video ideas", prompt: "Suggest 5 video ideas for a creator in my niche." },
+  { label: "Thumbnail concept", prompt: "Give me a thumbnail concept for my next video." },
+  { label: "Grow watch time", prompt: "How do I grow YouTube watch time organically?" },
+];
+
 export default function AiAssistant() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -87,8 +97,8 @@ export default function AiAssistant() {
     }
   };
 
-  const send = async () => {
-    const text = input.trim();
+  const send = async (textOverride?: string) => {
+    const text = (textOverride ?? input).trim();
     if (!text || loading) return;
     setInput("");
     setError(null);
@@ -226,12 +236,24 @@ export default function AiAssistant() {
         <section className="surface flex h-[70vh] flex-col p-4">
           <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto pr-1">
             {messages.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
+              <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-muted-foreground">
                 <Sparkles className="size-8 text-accent" />
-                <p className="mt-3 max-w-sm text-sm">
-                  Start by asking something like “How do I grow my YouTube watch time organically?”
-                  or “Explain how peer reviews work on LoopSquad.”
+                <p className="max-w-sm text-sm">
+                  Creator tools — tap a prompt below or ask anything about your channel.
                 </p>
+                <div className="flex max-w-sm flex-wrap justify-center gap-2">
+                  {prompts.map((p) => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      disabled={loading}
+                      onClick={() => send(p.prompt)}
+                      className="rounded-full border border-border bg-card px-3 py-1.5 text-xs transition-colors hover:bg-secondary disabled:opacity-50"
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
               messages
@@ -282,7 +304,7 @@ export default function AiAssistant() {
             />
             <button
               type="button"
-              onClick={send}
+              onClick={() => send()}
               disabled={loading || !input.trim()}
               className="grid size-11 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:opacity-50"
             >

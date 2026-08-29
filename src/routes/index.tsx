@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { Shell } from "@/components/page-parts";
+import { AdSlot } from "@/components/ad-slot";
 import { useLeaderboard } from "@/hooks/use-api";
 
 export const Route = createFileRoute("/")({
@@ -197,6 +198,8 @@ function Landing() {
             </div>
           ))}
         </section>
+
+        <AdSlot className="mt-16" />
 
         <section className="surface mt-16 flex flex-col items-center gap-4 p-10 text-center">
           <h2 className="text-4xl sm:text-5xl">Ready to make the group actually work?</h2>

@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Clock, Eye, Flame, Target, Trophy, Users } from "lucide-react";
 import { PageHeader, Shell, StatCard, Thumb } from "@/components/page-parts";
-import { AdSlot } from "@/components/ad-slot";
 import {
   useXp,
   useStreaks,
@@ -277,7 +276,6 @@ function Dashboard() {
             </ul>
           </section>
         </div>
-        <AdSlot className="mt-8" />
       </div>
     </Shell>
   );

@@ -23,6 +23,7 @@ import apiClientService, {
   type TopupRequest,
   type TopupAdminItem,
   type CreatorInsights,
+  type DiscoverMember,
 } from "@/lib/api-client";
 
 const queryKeys = {
@@ -39,6 +40,7 @@ const queryKeys = {
   leaderboard: ["gamification", "leaderboard"] as const,
   profile: ["users", "me", "profile"] as const,
   creatorInsights: ["users", "me", "insights"] as const,
+  discoverCollaborators: (intent: string) => ["discover", "collaborators", intent] as const,
   notifications: ["notifications"] as const,
   notificationPreferences: ["notifications", "preferences"] as const,
   adminMetrics: ["admin", "metrics"] as const,
@@ -895,8 +897,27 @@ export function useCreatorInsights() {
             watchMinutesReceived: 0,
           },
           videos: [],
+          trend: [],
+          reviews: { received: 0, averageScore: null, helpfulGiven: 0 },
           earnings: { xp: 0, level: 1, credits: 0, reviewsGiven: 0 },
         } as CreatorInsights;
+      }
+    },
+    retry: shouldRetryAuth,
+    enabled: typeof window !== "undefined" && !!localStorage.getItem("authToken"),
+  });
+}
+
+export function useCollaborators(intent: string) {
+  return useQuery({
+    queryKey: queryKeys.discoverCollaborators(intent),
+    queryFn: async (): Promise<DiscoverMember[]> => {
+      try {
+        const res = await apiClientService.discover.collaborators(intent);
+        return res.items;
+      } catch (error) {
+        console.warn("[useCollaborators] API unavailable:", error);
+        return [];
       }
     },
     retry: shouldRetryAuth,

@@ -1,7 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BarChart3, Coins, Eye, MessageCircle, Rocket, UserPlus, Video, Zap } from "lucide-react";
+import {
+  BarChart3,
+  Coins,
+  Eye,
+  MessageCircle,
+  Rocket,
+  Star,
+  UserPlus,
+  Video,
+  Zap,
+} from "lucide-react";
 import { PageHeader, Shell, StatCard } from "@/components/page-parts";
-import { AdSlot } from "@/components/ad-slot";
 import { useCreatorInsights } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
 
@@ -59,7 +68,8 @@ function Insights() {
     );
   }
 
-  const { totals, videos, earnings } = data;
+  const { totals, videos, trend, reviews, earnings } = data;
+  const maxTrendWatches = Math.max(1, ...trend.map((t) => t.watches));
 
   return (
     <Shell>
@@ -122,6 +132,60 @@ function Insights() {
           icon={<Rocket className="size-4" />}
         />
       </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard
+          label="Reviews received"
+          value={reviews.received.toLocaleString()}
+          hint="Peer feedback on your videos"
+          icon={<Star className="size-4" />}
+        />
+        <StatCard
+          label="Average review score"
+          value={reviews.averageScore != null ? `${reviews.averageScore}/5` : "—"}
+          hint="Across completed reviews"
+          icon={<Star className="size-4" />}
+        />
+        <StatCard
+          label="Helpful reviews"
+          value={reviews.helpfulGiven.toLocaleString()}
+          hint="Your feedback rated helpful"
+          icon={<Star className="size-4" />}
+        />
+      </div>
+
+      <section className="surface mt-6 p-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl">Watches received — last 14 days</h2>
+          <span className="text-xs uppercase tracking-widest text-muted-foreground">
+            {trend.reduce((a, t) => a + t.watches, 0)} total
+          </span>
+        </div>
+        {trend.length === 0 ? (
+          <p className="mt-4 text-sm text-muted-foreground">
+            No watch activity yet — this chart fills in as members watch your videos.
+          </p>
+        ) : (
+          <div className="mt-5 flex h-40 items-end gap-1.5">
+            {trend.map((t) => (
+              <div
+                key={t.day}
+                className="flex min-w-0 flex-1 flex-col items-center gap-1"
+                title={`${t.day}: ${t.watches} watches`}
+              >
+                <span className="text-[10px] tabular-nums text-muted-foreground">{t.watches}</span>
+                <div
+                  className="w-full rounded-t bg-primary"
+                  style={{ height: `${Math.max(4, (t.watches / maxTrendWatches) * 100)}%` }}
+                />
+                <span className="truncate text-[9px] text-muted-foreground">
+                  {t.day.slice(5).replace("-", "/")}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="surface mt-6 overflow-hidden">
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
@@ -200,8 +264,6 @@ function Insights() {
           </ul>
         )}
       </section>
-
-      <AdSlot className="mt-6" />
     </Shell>
   );
 }

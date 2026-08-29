@@ -22,6 +22,7 @@ const navGroups = [
       { to: "/reviews", label: "Reviews" },
       { to: "/leaderboard", label: "Leaderboard" },
       { to: "/gamification", label: "Gamification" },
+      { to: "/collaborate", label: "Collaborate" },
     ],
   },
   {
@@ -29,6 +30,7 @@ const navGroups = [
     links: [
       { to: "/insights", label: "Insights" },
       { to: "/ai", label: "AI Assistant" },
+      { to: "/resources", label: "Resources" },
       { to: "/admin", label: "Admin" },
     ],
   },
@@ -263,7 +265,21 @@ export function SiteHeader() {
 export function SiteFooter() {
   return (
     <footer className="mt-20 border-t border-border/70">
-      <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-8 text-sm text-muted-foreground sm:px-6">
+        <nav className="flex flex-wrap gap-x-5 gap-y-2">
+          <Link to="/rules" className="transition-colors hover:text-foreground">
+            Rules
+          </Link>
+          <Link to="/resources" className="transition-colors hover:text-foreground">
+            Resources
+          </Link>
+          <Link to="/privacy" className="transition-colors hover:text-foreground">
+            Privacy
+          </Link>
+          <Link to="/terms" className="transition-colors hover:text-foreground">
+            Terms
+          </Link>
+        </nav>
         <p>LoopSquad — creator feedback &amp; growth community.</p>
       </div>
     </footer>

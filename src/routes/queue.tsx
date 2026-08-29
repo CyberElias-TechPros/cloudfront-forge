@@ -12,7 +12,6 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader, Shell, Thumb } from "@/components/page-parts";
-import { AdSlot } from "@/components/ad-slot";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -759,7 +758,6 @@ function Queue() {
               </li>
             ))}
           </ul>
-          <AdSlot className="mt-6" />
         </section>
       </div>
 

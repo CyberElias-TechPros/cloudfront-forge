@@ -28,6 +28,8 @@ COMMENT_REWARD_CREDITS = "3"
 DAILY_CLAIM_LIMIT = "10"
 REVIEW_XP = "20"
 REVIEW_CREDITS = "5"
+# Bonus XP a reviewer earns the first time their review is rated helpful.
+REVIEW_HELPFUL_XP = "5"
 
 # D1 Database
 [[d1_databases]]

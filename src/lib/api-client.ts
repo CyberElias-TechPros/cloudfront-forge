@@ -361,12 +361,28 @@ export interface CreatorInsights {
     watchMinutesReceived: number;
   };
   videos: CreatorVideoInsight[];
+  trend: { day: string; watches: number; watchSeconds: number }[];
+  reviews: {
+    received: number;
+    averageScore: number | null;
+    helpfulGiven: number;
+  };
   earnings: {
     xp: number;
     level: number;
     credits: number;
     reviewsGiven: number;
   };
+}
+
+export interface DiscoverMember {
+  id: string;
+  name: string;
+  avatar: string;
+  niche: string;
+  experience: string | null;
+  goals: string | null;
+  intent: string;
 }
 
 export const apiClientService = {
@@ -575,6 +591,13 @@ export const apiClientService = {
     insights: () => getData<CreatorInsights>("/api/v1/users/me/insights"),
     updateProfile: (data: { displayName?: string; bio?: string; niche?: string }) =>
       putData<UserProfile>("/api/v1/users/me/profile", data),
+  },
+
+  discover: {
+    collaborators: (intent: string) =>
+      getData<{ items: DiscoverMember[]; intent: string }>(
+        `/api/v1/discover/collaborators?intent=${encodeURIComponent(intent)}`,
+      ),
   },
 
   feed: {

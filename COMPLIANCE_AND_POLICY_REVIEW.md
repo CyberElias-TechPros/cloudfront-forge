@@ -129,19 +129,35 @@ Practical mitigations the platform already has or can add:
       only the reward pauses.
 
 ### Phase 2 — build the defensible value (the growth engine)
-- [ ] Expand **Creator Insights** (retention over time, best-performing
-      niche/video, feedback received).
-- [ ] Make **reviews** the primary XP source (quality + helpfulness votes).
-- [ ] Add title/thumbnail feedback tools to the AI coach (pure creator value).
-- [ ] Community resources: playbooks, tips, collaboration matchmaking.
+- [x] Expand **Creator Insights** — `/users/me/insights` now returns a 14-day
+      watch trend plus a review summary (reviews received, average score,
+      helpful reviews given); the Insights page renders the trend chart and
+      review stats.
+- [x] Make **reviews** the primary XP source (quality + helpfulness votes) —
+      reviewers already earn +20 XP / +5 cr per completed review; a new
+      idempotent bonus (`REVIEW_HELPFUL_XP`, default 5) rewards the reviewer
+      the first time their review is rated helpful.
+- [x] Add title/thumbnail feedback tools to the AI coach — the AI page now has
+      quick-action prompts (review my title, video ideas, thumbnail concept,
+      watch time).
+- [x] Community resources: playbooks, tips, collaboration matchmaking — new
+      public `/resources` creator playbook and a `/collaborate` discovery page
+      (backend `/api/v1/discover/collaborators`, driven by opt-in
+      `public_profile` + `looking_for`).
 
 ### Phase 3 — monetisation hygiene
-- [ ] Keep AdSense **off engagement-gated pages**; ads on public content
-      (landing, public rules/insights) only.
-- [ ] Add an `ads.txt`-consistent domain setup for `freegameplay.site`
-      subdomains (already present via `public/ads.txt` if maintained).
-- [ ] Add a privacy/ToS page describing what the platform does — transparency
-      is itself a trust and compliance signal.
+- [x] Keep AdSense **off engagement-gated pages** — `AdSlot` removed from
+      `/dashboard`, `/queue` and `/insights` (authenticated, engagement-driven)
+      and placed on public content only (`/`, `/rules`, `/resources`).
+      **Trade-off note:** this reduces impressions on the highest-traffic
+      authenticated pages; it is reversible if the team accepts the added
+      policy risk.
+- [x] `ads.txt` verified — `public/ads.txt` correctly lists the Google
+      publisher (`google.com, pub-9117572925263537, DIRECT, f08c47fec0942fa0`)
+      and is served from the site root for `freegameplay.site` subdomains.
+- [x] Privacy & ToS pages — new public `/privacy` and `/terms` routes linked
+      from the footer, disclosing third-party ads/cookies (AdSense), data
+      collection and acceptable use.
 
 ---
 
@@ -151,6 +167,11 @@ LoopSquad can be a genuinely defensible creator tool **if the value moves from
 "points for engagement" to "feedback, collaboration and analytics".** The
 highest-leverage change is de-coupling points from the subscribe action; the
 highest-value investment is the Creator Insights + review feedback loop.
+
+**All four phases are now implemented** (Phase 0 → 3). Remaining follow-ups are
+operational rather than code: keep the `ads.txt` publisher id in sync with any
+new AdSense property, and review ad placement whenever the authenticated pages
+change.
 
 This review will be maintained alongside the code so the team can track
 compliance decisions the same way it tracks features.
