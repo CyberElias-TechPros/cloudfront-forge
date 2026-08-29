@@ -34,6 +34,30 @@ export function calculateLevel(xp: number): { level: number; xpToNextLevel: numb
   return { level, xpToNextLevel: xpForNextLevel - xp };
 }
 
+const WATCH_TARGET_BUCKETS = [60, 90, 120, 150, 180];
+
+/**
+ * Deterministic per-video watch requirement.
+ *
+ * Real viewers watch different lengths; a single fixed requirement for every
+ * video produces a suspiciously uniform engagement pattern. Derive a stable
+ * target from the video id so every member sees the same requirement for a
+ * given video, capped by the video's duration and the configured ceiling.
+ */
+export function resolveRequiredWatchSeconds(
+  videoId: string,
+  durationSeconds: number | null,
+  defaultSec: number,
+): number {
+  let hash = 0;
+  for (let i = 0; i < videoId.length; i++) {
+    hash = (hash * 31 + videoId.charCodeAt(i)) % 997;
+  }
+  const base = WATCH_TARGET_BUCKETS[hash % WATCH_TARGET_BUCKETS.length] ?? defaultSec;
+  const capped = durationSeconds && durationSeconds > 0 ? Math.min(base, durationSeconds) : base;
+  return Math.max(30, Math.min(defaultSec, capped));
+}
+
 export function calculateWeightedScore(xp: number, credits: number, reputation: number): number {
   return Math.round(xp * 0.4 + credits * 0.3 + reputation * 0.3);
 }

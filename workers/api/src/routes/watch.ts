@@ -8,6 +8,7 @@ import { createLogger } from "../lib/logger";
 import { progressQuest } from "../lib/quests";
 import { trackEvent } from "../lib/analytics";
 import { getRewardSplit } from "../lib/rewards";
+import { resolveRequiredWatchSeconds } from "../lib/utils";
 
 function levelForXp(totalXp: number): number {
   return Math.max(1, Math.floor(totalXp / 250) + 1);
@@ -348,14 +349,14 @@ export const watchRoutes = [
           return createErrorResponse("FORBIDDEN", "You cannot watch your own video", 403);
         }
 
-        // Short videos: require at most the full length, capped at REQUIRED_WATCH_SEC
+        // Short videos: require at most the full length, capped at REQUIRED_WATCH_SEC.
+        // The target is a deterministic per-video value so requirements vary
+        // naturally across videos instead of being uniformly 180s.
         const videoDuration =
           typeof video.duration_seconds === "number" && video.duration_seconds > 0
             ? video.duration_seconds
             : null;
-        const requiredWatchSec = videoDuration
-          ? Math.min(REQUIRED_WATCH_SEC, videoDuration)
-          : REQUIRED_WATCH_SEC;
+        const requiredWatchSec = resolveRequiredWatchSeconds(videoId, videoDuration, REQUIRED_WATCH_SEC);
 
         const existing = await db.querySingle(
           "SELECT * FROM watch_sessions WHERE video_id = ? AND watcher_id = ?",
@@ -413,14 +414,14 @@ export const watchRoutes = [
         const effectiveSubscribed =
           verifiedSubscribed === null ? subscribed : verifiedSubscribed && subscribed;
 
-        // Tiered rewards: watch, subscribe and comment each pay independently so
-        // nothing is compulsory, but completing all three on a video earns the
-        // full reward. Each component is paid at most once per video.
+        // Rewards: watch and genuine feedback (comment) each pay independently,
+        // and nothing is compulsory. Subscribing is tracked as an optional,
+        // unpaid trust signal — it never gates earning and never pays points.
         const rewards = getRewardSplit(env);
         const watchDone = effectiveWatchSeconds >= requiredWatchSec;
         const subDone = effectiveSubscribed;
         const commentDone = verifiedCommented;
-        const status = watchDone && subDone && commentDone ? "claimed" : watchDone ? "verified" : "started";
+        const status = watchDone && commentDone ? "claimed" : watchDone ? "verified" : "started";
 
         if (existing) {
           await db.execute(
@@ -465,7 +466,7 @@ export const watchRoutes = [
         const alreadyXp = existing ? ((existing.xp_awarded as number) ?? 0) : 0;
         const alreadyCredits = existing ? ((existing.credits_awarded as number) ?? 0) : 0;
         const watchNewlyPaid = watchDone && alreadyXp < rewards.watch.xp;
-        const subNewlyPaid = subDone && alreadyXp >= rewards.watch.xp && alreadyXp < rewards.watch.xp + rewards.subscribe.xp;
+        const newlySubscribed = subDone && ((existing?.subscribed as number) ?? 0) !== 1;
         const targetXp =
           (watchDone ? rewards.watch.xp : 0) +
           (subDone ? rewards.subscribe.xp : 0) +
@@ -476,6 +477,68 @@ export const watchRoutes = [
           (commentDone ? rewards.comment.credits : 0);
         const xpDelta = Math.max(0, targetXp - alreadyXp);
         const creditsDelta = Math.max(0, targetCredits - alreadyCredits);
+
+        // Daily watch-reward ceiling: a real viewer doesn't watch dozens of
+        // videos a day. This flattens the burst pattern without blocking the
+        // community (the watch is still recorded; only the reward pauses).
+        if (watchNewlyPaid) {
+          const DAILY_CLAIM_LIMIT = parseInt(env.DAILY_CLAIM_LIMIT || "10", 10);
+          const todayStart = new Date().toISOString().slice(0, 10) + "T00:00:00.000Z";
+          const dailyCount = await db.querySingle(
+            "SELECT COUNT(*) AS count FROM watch_sessions WHERE watcher_id = ? AND xp_awarded > 0 AND updated_at >= ?",
+            [watcherId, todayStart],
+          );
+          if (Number(dailyCount?.count ?? 0) >= DAILY_CLAIM_LIMIT) {
+            return createErrorResponse(
+              "DAILY_LIMIT",
+              `Daily watch limit reached (${DAILY_CLAIM_LIMIT}/day). Come back tomorrow.`,
+              429,
+            );
+          }
+        }
+
+        // Optional subscription support: recorded as a trust signal only — no
+        // points, no gating. Runs even when the daily reward ceiling is hit.
+        if (newlySubscribed) {
+          const subBatch: Array<{ sql: string; params: unknown[] }> = [];
+          subBatch.push({
+            sql: `INSERT INTO reputation_accounts (id, user_id, score, last_calculated, created_at, updated_at)
+                 VALUES (?, ?, 100, ?, ?, ?)
+                 ON CONFLICT(user_id) DO NOTHING`,
+            params: [db.uuid(), watcherId, now, now, now],
+          });
+          subBatch.push({
+            sql: `UPDATE reputation_accounts
+                 SET subscriptions_given = subscriptions_given + 1, updated_at = ?
+           WHERE user_id = ?`,
+            params: [now, watcherId],
+          });
+          subBatch.push({
+            sql: `INSERT INTO reputation_events (id, user_id, event_type, points_change, description, created_at)
+                 VALUES (?, ?, 'subscription_support', 0, 'Optional support: subscribed to a member channel', ?)`,
+            params: [db.uuid(), watcherId, now],
+          });
+          if (video.user_id && video.user_id !== watcherId) {
+            subBatch.push({
+              sql: `INSERT INTO reputation_accounts (id, user_id, score, last_calculated, created_at, updated_at)
+                   VALUES (?, ?, 100, ?, ?, ?)
+                   ON CONFLICT(user_id) DO NOTHING`,
+              params: [db.uuid(), video.user_id, now, now, now],
+            });
+            subBatch.push({
+              sql: `UPDATE reputation_accounts
+                 SET subscriptions_received = subscriptions_received + 1, updated_at = ?
+               WHERE user_id = ?`,
+              params: [now, video.user_id],
+            });
+            subBatch.push({
+              sql: `INSERT INTO reputation_events (id, user_id, event_type, points_change, description, created_at)
+                   VALUES (?, ?, 'subscription_support_received', 0, 'Received optional support from a member', ?)`,
+              params: [db.uuid(), video.user_id, now],
+            });
+          }
+          await db.batch(subBatch);
+        }
 
         if ((xpDelta > 0 || creditsDelta > 0) && !attentionBlocked) {
           xpAwarded = xpDelta;
@@ -530,20 +593,18 @@ export const watchRoutes = [
             params: [db.uuid(), watcherId, now, now, now],
           });
 
-          // Reputation updates are applied only when a component is newly paid,
-          // so a member who claims watch → subscribe → comment in separate
-          // visits doesn't double-count watch minutes or subscriptions.
+          // Watch reputation: score + watch minutes are applied only when the
+          // watch component is newly paid, so a member who claims watch then
+          // feedback in separate visits doesn't double-count watch minutes.
           batchStatements.push({
             sql: `UPDATE reputation_accounts
              SET score = MIN(100, score + ?),
                  watch_minutes = watch_minutes + ?,
-                 subscriptions_given = subscriptions_given + ?,
                  updated_at = ?
            WHERE user_id = ?`,
             params: [
               watchNewlyPaid ? 1 : 0,
               watchNewlyPaid ? Math.round(effectiveWatchSeconds / 60) : 0,
-              subNewlyPaid ? 1 : 0,
               now,
               watcherId,
             ],
@@ -555,32 +616,6 @@ export const watchRoutes = [
                    VALUES (?, ?, 'watch_claim', 1, 'Verified watch claim completed', ?)`,
               params: [db.uuid(), watcherId, now],
             });
-          }
-
-          if (video.user_id && video.user_id !== watcherId) {
-            batchStatements.push({
-              sql: `INSERT INTO reputation_accounts (id, user_id, score, last_calculated, created_at, updated_at)
-                   VALUES (?, ?, 100, ?, ?, ?)
-                   ON CONFLICT(user_id) DO NOTHING`,
-              params: [db.uuid(), video.user_id, now, now, now],
-            });
-
-            if (subNewlyPaid) {
-              batchStatements.push({
-                sql: `UPDATE reputation_accounts
-                 SET score = MIN(100, score + 1),
-                     subscriptions_received = subscriptions_received + 1,
-                     updated_at = ?
-               WHERE user_id = ?`,
-                params: [now, video.user_id],
-              });
-
-              batchStatements.push({
-                sql: `INSERT INTO reputation_events (id, user_id, event_type, points_change, description, created_at)
-                     VALUES (?, ?, 'subscription_received', 1, 'Subscribed to a squad member channel', ?)`,
-                params: [db.uuid(), video.user_id, now],
-              });
-            }
           }
 
           const batchResult = await db.batch(batchStatements);

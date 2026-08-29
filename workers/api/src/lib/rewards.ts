@@ -27,8 +27,12 @@ export function getRewardSplit(env: Env): RewardSplit {
     credits: parseInt(env.WATCH_REWARD_CREDITS || "4", 10),
   };
   const subscribe: RewardComponent = {
-    xp: parseInt(env.SUBSCRIBE_REWARD_XP || "10", 10),
-    credits: parseInt(env.SUBSCRIBE_REWARD_CREDITS || "3", 10),
+    // Subscribing is recorded as a trust/community signal only — it pays no
+    // points or credits. Paying members to subscribe is the canonical
+    // "sub4sub" signal and endangers YouTube/AdSense standing. Keep the env
+    // hooks so the values are tunable, but default to zero.
+    xp: parseInt(env.SUBSCRIBE_REWARD_XP || "0", 10),
+    credits: parseInt(env.SUBSCRIBE_REWARD_CREDITS || "0", 10),
   };
   const comment: RewardComponent = {
     xp: parseInt(env.COMMENT_REWARD_XP || "10", 10),

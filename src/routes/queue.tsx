@@ -98,9 +98,8 @@ function Queue() {
   const [commented, setCommented] = useState(false);
   const [rewarded, setRewarded] = useState<{
     watch: boolean;
-    subscribe: boolean;
     comment: boolean;
-  }>({ watch: false, subscribe: false, comment: false });
+  }>({ watch: false, comment: false });
   const [filter, setFilter] = useState<(typeof filters)[number]>("All");
   const [subOpened, setSubOpened] = useState(false);
   const playerRef = useRef<YTPlayer | null>(null);
@@ -137,11 +136,10 @@ function Queue() {
         subReason?: string;
       };
       if (result.status === "claimed") {
-        setRewarded({ watch: true, subscribe: true, comment: true });
+        setRewarded({ watch: true, comment: true });
       } else {
         setRewarded((r) => ({
           watch: r.watch || result.watchVerified,
-          subscribe: r.subscribe || result.subscribed,
           comment: r.comment || result.commented,
         }));
       }
@@ -152,7 +150,7 @@ function Queue() {
       } else if (result.subReason) {
         toast.info(`Watch recorded: ${result.subReason}`);
       } else {
-        toast.info("Nothing new to claim — complete subscribe or comment for more points.");
+        toast.info("Nothing new to claim — leave genuine feedback for more points.");
       }
     } catch (error) {
       console.error("Watch claim error:", error);
@@ -167,13 +165,12 @@ function Queue() {
     setCommented(false);
     setSubOpened(false);
     // Restore which reward tiers are already paid from the queue task, so a
-    // member who claimed watch earlier keeps their subscribe/comment progress.
+    // member who claimed watch earlier keeps their feedback progress.
     const b = active?.rewardBreakdown;
     const earnedXp = active?.rewardedXp ?? 0;
     setRewarded({
       watch: !!b && earnedXp >= b.watch.xp,
-      subscribe: !!b && earnedXp >= b.watch.xp + b.subscribe.xp,
-      comment: !!b && earnedXp >= b.watch.xp + b.subscribe.xp + b.comment.xp,
+      comment: !!b && earnedXp >= b.watch.xp + b.comment.xp,
     });
     lastSampleRef.current = null;
     // New video: schedule a mid-watch attention check at a random 40-70% point
@@ -390,16 +387,13 @@ function Queue() {
   const pct = Math.round((elapsed / (active?.requiredSec ?? 1)) * 100);
   const watchDone = elapsed >= (active?.requiredSec ?? 0);
   const b = active?.rewardBreakdown;
-  const fullyClaimed =
-    active?.status === "verified" || (rewarded.watch && rewarded.subscribe && rewarded.comment);
+  const fullyClaimed = active?.status === "verified" || (rewarded.watch && rewarded.comment);
   // Points claimable right now: components completed but not yet paid.
   const pendingXp =
     (watchDone && !rewarded.watch ? (b?.watch.xp ?? 10) : 0) +
-    (subscribed && !rewarded.subscribe ? (b?.subscribe.xp ?? 10) : 0) +
     (commented && !rewarded.comment ? (b?.comment.xp ?? 10) : 0);
   const pendingCredits =
     (watchDone && !rewarded.watch ? (b?.watch.credits ?? 4) : 0) +
-    (subscribed && !rewarded.subscribe ? (b?.subscribe.credits ?? 3) : 0) +
     (commented && !rewarded.comment ? (b?.comment.credits ?? 3) : 0);
   const claimable = watchDone && pendingXp > 0 && !attentionVoided && !fullyClaimed;
 
@@ -602,7 +596,7 @@ function Queue() {
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <ProofButton
                 icon={<UserPlus className="size-4" />}
-                label={subOpened ? "I subscribed" : "Click here to subscribe"}
+                label={subOpened ? "I subscribed" : "Support the creator (optional)"}
                 done={subscribed}
                 disabled={!watchDone}
                 onClick={() => {
@@ -616,18 +610,20 @@ function Queue() {
                   window.open(url, "_blank", "noopener");
                   if (!subOpened) {
                     setSubOpened(true);
-                    toast.info("Channel opened — tap Subscribe on YouTube, then confirm here");
+                    toast.info(
+                      "Channel opened — subscribe if you'd like to support them, then confirm here",
+                    );
                   } else {
                     setSubscribed(true);
                     toast.success(
-                      "Marked subscribed — points only award after server-side verification via the YouTube API",
+                      "Thanks for supporting — recorded as a trust signal (no points).",
                     );
                   }
                 }}
               />
               <ProofButton
                 icon={<MessageCircle className="size-4" />}
-                label="I left a comment"
+                label="Leave genuine feedback"
                 done={commented}
                 disabled={!watchDone}
                 onClick={() => {
@@ -639,7 +635,7 @@ function Queue() {
                   if (url) window.open(url, "_blank", "noopener");
                   setCommented(true);
                   toast.success(
-                    "Opened video — leave a genuine comment on YouTube, then return to claim",
+                    "Opened video — leave genuine feedback on YouTube, then return to claim",
                   );
                 }}
               />
@@ -657,18 +653,20 @@ function Queue() {
                   done={rewarded.watch}
                 />
                 <RewardRow
-                  label="Subscribe"
-                  xp={b?.subscribe.xp}
-                  credits={b?.subscribe.credits}
-                  done={rewarded.subscribe}
-                />
-                <RewardRow
-                  label="Comment"
+                  label="Feedback"
                   xp={b?.comment.xp}
                   credits={b?.comment.credits}
                   done={rewarded.comment}
                 />
               </div>
+              <p className="mt-2 flex items-center gap-1.5 border-t border-border pt-2 text-[11px] text-muted-foreground">
+                {subscribed ? (
+                  <CheckCircle2 className="size-3.5 shrink-0 text-success" />
+                ) : (
+                  <UserPlus className="size-3.5 shrink-0" />
+                )}
+                Subscribing is optional support — recorded as a trust signal, no points.
+              </p>
             </div>
 
             <button
@@ -687,13 +685,13 @@ function Queue() {
                       ? "Start watching to earn points"
                       : claimable
                         ? `Claim +${pendingXp} XP${pendingCredits > 0 ? ` & +${pendingCredits} credits` : ""}`
-                        : "Claimed — subscribe & comment for more"}
+                        : "Claimed — leave feedback for more"}
             </button>
 
             <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
               <ShieldAlert className="mt-0.5 size-4 shrink-0 text-warning" />
-              Unsubscribing within 30 days reverses the points and lowers your trust score. Weekly
-              sweeps check every claim.
+              Unsubscribing within 30 days reverses any trust gained and lowers your trust score.
+              Weekly sweeps check every claim.
             </p>
           </div>
         </section>

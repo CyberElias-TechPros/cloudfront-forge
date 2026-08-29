@@ -3,6 +3,7 @@ import { createResponse, createErrorResponse } from "../middleware/errorHandler"
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { getRewardSplit } from "../lib/rewards";
+import { resolveRequiredWatchSeconds } from "../lib/utils";
 
 function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
@@ -98,6 +99,7 @@ export const feedRoutes = [
                 : "pending";
           const REQUIRED_WATCH_SEC = parseInt(env.REQUIRED_WATCH_SEC || "180", 10);
           const duration = typeof v.duration_seconds === "number" && v.duration_seconds > 0 ? v.duration_seconds : null;
+          const requiredSec = resolveRequiredWatchSeconds(v.id, duration, REQUIRED_WATCH_SEC);
           const rewards = getRewardSplit(env);
           return {
             id: v.id,
@@ -108,7 +110,7 @@ export const feedRoutes = [
             title: v.title ?? "Untitled video",
             niche: "Creator",
             durationSec: v.duration_seconds ?? 0,
-            requiredSec: duration ? Math.min(REQUIRED_WATCH_SEC, duration) : REQUIRED_WATCH_SEC,
+            requiredSec,
             reward: rewards.totalXp,
             rewardBreakdown: {
               watch: rewards.watch,

@@ -22,9 +22,9 @@ export const Route = createFileRoute("/rules")({
 });
 
 const scoring = [
-  ["Verified watch (3 min+)", "+10 XP"],
-  ["Subscribe confirmed", "+10 XP"],
-  ["Genuine comment", "+10 XP"],
+  ["Verified watch (variable length)", "+10 XP"],
+  ["Genuine feedback (comment)", "+10 XP"],
+  ["Optional support (subscribe)", "No points — trust signal"],
   ["Daily quest set complete", "+50 XP"],
   ["7-day streak bonus", "+100 XP"],
   ["Fake watch detected", "-40 XP"],

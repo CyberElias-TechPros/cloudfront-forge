@@ -23,6 +23,7 @@ export interface Env {
   SUBSCRIBE_REWARD_CREDITS?: string;
   COMMENT_REWARD_XP?: string;
   COMMENT_REWARD_CREDITS?: string;
+  DAILY_CLAIM_LIMIT?: string;
   REVIEW_XP?: string;
   REVIEW_CREDITS?: string;
   RATE_LIMIT_MAX_REQUESTS?: string;

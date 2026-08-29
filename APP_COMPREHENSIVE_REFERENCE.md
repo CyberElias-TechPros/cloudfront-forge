@@ -359,12 +359,12 @@ NIGHTLY (cron at midnight):
 ### Flow 9: Gamification & Economy
 ```
 CREDITS:
-- Earn: up to +10 per watch claim (watch +4 · subscribe +3 · comment +3), +daily bonus, +missions, +badge rewards
+- Earn: up to +7 per watch claim (watch +4 · feedback +3; subscribe is trust-only), +daily bonus, +missions, +badge rewards
 - Spend: Video boost (50cr), Streak freeze (30cr)
 - Track: credit_accounts (balance) + credit_transactions (ledger)
 
 XP (Experience Points):
-- Earn: up to +30 per watch claim (watch +10 · subscribe +10 · comment +10), +missions, +daily quests, +badge rewards
+- Earn: up to +20 per watch claim (watch +10 · feedback +10; subscribe is trust-only), +missions, +daily quests, +badge rewards
 - Level up: formula floor(50 * level^2 * 0.8) XP per level
 - Track: xp_accounts (total_xp, level) + xp_transactions (ledger)
 
@@ -524,7 +524,7 @@ PUSH SUBSCRIPTION:
 | Send heartbeat | POST /watch/heartbeat | — |
 | Get attention challenge | POST /watch/challenge | — |
 | Answer challenge | POST /watch/challenge/:id/answer | +1 trust (pass) / -5 trust (fail) |
-| Claim watch | POST /watch | up to +30 XP (10/10/10) · +10 credits (4/3/3) · +1 reputation |
+| Claim watch | POST /watch | up to +20 XP (watch 10 · feedback 10) · +7 credits (4/3) · +1 reputation · subscribe = trust-only |
 
 ### Review Actions
 | Action | Endpoint | Rewards |
@@ -1331,12 +1331,12 @@ ADMIN (8 routes)
 ## 9. Gamification Economy
 
 ### XP (Experience Points)
-- **Earn:** up to +30 per watch claim (watch +10 · subscribe +10 · comment +10), +missions, +daily quests, +badge rewards
+- **Earn:** up to +20 per watch claim (watch +10 · feedback +10; subscribe is trust-only), +missions, +daily quests, +badge rewards
 - **Level formula:** `floor(50 * level^2 * 0.8)` XP per level
 - **Track:** `xp_accounts` (total_xp, level) + `xp_transactions` (ledger)
 
 ### Credits
-- **Earn:** up to +10 per watch claim (watch +4 · subscribe +3 · comment +3), +daily bonus, +missions, +badge rewards
+- **Earn:** up to +7 per watch claim (watch +4 · feedback +3; subscribe is trust-only), +daily bonus, +missions, +badge rewards
 - **Spend:** Video boost (50cr), Streak freeze (30cr)
 - **Track:** `credit_accounts` (balance) + `credit_transactions` (ledger)
 

@@ -105,17 +105,28 @@ Practical mitigations the platform already has or can add:
 - [x] Creator Insights page + endpoint (`insights.tsx`, `users.ts`).
 - [x] This review.
 
-### Phase 1 — de-risk the loop (next)
-- [ ] **Stop rewarding subscribes.** Remove the subscribe XP/credit component
-      (or reduce to zero and keep it as an optional, *unpaid* "support" action).
-      Reputation can keep tracking `subscriptions_given` but no longer feed
-      the give/take ratio gate.
-- [ ] **Reframe comments as "written feedback".** Points for submitting a review
-      with real text (already the review flow), not for a "I left a comment"
-      checkbox.
-- [ ] **Randomised watch targets** (e.g. 60–180s) to break the uniform-pattern
-      signature.
-- [ ] **Daily claim ceiling** per member (e.g. 10 videos/day).
+### Phase 1 — de-risk the loop
+- [x] **Stop rewarding subscribes.** `lib/rewards.ts` now defaults the
+      subscribe component to **0 XP / 0 credits** (env-tunable
+      `SUBSCRIBE_REWARD_XP|CREDITS`). `watch.ts` records a subscription as a
+      trust-only `subscription_support` event (0 points) that still feeds
+      `subscriptions_given/received` — the give/take balance stays honest, but
+      nobody is *paid* to subscribe. Queue UI labels it "Support the creator
+      (optional)".
+      > **Decision note:** the request to make subscription "required but
+      > hidden/lowkey" was declined — a hidden requirement is a deceptive dark
+      > pattern and keeps the exact incentivised-subscribe risk. The shipped
+      > version is honest: optional, clearly labelled, unpaid.
+- [x] **Reframe comments as "written feedback".** Queue UI relabels the
+      action "Leave genuine feedback"; the substantive feedback path remains
+      the review flow (already rewarded separately).
+- [x] **Randomised watch targets.** `lib/utils.ts`
+      `resolveRequiredWatchSeconds` derives a stable 60–180s target per video
+      id (capped by video length), so requirements vary naturally instead of a
+      uniform 180s.
+- [x] **Daily claim ceiling.** `watch.ts` caps watch rewards at
+      `DAILY_CLAIM_LIMIT` (default 10) videos/day; the watch is still recorded,
+      only the reward pauses.
 
 ### Phase 2 — build the defensible value (the growth engine)
 - [ ] Expand **Creator Insights** (retention over time, best-performing
