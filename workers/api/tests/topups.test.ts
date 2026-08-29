@@ -61,7 +61,7 @@ describe("topup routes (NGN point purchases)", () => {
       expect(tier.ngn).toBeGreaterThan(prevNgn);
       expect(tier.credits).toBeGreaterThan(prevCredits);
       expect(tier.bonus).toBeGreaterThanOrEqual(0);
-      expect(tier.credits).toBe(tier.ngn / 100 + tier.bonus);
+      expect(tier.credits).toBe(tier.ngn / 50 + tier.bonus);
       prevNgn = tier.ngn;
       prevCredits = tier.credits;
     }

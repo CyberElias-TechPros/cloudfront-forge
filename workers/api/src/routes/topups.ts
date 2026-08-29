@@ -11,14 +11,14 @@ export const NGN_BANK_DETAILS = {
   bankName: "Moniepoint MFB",
 } as const;
 
-// Fixed credit packs. Base rate is ~₦100/credit with a volume bonus on
+// Fixed credit packs. Base rate is ~₦50/credit with a volume bonus on
 // larger packs. Kept deliberately affordable: the biggest pack is capped at
 // ₦10,000 so entry stays cheap and more members keep the site active.
 export const TOPUP_TIERS = [
-  { id: "starter", name: "Starter", ngn: 1000, credits: 10, bonus: 0 },
-  { id: "builder", name: "Builder", ngn: 2500, credits: 27, bonus: 2 },
-  { id: "creator", name: "Creator", ngn: 5000, credits: 55, bonus: 5 },
-  { id: "studio", name: "Studio", ngn: 10000, credits: 110, bonus: 10 },
+  { id: "starter", name: "Starter", ngn: 1000, credits: 20, bonus: 0 },
+  { id: "builder", name: "Builder", ngn: 2500, credits: 54, bonus: 4 },
+  { id: "creator", name: "Creator", ngn: 5000, credits: 110, bonus: 10 },
+  { id: "studio", name: "Studio", ngn: 10000, credits: 220, bonus: 20 },
 ] as const;
 
 const tierById: Record<string, (typeof TOPUP_TIERS)[number]> = Object.fromEntries(
