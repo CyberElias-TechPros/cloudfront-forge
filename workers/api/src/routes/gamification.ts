@@ -15,6 +15,13 @@ function getPagination(request: Request): { limit: number; offset: number } {
   return { limit, offset };
 }
 
+/** True when `day` is exactly one day before `today` (both `YYYY-MM-DD`). */
+function isPreviousDay(day: string, today: string): boolean {
+  const yesterday = new Date(`${today}T00:00:00.000Z`);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  return day === yesterday.toISOString().split("T")[0];
+}
+
 export const gamificationRoutes: RouteDefinition[] = [
   {
     method: "GET",
@@ -331,16 +338,26 @@ export const gamificationRoutes: RouteDefinition[] = [
           return createErrorResponse("CONFLICT", "Daily bonus already claimed today", 409);
         }
 
-        // Get current streak (daily_login type)
+        // Get current streak (daily_login type). The streak is what the bonus
+        // multiplier is built on, so it has to be advanced here too — nothing
+        // else in the codebase ever incremented it, which left every member at
+        // streak 0 (a flat 5 credits/day, and a streak-freeze purchase that
+        // protected nothing).
         const streak = await database.query(
-          "SELECT current_streak FROM streaks WHERE user_id = ? AND streak_type = 'daily_login'",
+          "SELECT id, current_streak, longest_streak, last_activity_date FROM streaks WHERE user_id = ? AND streak_type = 'daily_login'",
           [userId],
         );
-        const streakCount = streak.results.length > 0
-          ? ((streak.results[0] as Record<string, unknown>).current_streak as number ?? 0)
-          : 0;
+        const streakRow = streak.results[0] as
+          | Record<string, unknown>
+          | undefined;
+        const streakCount = (streakRow?.current_streak as number | undefined) ?? 0;
+        const lastActivity = streakRow?.last_activity_date as string | undefined;
+        const continuesStreak =
+          !!lastActivity && isPreviousDay(lastActivity, today);
+        const nextStreak = streakRow ? (continuesStreak ? streakCount + 1 : 1) : 1;
 
-        // Base 5 credits × (1 + streak × 0.1), capped at 3×
+        // Base 5 credits × (1 + streak × 0.1), capped at 3×. The multiplier
+        // rewards the streak already banked, so day one pays the flat 5.
         const multiplier = Math.min(1 + streakCount * 0.1, 3);
         const baseCredits = 5;
         const bonusCredits = Math.round(baseCredits * multiplier);
@@ -363,12 +380,31 @@ export const gamificationRoutes: RouteDefinition[] = [
             sql: "UPDATE credit_accounts SET balance = balance + ?, updated_at = ? WHERE user_id = ?",
             params: [bonusCredits, now, userId],
           },
+          // Streak advance, in the same batch as the payout so a member can
+          // never be credited without their streak moving (or vice versa).
+          streakRow
+            ? {
+                sql: "UPDATE streaks SET current_streak = ?, longest_streak = MAX(COALESCE(longest_streak, 0), ?), last_activity_date = ?, updated_at = ? WHERE id = ?",
+                params: [nextStreak, nextStreak, today, now, streakRow.id],
+              }
+            : {
+                sql: "INSERT INTO streaks (id, user_id, current_streak, longest_streak, last_activity_date, streak_type, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'daily_login', ?, ?)",
+                params: [
+                  crypto.randomUUID(),
+                  userId,
+                  nextStreak,
+                  nextStreak,
+                  today,
+                  now,
+                  now,
+                ],
+              },
         ]);
 
         return createResponse({
           credits: bonusCredits,
           multiplier: Math.round(multiplier * 100) / 100,
-          streak: streakCount,
+          streak: nextStreak,
         });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {

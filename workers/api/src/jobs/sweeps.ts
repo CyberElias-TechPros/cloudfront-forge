@@ -32,7 +32,12 @@ export async function sweepOverdueReviews(db: Database): Promise<number> {
 }
 
 /**
- * Reset stale streaks: streak breaks if no claim in last 48 hours.
+ * Reset stale streaks: a streak breaks after 48 hours without activity.
+ *
+ * Activity means a claimed watch session *or* a daily-bonus claim — the streak
+ * is advanced by the daily bonus, so judging it purely on watch sessions would
+ * reset members who log in and claim every day but did not watch.
+ *
  * Users with streak_freezes > 0 consume one freeze instead of losing the streak.
  */
 export async function sweepStreakReset(db: Database): Promise<number> {
@@ -44,7 +49,9 @@ export async function sweepStreakReset(db: Database): Promise<number> {
          WHERE w.watcher_id = s.user_id
            AND w.status = 'claimed'
            AND w.verified_at > datetime('now', '-2 days')
-       )`,
+       )
+       AND (s.last_activity_date IS NULL
+            OR s.last_activity_date < date('now', '-2 days'))`,
     [],
   );
   if (rows.results.length === 0) return 0;
