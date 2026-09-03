@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PageHeader, Shell } from "@/components/page-parts";
 import { useCollaborators } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
+import { ErrorState } from "@/components/common/query-state";
 
 export const Route = createFileRoute("/collaborate")({
   head: () => ({
@@ -40,7 +41,7 @@ const intentLabels: Record<string, string> = {
 
 function Collaborate() {
   const [intent, setIntent] = useState<string>("collaboration");
-  const { data: members = [], isLoading } = useCollaborators(intent);
+  const { data: members = [], isLoading, isError, error, refetch } = useCollaborators(intent);
 
   return (
     <Shell>
@@ -68,7 +69,14 @@ function Collaborate() {
         ))}
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <ErrorState
+          className="mt-8"
+          title="Could not load collaborators"
+          error={error}
+          onRetry={() => void refetch()}
+        />
+      ) : isLoading ? (
         <div className="mt-8 flex min-h-[40vh] items-center justify-center">
           <div className="text-center">
             <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />

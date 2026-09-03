@@ -8,6 +8,7 @@ import { trackEvent } from "../lib/analytics";
 import { awardXp, getXpState, type XpAccountState } from "../lib/xp";
 import { z } from "zod";
 import { createLogger } from "../lib/logger";
+import { sanitize } from "../lib/sanitize";
 
 const db = (env: Env) => new Database(env);
 
@@ -24,6 +25,23 @@ const submitVideoSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   magicWord: z.string().min(2).max(30).optional(),
   niche: z.string().max(50).optional(),
+});
+
+const reviewAnswersSchema = z.object({
+  answers: z
+    .array(
+      z.object({
+        questionId: z.string().min(1).max(100),
+        ratingValue: z.number().min(0).max(5).optional(),
+        textAnswer: z.string().max(500).optional(),
+      }),
+    )
+    .max(20)
+    .default([]),
+});
+
+const helpfulSchema = z.object({
+  helpful: z.boolean(),
 });
 
 const reviewSchema = z.object({
@@ -134,7 +152,7 @@ export const videoRoutes: RouteDefinition[] = [
         const db = new Database(env);
         const now = new Date().toISOString();
 
-        const youtubeVideoId = extractYouTubeId(body.youtubeUrl);
+        const youtubeVideoId = extractYouTubeId(validation.data.youtubeUrl);
         if (!youtubeVideoId) {
           return createErrorResponse("VALIDATION_ERROR", "Invalid YouTube URL", 400);
         }
@@ -217,7 +235,8 @@ export const videoRoutes: RouteDefinition[] = [
             );
           }
         }
-        const finalTitle = validation.data.title?.trim() || metadata.title || "Untitled video";
+        const finalTitle =
+          validation.data.title?.trim() || (metadata.title ? sanitize(metadata.title) : "") || "Untitled video";
 
         const videoId = db.uuid();
         const communityId = validation.data.communityId || null;
@@ -765,10 +784,18 @@ export const reviewRoutes: RouteDefinition[] = [
         if (!reviewId) {
           return createErrorResponse("VALIDATION_ERROR", "Review ID is required", 400);
         }
-        const body = (await request.json().catch(() => ({}))) as any;
-        const answers: any[] = Array.isArray(body?.answers) ? body.answers : [];
+        const parsed = reviewAnswersSchema.safeParse(await request.json().catch(() => ({})));
+        if (!parsed.success) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            parsed.error.errors.map((e) => e.message).join(", "),
+            400,
+          );
+        }
+        const answers = parsed.data.answers;
 
         const db = new Database(env);
+        const logger = createLogger(env);
         const review = await db.querySingle(
           "SELECT id FROM reviews WHERE id = ? AND (reviewer_id = ? OR submitter_id = ?)",
           [reviewId, userId, userId],
@@ -778,23 +805,40 @@ export const reviewRoutes: RouteDefinition[] = [
         }
 
         const now = db.now();
-        const statements = answers
-          .filter((a) => a?.questionId)
-          .map((a) => ({
-            sql: "INSERT INTO review_answers (id, review_id, question_id, rating_value, text_answer, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            params: [
-              db.uuid(),
-              reviewId,
-              a.questionId,
-              a.ratingValue ?? null,
-              a.textAnswer ?? null,
-              now,
-            ],
-          }));
+        const statements = answers.map((a) => ({
+          sql: "INSERT INTO review_answers (id, review_id, question_id, rating_value, text_answer, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+          params: [
+            db.uuid(),
+            reviewId,
+            a.questionId,
+            a.ratingValue ?? null,
+            a.textAnswer ? sanitize(a.textAnswer) : null,
+            now,
+          ],
+        }));
 
         if (statements.length > 0) {
+          // Same guard as the completion path: review_answers has a foreign key
+          // to review_questions, and an unknown question id would abort the
+          // whole batch with a 500.
+          const questionIds = statements.map((s) => s.params[2] as string);
+          const placeholders = questionIds.map(() => "?").join(", ");
+          const known = await db.query(
+            `SELECT id FROM review_questions WHERE id IN (${placeholders})`,
+            questionIds,
+          );
+          const knownIds = new Set(known.results.map((q: any) => q.id as string));
+          const valid = statements.filter((s) => knownIds.has(s.params[2] as string));
+          if (valid.length !== statements.length) {
+            logger.warn("Dropped review answers for unknown questions", {
+              reviewId,
+              dropped: statements.length - valid.length,
+            });
+          }
           await db.execute("DELETE FROM review_answers WHERE review_id = ?", [reviewId]);
-          await db.batch(statements);
+          if (valid.length > 0) {
+            await db.batch(valid);
+          }
         }
 
         return createResponse({ message: "Answers submitted", saved: statements.length });
@@ -828,11 +872,22 @@ export const reviewRoutes: RouteDefinition[] = [
           return createErrorResponse("FORBIDDEN", "Only the video submitter can rate this review", 403);
         }
 
-        const body = (await request.json()) as { helpful: boolean };
-        await database.query("UPDATE reviews SET helpful = ? WHERE id = ?", [body.helpful ? 1 : 0, reviewId]);
+        const parsed = helpfulSchema.safeParse(await request.json().catch(() => ({})));
+        if (!parsed.success) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            "helpful must be a boolean",
+            400,
+          );
+        }
+        const helpful = parsed.data.helpful;
+        await database.query("UPDATE reviews SET helpful = ? WHERE id = ?", [
+          helpful ? 1 : 0,
+          reviewId,
+        ]);
 
         // Boost reviewer trust by 1 per helpful review (base 100, capped at 100)
-        if (body.helpful) {
+        if (helpful) {
           const nowTs = new Date().toISOString();
           await database.query(
             `INSERT INTO reputation_accounts (id, user_id, score, last_calculated, created_at, updated_at)
@@ -858,7 +913,11 @@ export const reviewRoutes: RouteDefinition[] = [
             const reviewerId = reviewRow.reviewer_id as string;
             await awardXp(database, reviewerId, REVIEW_HELPFUL_XP, nowTs);
             await database.execute(
-              "INSERT INTO xp_transactions (id, user_id, amount, type, description, reference_id, created_at) VALUES (?, ?, ?, 'review_helpful', 'Review rated helpful', ?, ?)",
+              // `type` is CHECK-constrained to a fixed list; 'review' is the
+              // entry for review-derived XP and the description carries the
+              // distinction. Anything else aborts the request with a 500 after
+              // the rating has already been written.
+              "INSERT INTO xp_transactions (id, user_id, amount, type, description, reference_id, created_at) VALUES (?, ?, ?, 'review', 'Review rated helpful', ?, ?)",
               [crypto.randomUUID(), reviewerId, REVIEW_HELPFUL_XP, reviewId, nowTs],
             );
           }

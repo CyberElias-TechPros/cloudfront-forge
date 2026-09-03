@@ -4,6 +4,7 @@ import { requireAuth, requireAdmin } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { notifyUserPush } from "../lib/push";
 import { z } from "zod";
+import { sanitize } from "../lib/sanitize";
 
 const createReportSchema = z.object({
   reportedUserId: z.string().uuid().optional(),
@@ -37,6 +38,11 @@ async function applyTrustPenalty(db: Database, userId: string): Promise<void> {
     );
   }
 }
+
+const appealReviewSchema = z.object({
+  status: z.enum(["accepted", "rejected"]),
+  note: z.string().max(2000).optional(),
+});
 
 export const reportRoutes: RouteDefinition[] = [
   {
@@ -199,9 +205,13 @@ export const reportRoutes: RouteDefinition[] = [
         const db = new Database(env);
 
         const appealId = new URL(request.url).pathname.split("/")[5] ?? "";
-        const body = (await request.json().catch(() => ({}))) as { status?: string; note?: string };
-        if (!body.status || !["accepted", "rejected"].includes(body.status)) {
-          return createErrorResponse("VALIDATION_ERROR", "status must be 'accepted' or 'rejected'", 400);
+        const parsed = appealReviewSchema.safeParse(await request.json().catch(() => ({})));
+        if (!parsed.success) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            parsed.error.errors.map((e) => e.message).join(", "),
+            400,
+          );
         }
 
         const appeal = await db.querySingle("SELECT id, report_id FROM appeals WHERE id = ?", [appealId]);
@@ -210,18 +220,24 @@ export const reportRoutes: RouteDefinition[] = [
         const now = new Date().toISOString();
         await db.execute(
           "UPDATE appeals SET status = ?, reviewed_by = ?, reviewed_at = ?, note = ? WHERE id = ?",
-          [body.status, adminId, now, body.note ?? null, appealId],
+          [
+            parsed.data.status,
+            adminId,
+            now,
+            parsed.data.note ? sanitize(parsed.data.note) : null,
+            appealId,
+          ],
         );
 
         // If accepted, dismiss the original report
-        if (body.status === "accepted") {
+        if (parsed.data.status === "accepted") {
           await db.execute("UPDATE reports SET status = 'dismissed', updated_at = ? WHERE id = ?", [
             now,
             (appeal as any).report_id,
           ]);
         }
 
-        return createResponse({ message: `Appeal ${body.status}` });
+        return createResponse({ message: `Appeal ${parsed.data.status}` });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);

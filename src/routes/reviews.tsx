@@ -11,6 +11,7 @@ interface ReviewQuestion {
   type?: string;
 }
 import { cn } from "@/lib/utils";
+import { ErrorState } from "@/components/common/query-state";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -54,7 +55,7 @@ function Reviews() {
     "assigned",
   );
   const [reviewToOpen, setReviewToOpen] = useState<Review | null>(null);
-  const { data: reviews = [], isLoading } = useReviews();
+  const { data: reviews = [], isLoading, isError, error, refetch } = useReviews();
   const { data: member } = useCurrentMember();
 
   const filtered = filter === "all" ? reviews : reviews.filter((r) => r.status === filter);
@@ -114,12 +115,19 @@ function Reviews() {
       />
 
       <div className="mt-6 space-y-3">
+        {isError ? (
+          <ErrorState
+            title="Could not load your reviews"
+            error={error}
+            onRetry={() => void refetch()}
+          />
+        ) : null}
         {isLoading ? (
           <div className="surface flex items-center justify-center py-12 text-sm text-muted-foreground">
             Loading reviews...
           </div>
         ) : null}
-        {!isLoading && filtered.length === 0 ? (
+        {!isLoading && !isError && filtered.length === 0 ? (
           <div className="surface py-12 text-center">
             <MessageCircle className="mx-auto size-12 text-muted-foreground/50" />
             <p className="mt-3 text-sm text-muted-foreground">

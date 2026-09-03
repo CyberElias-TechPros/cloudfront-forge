@@ -343,20 +343,22 @@ export const notificationRoutes: RouteDefinition[] = [
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
         const userId = await requireAuth(request, env);
-        const body = (await request.json().catch(() => ({}))) as any;
-        const endpoint = body.endpoint as string | undefined;
-        const p256dh = body.keys?.p256dh as string | undefined;
-        const auth = body.keys?.auth as string | undefined;
-        if (!endpoint || !p256dh || !auth) {
-          return createErrorResponse("VALIDATION_ERROR", "Missing push subscription fields", 400);
+        const parsed = pushSubscriptionSchema.safeParse(await request.json().catch(() => ({})));
+        if (!parsed.success) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            parsed.error.errors.map((e) => e.message).join(", "),
+            400,
+          );
         }
+        const { endpoint, keys } = parsed.data;
         const db = new Database(env);
         const now = new Date().toISOString();
         await db.execute(
           `INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth, created_at)
            VALUES (?, ?, ?, ?, ?, ?)
            ON CONFLICT(user_id, endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth`,
-          [crypto.randomUUID(), userId, endpoint, p256dh, auth, now],
+          [crypto.randomUUID(), userId, endpoint, keys.p256dh, keys.auth, now],
         );
         return createResponse({ message: "Push subscription saved" });
       } catch (error: any) {
@@ -373,11 +375,15 @@ export const notificationRoutes: RouteDefinition[] = [
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
         const userId = await requireAuth(request, env);
-        const body = (await request.json().catch(() => ({}))) as any;
-        const endpoint = body.endpoint as string | undefined;
-        if (!endpoint) {
-          return createErrorResponse("VALIDATION_ERROR", "Missing endpoint", 400);
+        const parsed = pushUnsubscribeSchema.safeParse(await request.json().catch(() => ({})));
+        if (!parsed.success) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            parsed.error.errors.map((e) => e.message).join(", "),
+            400,
+          );
         }
+        const { endpoint } = parsed.data;
         const db = new Database(env);
         await db.execute(
           "DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?",
@@ -393,5 +399,31 @@ export const notificationRoutes: RouteDefinition[] = [
     },
   },
 ];
+
+/** Push endpoints are always https URLs; `z.string().url()` accepts
+ *  `javascript:` too, which would be stored and later fetched. */
+const pushEndpoint = z
+  .string()
+  .max(512)
+  .refine((value) => {
+    try {
+      return new URL(value).protocol === "https:";
+    } catch {
+      return false;
+    }
+  }, "endpoint must be an https URL");
+
+const pushSubscriptionSchema = z.object({
+  endpoint: pushEndpoint,
+  keys: z.object({
+    // Web Push uses unpadded base64url keys; both are ~65 bytes encoded.
+    p256dh: z.string().min(1).max(256).regex(/^[A-Za-z0-9_-]+$/, "p256dh must be base64url"),
+    auth: z.string().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/, "auth must be base64url"),
+  }),
+});
+
+const pushUnsubscribeSchema = z.object({
+  endpoint: pushEndpoint,
+});
 
 export default notificationRoutes;

@@ -18,6 +18,7 @@ import {
   useApproveTopup,
   useRejectTopup,
 } from "@/hooks/use-api";
+import { ErrorNotice } from "@/components/common/query-state";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -50,6 +51,13 @@ function Admin() {
   const users = usersQuery.data ?? [];
   const topupsQuery = useAdminTopups("pending");
   const topups = topupsQuery.data ?? [];
+  const panels = [
+    { label: "metrics", query: statsQuery },
+    { label: "reports", query: flagsQuery },
+    { label: "users", query: usersQuery },
+    { label: "top-ups", query: topupsQuery },
+  ];
+  const failedQuery = panels.find((p) => p.query.isError);
   const approveTopup = useApproveTopup();
   const rejectTopup = useRejectTopup();
   const isAdmin = permissionsData?.role === "admin" || permissionsData?.role === "super_admin";
@@ -101,6 +109,21 @@ function Admin() {
           </button>
         }
       />
+
+      {failedQuery ? (
+        <ErrorNotice
+          className="mt-6"
+          error={failedQuery.query.error}
+          onRetry={() => {
+            void statsQuery.refetch();
+            void flagsQuery.refetch();
+            void usersQuery.refetch();
+            void topupsQuery.refetch();
+          }}
+        >
+          {`Could not load ${failedQuery.label}. Some panels below may be incomplete.`}
+        </ErrorNotice>
+      ) : null}
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -331,6 +354,15 @@ function Admin() {
 
           <section className="surface p-6">
             <h2 className="text-3xl">NGN top-ups</h2>
+            {topupsQuery.isError ? (
+              <ErrorNotice
+                error={topupsQuery.error}
+                onRetry={() => void topupsQuery.refetch()}
+                className="mt-4"
+              >
+                Could not load pending top-ups
+              </ErrorNotice>
+            ) : null}
             {topups.length ? (
               <ul className="mt-4 space-y-3">
                 {topups.map((t) => (

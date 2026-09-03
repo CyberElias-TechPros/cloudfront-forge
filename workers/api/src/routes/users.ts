@@ -253,7 +253,14 @@ export const userRoutes: RouteDefinition[] = [
         await db.execute(
           `INSERT OR REPLACE INTO youtube_channels (id, user_id, channel_id, channel_name, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?)`,
-          [crypto.randomUUID(), userId, body.channelId, body.channelName ?? null, now, now],
+          [
+            crypto.randomUUID(),
+            userId,
+            validation.data.channelId,
+            validation.data.channelName ? sanitize(validation.data.channelName) : null,
+            now,
+            now,
+          ],
         );
 
         // Award XP for connecting channel

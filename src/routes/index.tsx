@@ -81,7 +81,7 @@ const features = [
 ];
 
 function Landing() {
-  const { data: leaderboard = [] } = useLeaderboard();
+  const { data: leaderboard = [], isError: leaderboardError } = useLeaderboard();
   const boardItems = leaderboard.slice(0, 5).map((m) => ({
     id: m.id,
     name: m.displayName ?? "Member",
@@ -142,6 +142,11 @@ function Landing() {
               This week&apos;s squad board
             </p>
             <ul className="mt-4 space-y-3">
+              {leaderboardError ? (
+                <li className="rounded-lg bg-secondary/60 p-3 text-sm text-muted-foreground">
+                  Leaderboard unavailable right now — try again in a moment.
+                </li>
+              ) : null}
               {boardItems.map((m, i) => {
                 const avatar = (m.name[0] ?? "?").toUpperCase();
                 return (

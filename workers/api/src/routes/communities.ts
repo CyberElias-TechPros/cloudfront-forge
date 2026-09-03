@@ -225,7 +225,7 @@ export const communityRoutes: RouteDefinition[] = [
         const now = new Date().toISOString();
 
         const community = await db.querySingle("SELECT * FROM communities WHERE invite_code = ?", [
-          body.inviteCode.toUpperCase(),
+          validation.data.inviteCode.toUpperCase(),
         ]);
 
         if (!community) {
