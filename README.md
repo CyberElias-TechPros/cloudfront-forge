@@ -7,11 +7,11 @@ weighted leaderboard ranks the squad.
 
 **Two runtimes, no more:**
 
-| Layer | Platform | What it is |
-| --- | --- | --- |
-| Frontend | Vercel | Static SPA (`dist/client`) built by Vite/TanStack Start in SPA mode |
-| API | Cloudflare Workers | TypeScript Worker on D1 (SQLite), KV, R2 and a daily cron |
-| Identity | Firebase Auth | Google Sign-In; the Worker verifies ID tokens |
+| Layer    | Platform           | What it is                                                          |
+| -------- | ------------------ | ------------------------------------------------------------------- |
+| Frontend | Vercel             | Static SPA (`dist/client`) built by Vite/TanStack Start in SPA mode |
+| API      | Cloudflare Workers | TypeScript Worker on D1 (SQLite), KV, R2 and a daily cron           |
+| Identity | Firebase Auth      | Google Sign-In; the Worker verifies ID tokens                       |
 
 ---
 
@@ -58,18 +58,18 @@ vercel.json              Static SPA deployment + caching + security headers
 
 ## Commands
 
-| Where | Command | What it does |
-| --- | --- | --- |
-| root | `npm run dev` | Vite dev server with an `/api` proxy to the Worker |
-| root | `npm run build` | Static SPA build + postbuild SEO/secret guard |
-| root | `npm run preview` | Serve the built SPA |
-| root | `npm run lint` | ESLint (frontend + worker) |
-| root | `npm test` | Frontend unit tests (Vitest) |
-| `workers/api` | `npm run dev` | `wrangler dev` |
-| `workers/api` | `npm run deploy` / `deploy:staging` | Deploy production / staging |
-| `workers/api` | `npm run db:migrate:local` / `:staging` / `db:migrate` | Apply D1 migrations |
-| `workers/api` | `npm test` | Worker tests (Vitest + in-memory SQLite) |
-| `workers/api` | `npm run typecheck` | `tsc --noEmit` |
+| Where         | Command                                                | What it does                                       |
+| ------------- | ------------------------------------------------------ | -------------------------------------------------- |
+| root          | `npm run dev`                                          | Vite dev server with an `/api` proxy to the Worker |
+| root          | `npm run build`                                        | Static SPA build + postbuild SEO/secret guard      |
+| root          | `npm run preview`                                      | Serve the built SPA                                |
+| root          | `npm run lint`                                         | ESLint (frontend + worker)                         |
+| root          | `npm test`                                             | Frontend unit tests (Vitest)                       |
+| `workers/api` | `npm run dev`                                          | `wrangler dev`                                     |
+| `workers/api` | `npm run deploy` / `deploy:staging`                    | Deploy production / staging                        |
+| `workers/api` | `npm run db:migrate:local` / `:staging` / `db:migrate` | Apply D1 migrations                                |
+| `workers/api` | `npm test`                                             | Worker tests (Vitest + in-memory SQLite)           |
+| `workers/api` | `npm run typecheck`                                    | `tsc --noEmit`                                     |
 
 Node **22.5+** is required: the worker test suite drives a real SQLite database
 through `node:sqlite`.
@@ -101,6 +101,8 @@ missing secret).
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — the exact Vercel + Cloudflare
   runbook (resources, secrets, migrations, verification, rollback)
 - [`docs/API.md`](docs/API.md) — every endpoint, generated from the route table
+- [`docs/RECONSTRUCTION_REPORT.md`](docs/RECONSTRUCTION_REPORT.md) — what was
+  audited, fixed, tested and what remains open
 - [`docs/CI_WORKFLOW_UPDATE.md`](docs/CI_WORKFLOW_UPDATE.md) — CI changes that
   need a one-time manual apply
 - [`workers/api/.env.example`](workers/api/.env.example) and
