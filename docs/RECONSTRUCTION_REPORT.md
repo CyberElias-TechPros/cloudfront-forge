@@ -498,6 +498,8 @@ Engine. Firebase Auth is the only third-party service, as an identity provider.
 | Worker lint               | `npm run lint`                                                     | **0 errors, 11 warnings**                                                   |
 | Frontend build            | `npm run build`                                                    | exit 0; `dist/client` only; postbuild secret scan clean                     |
 | Local smoke               | `curl /health`, `curl /api/v1/leaderboards` through the Vite proxy | 200 with the expected envelope; authed routes 401                           |
+| Worker build              | `wrangler deploy --dry-run` (Wrangler 3.114 **and** 4)             | config valid, bundle produced                                               |
+| CI (GitHub Actions)       | `build`, `lint-and-typecheck`, `test`                              | all three **pass** on Node 20                                               |
 
 Worker suites: `ai-chat`, `architecture`, `auth-middleware`, `auth-routes`,
 `authorization`, `daily-bonus`, `data-integrity`, `gamification`, `logger`,
@@ -542,14 +544,14 @@ the suite runs unchanged on Node 20 and Node 22. **Both paths were executed:
    session is not permitted to create or modify `.github/workflows/`
    (`refusing to allow a GitHub App to create or update workflow … without
 'workflows' permission`; the Contents API returns 403 as well). The blocker
-this created was removed in code rather than waived: the worker test suite
-required `node:sqlite` (Node >= 22.5) while CI pins Node 20, so the `test` job
-failed on this branch. `tests/helpers/sqlite-driver.ts` now falls back to
-`node-sqlite3-wasm` on Node 20 and the whole suite passes on both drivers. The
-remaining recommended changes — Node 22, `npm ci` instead of `npm i`, and a job
-that actually runs the frontend tests — are written out verbatim in
-`docs/CI_WORKFLOW_UPDATE.md` and need a human with `workflows` permission.
-**A permission boundary, not a code problem: CI is green without them.**
+   this created was removed in code rather than waived: the worker test suite
+   required `node:sqlite` (Node >= 22.5) while CI pins Node 20, so the `test` job
+   failed on this branch. `tests/helpers/sqlite-driver.ts` now falls back to
+   `node-sqlite3-wasm` on Node 20 and the whole suite passes on both drivers. The
+   remaining recommended changes — Node 22, `npm ci` instead of `npm i`, and a job
+   that actually runs the frontend tests — are written out verbatim in
+   `docs/CI_WORKFLOW_UPDATE.md` and need a human with `workflows` permission.
+   **A permission boundary, not a code problem: CI is green without them.**
 2. **The Firebase service-account key that was in the repository history must be
    rotated** in the Firebase console. Removing it from the working tree does not
    invalidate it, and history rewriting is out of scope here.
@@ -567,7 +569,23 @@ that actually runs the frontend tests — are written out verbatim in
 7. **Moderator access to `/api/v1/admin/metrics`** is exercised by the
    authorization tests but not asserted per-route; the role matrix should be
    pinned down once the product decides what moderators may see.
-8. **`004_*.sql` ships twice** under two filenames. It is harmless (both are
+8. **Two deployment checks on pull requests are red for reasons outside the
+   code** (observed on PR #7, 2026-09-03):
+   - **`Workers Builds: creatorloop-api`** fails within one second on every
+     `pull_request` event, including on PR #6, which is already merged into
+     `main`. The same check **succeeds on pushes to `main`**. The Worker
+     configuration itself is valid: `wrangler deploy --dry-run` succeeds locally
+     with both Wrangler 3.114 and Wrangler 4. This is how the Cloudflare
+     service handles PR builds for a production-branch deployment, not a defect
+     in the branch.
+   - **`Vercel`** reports `Deployment was blocked` / `GitHub couldn't verify an
+account for the commit` for every commit authored by the agent account,
+     while the previous PR's commits deployed successfully. It is an
+     account-verification gate, not a build failure: the identical build
+     command (`npm ci && npm run build`) passes in the Actions `build` job and
+     locally. A human pushing any follow-up commit from a verified account
+     should clear it — pushed commits were not rewritten to change authorship.
+9. **`004_*.sql` ships twice** under two filenames. It is harmless (both are
    idempotent) but it must never be renamed: D1 records applied migrations by
    filename.
 
