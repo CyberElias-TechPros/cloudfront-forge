@@ -42,7 +42,10 @@ const SECRET_PATTERNS: { name: string; pattern: RegExp }[] = [
   { name: "GitHub token", pattern: /gh[pousr]_[A-Za-z0-9]{30,}/ },
   { name: "Stripe live key", pattern: /sk_live_[A-Za-z0-9]{20,}/ },
   { name: "Slack token", pattern: /xox[baprs]-[A-Za-z0-9-]{10,}/ },
-  { name: "hard-coded JWT", pattern: /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/ },
+  {
+    name: "hard-coded JWT",
+    pattern: /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/,
+  },
 ];
 
 describe("repository hygiene", () => {

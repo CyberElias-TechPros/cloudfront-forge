@@ -84,7 +84,7 @@ export async function progressQuest(env: Env, userId: string, type: QuestType): 
       );
     } else {
       await db.execute(
-        `INSERT INTO credit_accounts (id, user_id, balance, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+        "INSERT INTO credit_accounts (id, user_id, balance, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
         [crypto.randomUUID(), userId, quest.reward_credits ?? 0, now, now],
       );
     }

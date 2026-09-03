@@ -65,7 +65,7 @@ export const feedRoutes: RouteDefinition[] = [
         const communityId = searchParams.get("communityId");
 
         const communityFilter = communityId
-          ? `AND v.user_id IN (SELECT user_id FROM community_members WHERE community_id = ? AND status = 'active')`
+          ? "AND v.user_id IN (SELECT user_id FROM community_members WHERE community_id = ? AND status = 'active')"
           : "";
         const countParams = communityId ? [userId, communityId] : [userId];
         const totalResult = await db.query(
@@ -157,7 +157,7 @@ export const feedRoutes: RouteDefinition[] = [
         const { limit, offset } = getPagination(request);
 
         const totalResult = await db.query(
-          `SELECT COUNT(*) as count FROM videos v WHERE v.user_id = ?`,
+          "SELECT COUNT(*) as count FROM videos v WHERE v.user_id = ?",
           [userId],
         );
 
@@ -213,7 +213,7 @@ export const feedRoutes: RouteDefinition[] = [
         const { limit, offset } = getPagination(request);
 
         const totalResult = await db.query(
-          `SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0`,
+          "SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0",
           [userId],
         );
 

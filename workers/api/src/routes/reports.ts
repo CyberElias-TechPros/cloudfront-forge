@@ -159,7 +159,7 @@ export const reportRoutes: RouteDefinition[] = [
         }
 
         await db.execute(
-          `INSERT INTO appeals (id, report_id, user_id, reason, created_at) VALUES (?, ?, ?, ?, ?)`,
+          "INSERT INTO appeals (id, report_id, user_id, reason, created_at) VALUES (?, ?, ?, ?, ?)",
           [crypto.randomUUID(), reportId, userId, validation.data.reason, now],
         );
 

@@ -139,7 +139,7 @@ describe("encryptPushPayload", () => {
     const sub = await clientSubscription();
     const payload = JSON.stringify({
       title: "New review assigned",
-      body: 'Someone is watching "My video"',
+      body: "Someone is watching \"My video\"",
       url: "/notifications",
     });
 

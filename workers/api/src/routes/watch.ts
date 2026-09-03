@@ -85,7 +85,7 @@ async function verifyYouTubeSubscription(
 async function notifyUser(db: Database, userId: string, type: string, title: string, message: string): Promise<void> {
   const now = new Date().toISOString();
   await db.execute(
-    `INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+    "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)",
     [db.uuid(), userId, type, title, message, now],
   );
 }
@@ -558,7 +558,7 @@ export const watchRoutes: RouteDefinition[] = [
             params: [db.uuid(), watcherId, now, now],
           });
           batchStatements.push({
-            sql: `UPDATE credit_accounts SET balance = balance + ?, updated_at = ? WHERE user_id = ?`,
+            sql: "UPDATE credit_accounts SET balance = balance + ?, updated_at = ? WHERE user_id = ?",
             params: [creditsAwarded, now, watcherId],
           });
           batchStatements.push({
@@ -622,7 +622,7 @@ export const watchRoutes: RouteDefinition[] = [
                 video.user_id,
                 "WATCH_SESSION_CLAIMED",
                 "Your video was watched",
-                `Someone completed watching your video and earned rewards.`,
+                "Someone completed watching your video and earned rewards.",
               );
             }
           }

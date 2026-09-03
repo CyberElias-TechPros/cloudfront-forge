@@ -14,7 +14,7 @@
     "tail": "wrangler tail",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint src/**/*.ts",
+    "lint": "eslint src tests",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

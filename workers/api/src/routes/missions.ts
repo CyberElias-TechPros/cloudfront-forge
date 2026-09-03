@@ -173,6 +173,9 @@ export const missionRoutes: RouteDefinition[] = [
           "SELECT title FROM missions WHERE id = ?",
           [missionId],
         );
+        if (!mission) {
+          return createErrorResponse("NOT_FOUND", "Mission not found", 404);
+        }
 
         await db.execute(
           "INSERT INTO mission_assignments (id, mission_id, user_id, assigned_at, status) VALUES (?, ?, ?, ?, ?)",

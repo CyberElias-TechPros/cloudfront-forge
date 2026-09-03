@@ -103,7 +103,7 @@ export async function sendWeeklyDigests(env: Env): Promise<number> {
     const html = renderDigestHtml(name, row);
     const ok = await sendEmail(env, {
       to: row.email,
-      subject: `🔥 Your LoopSquad Weekly Recap`,
+      subject: "🔥 Your LoopSquad Weekly Recap",
       html,
     });
     if (ok) sent++;

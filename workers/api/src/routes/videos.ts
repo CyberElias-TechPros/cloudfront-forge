@@ -42,13 +42,13 @@ const reviewSchema = z.object({
 
 async function notifyCommunityMembers(db: Database, communityId: string, type: string, title: string, message: string, excludeUserId: string): Promise<void> {
   const members = await db.query(
-    `SELECT user_id FROM community_members WHERE community_id = ? AND user_id != ? AND status = 'active'`,
+    "SELECT user_id FROM community_members WHERE community_id = ? AND user_id != ? AND status = 'active'",
     [communityId, excludeUserId],
   );
 
   const now = new Date().toISOString();
   const statements = members.results.map((m: any) => ({
-    sql: `INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+    sql: "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)",
     params: [db.uuid(), m.user_id, type, title, message, now],
   }));
 
@@ -60,7 +60,7 @@ async function notifyCommunityMembers(db: Database, communityId: string, type: s
 async function notifyUser(db: Database, userId: string, type: string, title: string, message: string): Promise<void> {
   const now = new Date().toISOString();
   await db.execute(
-    `INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+    "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)",
     [db.uuid(), userId, type, title, message, now],
   );
 }
@@ -79,7 +79,7 @@ export const videoRoutes: RouteDefinition[] = [
         const db = new Database(env);
 
         let countQuery = "SELECT COUNT(*) as count FROM videos v WHERE v.status = 'active'";
-        let dataQuery = `SELECT v.*, c.name as community_name FROM videos v LEFT JOIN communities c ON v.community_id = c.id WHERE v.status = 'active'`;
+        let dataQuery = "SELECT v.*, c.name as community_name FROM videos v LEFT JOIN communities c ON v.community_id = c.id WHERE v.status = 'active'";
         const params: any[] = [];
 
         if (communityId) {
@@ -93,7 +93,7 @@ export const videoRoutes: RouteDefinition[] = [
         }
 
         const totalResult = await db.query(countQuery, params);
-        dataQuery += ` ORDER BY v.created_at DESC LIMIT ? OFFSET ?`;
+        dataQuery += " ORDER BY v.created_at DESC LIMIT ? OFFSET ?";
         params.push(limit, offset);
 
         const result = await db.query(dataQuery, params);
@@ -250,7 +250,7 @@ export const videoRoutes: RouteDefinition[] = [
             communityId,
             "NEW_VIDEO_SUBMITTED",
             "New Video Submitted",
-            `A new video has been submitted to your community.`,
+            "A new video has been submitted to your community.",
             userId,
           );
         }
@@ -384,7 +384,7 @@ export const reviewRoutes: RouteDefinition[] = [
         const { limit, offset } = getPagination(request);
 
         const totalResult = await db.query(
-          `SELECT COUNT(*) as count FROM reviews WHERE reviewer_id = ? AND status IN ('assigned', 'in_progress', 'overdue')`,
+          "SELECT COUNT(*) as count FROM reviews WHERE reviewer_id = ? AND status IN ('assigned', 'in_progress', 'overdue')",
           [userId],
         );
 
@@ -550,7 +550,7 @@ export const reviewRoutes: RouteDefinition[] = [
             review.submitter_id,
             "REVIEW_STARTED",
             "Review Started",
-            `A review of your video has been started.`,
+            "A review of your video has been started.",
           );
         }
 
@@ -841,7 +841,7 @@ export const reviewRoutes: RouteDefinition[] = [
             [crypto.randomUUID(), reviewRow.reviewer_id, nowTs, nowTs, nowTs],
           );
           await database.query(
-            `UPDATE reputation_accounts SET score = MIN(100, score + 1), updated_at = ? WHERE user_id = ?`,
+            "UPDATE reputation_accounts SET score = MIN(100, score + 1), updated_at = ? WHERE user_id = ?",
             [nowTs, reviewRow.reviewer_id],
           );
           await database.query(
