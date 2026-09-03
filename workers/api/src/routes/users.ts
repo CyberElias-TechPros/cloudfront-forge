@@ -1,14 +1,13 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
-import { Database } from "../lib/database";
-import { paginationSchema } from "../middleware/validation";
+import { Database, sqlBool } from "../lib/database";
 import { sanitize } from "../lib/sanitize";
 import { z } from "zod";
 import { createLogger } from "../lib/logger";
 
 const updateProfileSchema = z.object({
-  displayName: z.string().min(1).optional(),
+  displayName: z.string().min(1).max(50).optional(),
   bio: z.string().max(500).optional(),
   country: z.string().max(100).optional(),
   language: z.string().max(50).optional(),
@@ -25,13 +24,15 @@ const updateYouTubeChannelSchema = z.object({
   channelName: z.string().optional(),
 });
 
-export const userRoutes = [
+export const userRoutes: RouteDefinition[] = [
   {
     method: "GET",
     pattern: "^\\/api\\/v1/users/([^/]+)$",
     handler: async (request: Request, env: Env): Promise<Response> => {
-      const logger = createLogger(env);
       try {
+        // Signed-in members only: this returns display name, photo and the
+        // creator profile (niche, goals, country, ...).
+        await requireAuth(request, env);
         const url = new URL(request.url);
         const path = url.pathname;
         const userIdParam = path.split("/").pop();
@@ -60,8 +61,11 @@ export const userRoutes = [
           photoUrl: user.photo_url,
           profile: profile,
         });
-      } catch (error) {
-        logger.error("Get user error", error);
+      } catch (error: any) {
+        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        createLogger(env).error("Get user error", error);
         return createErrorResponse("INTERNAL_ERROR", "Failed to get user", 500);
       }
     },
@@ -134,7 +138,6 @@ export const userRoutes = [
     method: "PUT",
     path: "/api/v1/users/me/profile",
     handler: async (request: Request, env: Env): Promise<Response> => {
-      const logger = createLogger(env);
       try {
         const userId = await requireAuth(request, env);
         const body = (await request.json().catch(() => ({}))) as any;
@@ -147,6 +150,7 @@ export const userRoutes = [
             400,
           );
         }
+        const input = validation.data;
 
         const db = new Database(env);
 
@@ -158,8 +162,19 @@ export const userRoutes = [
 
         const now = new Date().toISOString();
 
-        const sanitizedDisplayName = body.displayName ? sanitize(body.displayName) : null;
-        const sanitizedBio = body.bio ? sanitize(body.bio) : null;
+        // The display name lives on `users` (it is shown next to reviews,
+        // leaderboard rows and notifications); it used to be validated, then
+        // silently dropped.
+        if (input.displayName !== undefined) {
+          await db.execute("UPDATE users SET display_name = ?, updated_at = ? WHERE id = ?", [
+            sanitize(input.displayName),
+            now,
+            userId,
+          ]);
+        }
+
+        const clean = (value: string | undefined): string | null =>
+          value === undefined ? null : sanitize(value);
 
         if (existingProfile) {
           await db.execute(
@@ -168,15 +183,15 @@ export const userRoutes = [
              looking_for = ?, public_profile = ?, updated_at = ?
              WHERE user_id = ?`,
             [
-              sanitizedBio ?? existingProfile.bio,
-              body.country ?? existingProfile.country,
-              body.language ?? existingProfile.language,
-              body.experienceLevel ?? existingProfile.experience_level,
-              body.niche ?? existingProfile.niche,
-              body.contentCategories ?? existingProfile.content_categories,
-              body.goals ?? existingProfile.goals,
-              body.lookingFor ?? existingProfile.looking_for,
-              body.publicProfile ?? existingProfile.public_profile,
+              clean(input.bio) ?? existingProfile.bio,
+              clean(input.country) ?? existingProfile.country,
+              clean(input.language) ?? existingProfile.language,
+              input.experienceLevel ?? existingProfile.experience_level,
+              clean(input.niche) ?? existingProfile.niche,
+              clean(input.contentCategories) ?? existingProfile.content_categories,
+              clean(input.goals) ?? existingProfile.goals,
+              input.lookingFor ?? existingProfile.looking_for,
+              sqlBool(input.publicProfile) ?? existingProfile.public_profile,
               now,
               userId,
             ],
@@ -190,15 +205,15 @@ export const userRoutes = [
             [
               crypto.randomUUID(),
               userId,
-              sanitizedBio ?? null,
-              body.country ?? null,
-              body.language ?? null,
-              body.experienceLevel ?? null,
-              body.niche ?? null,
-              body.contentCategories ?? null,
-              body.goals ?? null,
-              body.lookingFor ?? null,
-              body.publicProfile ?? true,
+              clean(input.bio),
+              clean(input.country),
+              clean(input.language),
+              input.experienceLevel ?? null,
+              clean(input.niche),
+              clean(input.contentCategories),
+              clean(input.goals),
+              input.lookingFor ?? null,
+              sqlBool(input.publicProfile) ?? 1,
               now,
               now,
             ],

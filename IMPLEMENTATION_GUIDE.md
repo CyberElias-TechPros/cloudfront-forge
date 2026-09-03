@@ -90,7 +90,8 @@ Create `.dev.vars` in the root directory:
 # Backend environment variables (for local development)
 FIREBASE_PROJECT_ID=creatorloop-dev
 FIREBASE_CLIENT_EMAIL=firebase-adminsdk@creatorloop-dev.iam.gserviceaccount.com
-FIREBASE_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n[KEY]\n-----END PRIVATE KEY-----\n
+# Paste the PEM from your service-account JSON, with literal \n escapes kept.
+FIREBASE_PRIVATE_KEY="<paste-the-PEM-from-your-service-account-key>"
 YOUTUBE_API_KEY=AIzaSy[your_api_key]
 AI_PROVIDER=google
 AI_API_KEY=[your_ai_api_key]

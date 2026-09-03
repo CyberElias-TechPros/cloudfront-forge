@@ -1,6 +1,6 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireAdmin } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { notifyUserPush } from "../lib/push";
 import { z } from "zod";
@@ -38,7 +38,7 @@ async function applyTrustPenalty(db: Database, userId: string): Promise<void> {
   }
 }
 
-export const reportRoutes = [
+export const reportRoutes: RouteDefinition[] = [
   {
     method: "POST",
     path: "/api/v1/reports",
@@ -192,18 +192,11 @@ export const reportRoutes = [
     pattern: "^\\/api\\/v1/admin/appeals/([^/]+)$",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
-        const adminId = await requireAuth(request, env);
+        // Single source of truth for admin checks: the hand-rolled role check
+        // here drifted from `requireAdmin` (moderators were rejected in one
+        // place and accepted in another).
+        const adminId = await requireAdmin(request, env);
         const db = new Database(env);
-
-        // Verify admin role
-        const admin = await db.querySingle(
-          "SELECT role FROM admin_users WHERE user_id = ?",
-          [adminId],
-        );
-        const adminRole = (admin as { role?: string })?.role;
-        if (adminRole !== "super_admin" && adminRole !== "admin") {
-          return createErrorResponse("FORBIDDEN", "Admin access required", 403);
-        }
 
         const appealId = new URL(request.url).pathname.split("/")[5] ?? "";
         const body = (await request.json().catch(() => ({}))) as { status?: string; note?: string };
@@ -232,6 +225,9 @@ export const reportRoutes = [
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        if (error.message === "FORBIDDEN") {
+          return createErrorResponse("FORBIDDEN", "Admin access required", 403);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to review appeal", 500);
       }

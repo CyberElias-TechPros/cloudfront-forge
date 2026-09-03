@@ -1,9 +1,9 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
 
-export const searchRoutes = [
+export const searchRoutes: RouteDefinition[] = [
   {
     method: "GET",
     path: "/api/v1/search",

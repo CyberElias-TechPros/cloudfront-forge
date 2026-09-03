@@ -1,4 +1,4 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
@@ -57,7 +57,7 @@ async function buildPlatformAwarePrompt(db: Database, userId: string): Promise<s
   );
 }
 
-export const aiRoutes = [
+export const aiRoutes: RouteDefinition[] = [
   {
     method: "POST",
     path: "/api/v1/ai/chat",

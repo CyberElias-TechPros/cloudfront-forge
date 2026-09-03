@@ -278,18 +278,24 @@ function Gamification() {
                     className="flex items-center justify-between gap-3 border-b border-border/60 pb-2 last:border-0 last:pb-0"
                   >
                     <div>
-                      <span className="font-medium">{a.who}</span>{" "}
+                      {a.who ? (
+                        <>
+                          <span className="font-medium">{a.who}</span>{" "}
+                        </>
+                      ) : null}
                       <span className="text-muted-foreground">{a.what}</span>
                       <span className="block text-xs text-muted-foreground">{a.when}</span>
                     </div>
-                    <span
-                      className={cn(
-                        "text-sm font-medium",
-                        a.points.startsWith("-") ? "text-destructive" : "text-success",
-                      )}
-                    >
-                      {a.points}
-                    </span>
+                    {a.points ? (
+                      <span
+                        className={cn(
+                          "text-sm font-medium",
+                          a.points.startsWith("-") ? "text-destructive" : "text-success",
+                        )}
+                      >
+                        {a.points}
+                      </span>
+                    ) : null}
                   </div>
                 ))}
               </div>

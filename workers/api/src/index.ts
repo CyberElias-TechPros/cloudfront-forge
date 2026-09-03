@@ -1,40 +1,45 @@
 /// <reference types="@cloudflare/workers-types" />
-import type { Env, ApiResponse } from "./types";
-import { errorHandler, createResponse, createErrorResponse } from "./middleware/errorHandler";
+import type { Env } from "./types";
+import {
+  errorHandler,
+  createResponse,
+  createErrorResponse,
+  SECURITY_HEADERS,
+} from "./middleware/errorHandler";
 import { rateLimitMiddleware } from "./middleware/rateLimit";
 import { authMiddleware } from "./middleware/auth";
-import { authRoutes } from "./routes/auth";
-import { userRoutes } from "./routes/users";
-import { communityRoutes } from "./routes/communities";
-import { videoRoutes, reviewRoutes } from "./routes/videos";
-import { missionRoutes } from "./routes/missions";
-import { gamificationRoutes } from "./routes/gamification";
-import { adminRoutes } from "./routes/admin";
-import { notificationRoutes } from "./routes/notifications";
-import { feedRoutes } from "./routes/feed";
-import { watchRoutes } from "./routes/watch";
-import { aiRoutes } from "./routes/ai";
-import { youtubeRoutes } from "./routes/youtube";
-import { searchRoutes } from "./routes/search";
-import { reportRoutes } from "./routes/reports";
-import { shopRoutes } from "./routes/shop";
-import { topupRoutes } from "./routes/topups";
-import { discoverRoutes } from "./routes/discover";
+import { routes } from "./routes";
+import { findRoute } from "./lib/router";
 import { runAllJobs } from "./jobs";
 
-const SECURITY_HEADERS = new Headers({
-  "X-Content-Type-Options": "nosniff",
-  "X-Frame-Options": "DENY",
-  "X-XSS-Protection": "1; mode=block",
-  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-  "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'",
-});
+/**
+ * Resolve the CORS response for an incoming origin.
+ *
+ * `CORS_ORIGINS` is a comma-separated allow-list. Entries may start with `*.`
+ * to allow every subdomain of a host (e.g. `*.vercel.app` for preview
+ * deployments). When the origin is not allow-listed we return nothing at all
+ * rather than echoing the first configured origin — echoing made the allow-list
+ * meaningless for credentialed browser requests.
+ */
+function resolveCorsOrigin(origin: string, env: Env): string | null {
+  if (!origin) return null;
+  const allowed = (env.CORS_ORIGINS || "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
 
-function applySecurityHeaders(headers: Headers): Headers {
-  SECURITY_HEADERS.forEach((value, key) => {
-    headers.set(key, value);
-  });
-  return headers;
+  for (const entry of allowed) {
+    if (entry === origin) return origin;
+    if (entry.startsWith("*.") && origin.endsWith(entry.slice(1))) return origin;
+  }
+
+  // Local development: the Vite dev server proxies /api/*, but `wrangler dev`
+  // is also reachable directly from the browser during debugging.
+  if (env.ENVIRONMENT !== "production" && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+    return origin;
+  }
+
+  return null;
 }
 
 let envValidated = false;
@@ -56,143 +61,102 @@ export default {
   },
 
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url);
+    const path = url.pathname;
+
+    // Health checks must answer even when the environment is incomplete —
+    // otherwise a misconfigured deploy is indistinguishable from a dead one.
+    if (path === "/health" || path === "/health/") {
+      const headers = new Headers({ "Content-Type": "application/json" });
+      SECURITY_HEADERS.forEach((value, key) => headers.set(key, value));
+      return new Response(
+        JSON.stringify({
+          status: "ok",
+          environment: env.ENVIRONMENT ?? "unknown",
+          timestamp: new Date().toISOString(),
+        }),
+        { status: 200, headers },
+      );
+    }
+
+    const origin = request.headers.get("Origin") || "";
+    const corsOrigin = resolveCorsOrigin(origin, env);
+    const corsHeaders = new Headers({
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      Vary: "Origin",
+    });
+    if (corsOrigin) {
+      corsHeaders.set("Access-Control-Allow-Origin", corsOrigin);
+      corsHeaders.set("Access-Control-Allow-Credentials", "true");
+    }
+    SECURITY_HEADERS.forEach((value, key) => corsHeaders.set(key, value));
+
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
+
     try {
       validateEnv(env);
-      const corsOrigins = (env.CORS_ORIGINS || "")
-        .split(",")
-        .map((o) => o.trim())
-        .filter(Boolean);
-      const origin = request.headers.get("Origin") || "";
-      // In development, also accept any localhost origin so the Vite dev server
-      // can talk to the worker without extra CORS_ORIGINS configuration.
-      const isLocalOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-      const isAllowedOrigin =
-        corsOrigins.includes(origin) || (env.ENVIRONMENT === "development" && isLocalOrigin);
-      const corsOrigin = isAllowedOrigin ? origin : corsOrigins[0] || "*";
-
-      const corsHeaders = new Headers({
-        "Access-Control-Allow-Origin": corsOrigin,
-        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Credentials": "true",
-        Vary: "Origin",
-      });
-
-      applySecurityHeaders(corsHeaders);
-
-      if (request.method === "OPTIONS") {
-        return new Response(null, { headers: corsHeaders });
-      }
-
-      const url = new URL(request.url);
-      const path = url.pathname;
 
       const isAuthEndpoint = path.startsWith("/api/v1/auth/");
       const isExpensiveEndpoint =
         path.startsWith("/api/v1/ai/") ||
-        path === "/api/v1/videos" && request.method === "POST" ||
-        path === "/api/v1/watch" && request.method === "POST";
-      const isWriteEndpoint = request.method === "POST" || request.method === "PUT" || request.method === "PATCH" || request.method === "DELETE";
+        (path === "/api/v1/videos" && request.method === "POST") ||
+        (path === "/api/v1/watch" && request.method === "POST");
+      const isWriteEndpoint =
+        request.method === "POST" ||
+        request.method === "PUT" ||
+        request.method === "PATCH" ||
+        request.method === "DELETE";
 
       const rateLimited = await rateLimitMiddleware(request, env, {
         maxRequests: isAuthEndpoint
           ? parseInt(env.AUTH_RATE_LIMIT_MAX_REQUESTS || "30", 10)
           : isExpensiveEndpoint
             ? 20
-            : isWriteEndpoint
-              ? parseInt(env.RATE_LIMIT_MAX_REQUESTS || "100", 10)
-              : parseInt(env.RATE_LIMIT_MAX_REQUESTS || "200", 10),
+            : parseInt(env.RATE_LIMIT_MAX_REQUESTS || (isWriteEndpoint ? "100" : "200"), 10),
         windowSeconds: isAuthEndpoint
           ? parseInt(env.AUTH_RATE_LIMIT_WINDOW || "60", 10)
           : isExpensiveEndpoint
             ? 60
             : parseInt(env.RATE_LIMIT_WINDOW || "60", 10),
         failClosed: isAuthEndpoint || isExpensiveEndpoint || path.startsWith("/api/v1/admin/"),
-        keyPrefix: isAuthEndpoint ? "auth" : isExpensiveEndpoint ? "expensive" : isWriteEndpoint ? "write" : "read",
+        keyPrefix: isAuthEndpoint
+          ? "auth"
+          : isExpensiveEndpoint
+            ? "expensive"
+            : isWriteEndpoint
+              ? "write"
+              : "read",
       });
       if (!rateLimited) {
         return createErrorResponse("RATE_LIMITED", "Too many requests", 429, corsHeaders);
       }
 
-      const auth = await authMiddleware(request, env);
-      const method = request.method;
-
-      if (path === "/health" || path === "/health/") {
-        const headers = applySecurityHeaders(new Headers({
-          "Content-Type": "application/json",
-        }));
-        return new Response(JSON.stringify({ status: "ok", timestamp: new Date().toISOString() }), {
-          status: 200,
-          headers,
-        });
-      }
-
-      const allRoutes = [
-        ...authRoutes,
-        ...userRoutes,
-        ...communityRoutes,
-        ...videoRoutes,
-        ...reviewRoutes,
-        ...missionRoutes,
-        ...gamificationRoutes,
-        ...adminRoutes,
-        ...notificationRoutes,
-        ...feedRoutes,
-        ...watchRoutes,
-        ...aiRoutes,
-        ...youtubeRoutes,
-        ...searchRoutes,
-        ...reportRoutes,
-        ...shopRoutes,
-        ...topupRoutes,
-        ...discoverRoutes,
-      ];
-
-      const route = allRoutes.find(
-        (r) =>
-          r.method === method &&
-          (path === r.path || ("pattern" in r && path.match(new RegExp(r.pattern ?? ""))?.length)),
-      );
-
+      const route = findRoute(routes, request.method, path);
       if (!route) {
         return createErrorResponse("NOT_FOUND", "Route not found", 404, corsHeaders);
       }
 
-      (request as any).__auth = auth;
-      (request as any).__env = env;
-      (request as any).__ctx = ctx;
+      const auth = await authMiddleware(request, env);
+      (request as unknown as { __auth: unknown }).__auth = auth;
 
       const response = await route.handler(request, env);
 
-      if (response instanceof Response) {
-        const responseHeaders = applySecurityHeaders(new Headers(corsHeaders));
-        response.headers.forEach((value, key) => {
-          responseHeaders.set(key, value);
-        });
-        return new Response(response.body, {
-          status: response.status,
-          headers: responseHeaders,
-        });
-      }
-
-      return createResponse(response);
+      const responseHeaders = new Headers(corsHeaders);
+      response.headers.forEach((value, key) => responseHeaders.set(key, value));
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders,
+      });
     } catch (error) {
-      const corsOrigins = (env.CORS_ORIGINS || "")
-        .split(",")
-        .map((o) => o.trim())
-        .filter(Boolean);
-      const origin = request.headers.get("Origin") || "";
-      // In development, also accept any localhost origin so the Vite dev server
-      // can talk to the worker without extra CORS_ORIGINS configuration.
-      const isLocalOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-      const isAllowedOrigin =
-        corsOrigins.includes(origin) || (env.ENVIRONMENT === "development" && isLocalOrigin);
-      const corsOrigin = isAllowedOrigin ? origin : corsOrigins[0] || "*";
-      const corsHeaders = applySecurityHeaders(new Headers({
-        "Access-Control-Allow-Origin": corsOrigin,
-        Vary: "Origin",
-      }));
-      return errorHandler(error as Error, request, corsHeaders);
+      return errorHandler(error as Error, request, corsHeaders, env, ctx);
     }
   },
 };
+
+// Re-exported so the routing table can be exercised without going through fetch.
+export { routes };
+export { createResponse };

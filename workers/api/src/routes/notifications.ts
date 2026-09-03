@@ -1,10 +1,9 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
-import { Database } from "../lib/database";
+import { Database, sqlBool } from "../lib/database";
 import { sanitize } from "../lib/sanitize";
 import { z } from "zod";
-import { createLogger } from "../lib/logger";
 import { notifyUserPush } from "../lib/push";
 
 function getPagination(request: Request): { limit: number; offset: number } {
@@ -25,6 +24,7 @@ const updatePreferencesSchema = z.object({
   emailEnabled: z.boolean().optional(),
   pushEnabled: z.boolean().optional(),
   inAppEnabled: z.boolean().optional(),
+  whatsappEnabled: z.boolean().optional(),
   missionReminders: z.boolean().optional(),
   reviewRequests: z.boolean().optional(),
   communityUpdates: z.boolean().optional(),
@@ -32,7 +32,7 @@ const updatePreferencesSchema = z.object({
   quietHoursEnd: z.number().min(0).max(23).nullable().optional(),
 });
 
-export const notificationRoutes = [
+export const notificationRoutes: RouteDefinition[] = [
   {
     method: "GET",
     path: "/api/v1/notifications",
@@ -80,7 +80,6 @@ export const notificationRoutes = [
     method: "POST",
     path: "/api/v1/notifications",
     handler: async (request: Request, env: Env): Promise<Response> => {
-      const logger = createLogger(env);
       try {
         const userId = await requireAuth(request, env);
         const body = (await request.json().catch(() => ({}))) as any;
@@ -97,22 +96,26 @@ export const notificationRoutes = [
         const db = new Database(env);
         const now = new Date().toISOString();
 
+        const input = validation.data;
+        const safeTitle = sanitize(input.title);
+        const safeMessage = sanitize(input.message);
+
         await db.execute(
           `INSERT INTO notifications (id, user_id, type, title, message, data, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [
             crypto.randomUUID(),
             userId,
-            sanitize(body.type),
-            sanitize(body.title),
-            sanitize(body.message),
-            body.data ? JSON.stringify(body.data) : null,
+            sanitize(input.type),
+            safeTitle,
+            safeMessage,
+            input.data ? JSON.stringify(input.data) : null,
             now,
           ],
         );
 
         // Fire-and-forget web push
-        await notifyUserPush(env, userId, sanitize(body.title), sanitize(body.message));
+        await notifyUserPush(env, userId, safeTitle, safeMessage);
 
         return createResponse({ message: "Notification created" }, 201);
       } catch (error: any) {
@@ -236,15 +239,18 @@ export const notificationRoutes = [
              updated_at = ?
              WHERE user_id = ?`,
             [
-              body.emailEnabled ?? null,
-              body.pushEnabled ?? null,
-              body.whatsappEnabled ?? null,
-              body.inAppEnabled ?? null,
-              body.missionReminders ?? null,
-              body.reviewRequests ?? null,
-              body.communityUpdates ?? null,
-              body.quietHoursStart ?? null,
-              body.quietHoursEnd ?? null,
+              // Validated payload (the raw body was used before, so a caller
+              // could store e.g. the string "yes" in an integer column).
+              // null keeps the stored value via COALESCE.
+              sqlBool(validation.data.emailEnabled),
+              sqlBool(validation.data.pushEnabled),
+              sqlBool(validation.data.whatsappEnabled),
+              sqlBool(validation.data.inAppEnabled),
+              sqlBool(validation.data.missionReminders),
+              sqlBool(validation.data.reviewRequests),
+              sqlBool(validation.data.communityUpdates),
+              validation.data.quietHoursStart ?? null,
+              validation.data.quietHoursEnd ?? null,
               now,
               userId,
             ],
@@ -259,15 +265,15 @@ export const notificationRoutes = [
             [
               crypto.randomUUID(),
               userId,
-              body.emailEnabled ?? true,
-              body.pushEnabled ?? true,
-              body.whatsappEnabled ?? false,
-              body.inAppEnabled ?? true,
-              body.missionReminders ?? true,
-              body.reviewRequests ?? true,
-              body.communityUpdates ?? true,
-              body.quietHoursStart ?? null,
-              body.quietHoursEnd ?? null,
+              sqlBool(validation.data.emailEnabled) ?? 1,
+              sqlBool(validation.data.pushEnabled) ?? 1,
+              sqlBool(validation.data.whatsappEnabled) ?? 0,
+              sqlBool(validation.data.inAppEnabled) ?? 1,
+              sqlBool(validation.data.missionReminders) ?? 1,
+              sqlBool(validation.data.reviewRequests) ?? 1,
+              sqlBool(validation.data.communityUpdates) ?? 1,
+              validation.data.quietHoursStart ?? null,
+              validation.data.quietHoursEnd ?? null,
               now,
               now,
             ],

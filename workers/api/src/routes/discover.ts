@@ -1,4 +1,4 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
@@ -11,7 +11,7 @@ const VALID_INTENTS = new Set(["collaboration", "feedback", "support", "mentorsh
  * mentorship). Read-only; the profile's `looking_for` + `public_profile`
  * fields drive inclusion.
  */
-export const discoverRoutes = [
+export const discoverRoutes: RouteDefinition[] = [
   {
     method: "GET",
     path: "/api/v1/discover/collaborators",

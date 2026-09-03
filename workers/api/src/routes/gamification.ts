@@ -1,9 +1,10 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { ensureDailyQuests } from "../lib/quests";
-import { calculateLevel, calculateWeightedScore } from "../lib/utils";
+import { calculateLevel } from "../lib/utils";
+import { calculateWeightedScore, weightedScoreSql } from "../lib/scoring";
 
 const db = (env: Env) => new Database(env);
 
@@ -14,7 +15,7 @@ function getPagination(request: Request): { limit: number; offset: number } {
   return { limit, offset };
 }
 
-export const gamificationRoutes = [
+export const gamificationRoutes: RouteDefinition[] = [
   {
     method: "GET",
     path: "/api/v1/daily-quests",
@@ -214,12 +215,18 @@ export const gamificationRoutes = [
 
         const database = db(env);
 
-        let dateFilter = "";
-        if (timeframe === "weekly") {
-          dateFilter = "AND xp.created_at >= datetime('now', '-7 days')";
-        } else if (timeframe === "monthly") {
-          dateFilter = "AND xp.created_at >= datetime('now', '-30 days')";
-        }
+        // XP earned inside the selected window (null = all time). XP is the
+        // only time-scoped component: credits and reputation are lifetime
+        // balances, so they are always counted in full.
+        const windowModifier =
+          timeframe === "daily"
+            ? "-1 days"
+            : timeframe === "monthly"
+              ? "-30 days"
+              : timeframe === "all"
+                ? null
+                : "-7 days";
+        const windowParams = windowModifier === null ? [null, null] : [windowModifier, windowModifier];
 
         // Cohort tiers by account age: rookie <7d, rising 7-30d, veteran >30d
         let cohortFilter = "";
@@ -239,23 +246,33 @@ export const gamificationRoutes = [
         const result = await database.query(
           `
           SELECT u.id, u.display_name, u.photo_url,
-                 COALESCE(xp.total_xp, 0) as total_xp,
+                 COALESCE(period.xp, 0) as total_xp,
                  COALESCE(c.balance, 0) as credits,
-                 COALESCE(r.score, 100) as reputation,
-                  ROUND(COALESCE(xp.total_xp, 0) * 0.4 + COALESCE(c.balance, 0) * 0.3 + COALESCE(r.score, 100) * 0.3) as weighted_score
+                 COALESCE(r.score, 100) as reputation
           FROM users u
-          LEFT JOIN xp_accounts xp ON xp.user_id = u.id
+          LEFT JOIN (
+            SELECT user_id, SUM(amount) AS xp
+              FROM xp_transactions
+             WHERE (? IS NULL OR created_at >= datetime('now', ?))
+             GROUP BY user_id
+          ) period ON period.user_id = u.id
           LEFT JOIN credit_accounts c ON c.user_id = u.id
           LEFT JOIN reputation_accounts r ON r.user_id = u.id
           WHERE u.deleted_at IS NULL ${cohortFilter}
-           ORDER BY weighted_score DESC
+           ORDER BY ${weightedScoreSql("period.xp", "c.balance", "r.score")} DESC,
+                    u.created_at ASC
            LIMIT ? OFFSET ?
          `,
-          [limit, offset],
+          [...windowParams, limit, offset],
         );
 
         const items = result.results.map((row: Record<string, unknown>, index: number) => ({
           ...row,
+          weighted_score: calculateWeightedScore(
+            Number(row.total_xp ?? 0),
+            Number(row.credits ?? 0),
+            Number(row.reputation ?? 100),
+          ),
           rank: offset + index + 1,
         }));
 
@@ -264,6 +281,7 @@ export const gamificationRoutes = [
           total: totalResult.results[0]?.count ?? 0,
           limit,
           offset,
+          timeframe,
           cohort: cohort ?? "all",
         });
       } catch (error: any) {

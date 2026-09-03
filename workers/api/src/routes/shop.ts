@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
@@ -13,7 +13,7 @@ const purchaseSchema = z.object({
   videoId: z.string().optional(),
 });
 
-export const shopRoutes = [
+export const shopRoutes: RouteDefinition[] = [
   {
     method: "GET",
     path: "/api/v1/shop",

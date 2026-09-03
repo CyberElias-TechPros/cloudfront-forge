@@ -2,10 +2,16 @@ import axios from "axios";
 
 // In dev the Vite server proxies same-origin /api/* requests to the worker (see
 // vite.config.ts), so no CORS and no hard-coded localhost URL is needed. In
-// production VITE_API_URL must point at the deployed worker; the localhost
-// fallback below only exists to preserve the previous behaviour.
-const apiUrl =
-  import.meta.env["VITE_API_URL"] || (import.meta.env.DEV ? "" : "http://localhost:8787");
+// production VITE_API_URL must point at the deployed worker: silently falling
+// back to http://localhost:8787 made every production request fail against the
+// visitor's own machine.
+const configuredApiUrl = import.meta.env["VITE_API_URL"] as string | undefined;
+if (!configuredApiUrl && !import.meta.env.DEV) {
+  console.error(
+    "[API] VITE_API_URL is not set. Point it at the deployed Cloudflare Worker (e.g. https://loop-api.<subdomain>.workers.dev).",
+  );
+}
+const apiUrl = configuredApiUrl ?? "";
 
 const apiClient = axios.create({
   baseURL: apiUrl,

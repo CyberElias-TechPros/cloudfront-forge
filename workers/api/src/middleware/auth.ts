@@ -35,7 +35,6 @@ export async function authMiddleware(request: Request, env: Env): Promise<AuthRe
 }
 
 export async function requireAuth(request: Request, env: Env): Promise<string> {
-  const logger = createLogger(env);
   const auth = await authMiddleware(request, env);
 
   if (!auth.isAuthenticated) {
@@ -74,7 +73,6 @@ export async function optionalAuth(request: Request, env: Env): Promise<string |
 }
 
 export async function requireAdmin(request: Request, env: Env): Promise<string> {
-  const logger = createLogger(env);
   const userId = await requireAuth(request, env);
   const db = new Database(env);
 

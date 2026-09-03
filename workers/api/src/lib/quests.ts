@@ -1,5 +1,6 @@
 import type { Env } from "../types";
 import { Database } from "./database";
+import { awardXp } from "./xp";
 
 /**
  * Daily generated quests — 3 per user per day, auto-created on first fetch.
@@ -88,19 +89,7 @@ export async function progressQuest(env: Env, userId: string, type: QuestType): 
       );
     }
 
-    const xp = await db.querySingle("SELECT id FROM xp_accounts WHERE user_id = ?", [userId]);
-    if (xp) {
-      await db.execute(
-        "UPDATE xp_accounts SET total_xp = total_xp + ?, updated_at = ? WHERE user_id = ?",
-        [quest.reward_xp ?? 0, now, userId],
-      );
-    } else {
-      await db.execute(
-        `INSERT INTO xp_accounts (id, user_id, total_xp, level, xp_to_next_level, created_at, updated_at)
-         VALUES (?, ?, ?, 1, 100, ?, ?)`,
-        [crypto.randomUUID(), userId, quest.reward_xp ?? 0, now, now],
-      );
-    }
+    await awardXp(db, userId, quest.reward_xp ?? 0, now);
 
     // Mark claimed immediately (auto-claim v1)
     await db.execute("UPDATE daily_quests SET status = 'claimed', claimed_at = ? WHERE id = ?", [

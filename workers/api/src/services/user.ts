@@ -3,10 +3,8 @@ import { Database } from "../lib/database";
 
 export class UserService {
   private db: Database;
-  private env: Env;
 
   constructor(env: Env) {
-    this.env = env;
     this.db = new Database(env);
   }
 

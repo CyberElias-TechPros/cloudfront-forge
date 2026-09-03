@@ -260,17 +260,25 @@ function Dashboard() {
                 <li key={i} className="flex items-start gap-3 text-sm">
                   <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-accent" />
                   <span className="flex-1">
-                    <span className="font-medium">{a.who}</span>{" "}
+                    {a.who ? (
+                      <>
+                        <span className="font-medium">{a.who}</span>{" "}
+                      </>
+                    ) : null}
                     <span className="text-muted-foreground">{a.what}</span>
                     <span className="block text-xs text-muted-foreground">{a.when}</span>
                   </span>
-                  <span
-                    className={
-                      a.points.startsWith("-") ? "text-sm text-destructive" : "text-sm text-success"
-                    }
-                  >
-                    {a.points}
-                  </span>
+                  {a.points ? (
+                    <span
+                      className={
+                        a.points.startsWith("-")
+                          ? "text-sm text-destructive"
+                          : "text-sm text-success"
+                      }
+                    >
+                      {a.points}
+                    </span>
+                  ) : null}
                 </li>
               ))}
             </ul>

@@ -13,7 +13,7 @@
 Your Firebase credentials have been successfully configured in `.env.local`:
 
 ```
-✅ API Key: AIzaSyAqcPLTHaIujDMj_lXUxM9bang2AGW6AVA
+✅ API Key: YOUR_FIREBASE_WEB_API_KEY
 ✅ Auth Domain: creator-loop-ring.firebaseapp.com
 ✅ Project ID: creator-loop-ring
 ✅ Storage Bucket: creator-loop-ring.firebasestorage.app
@@ -91,7 +91,7 @@ npm run dev
 
 ### .env.local (Development)
 ```env
-VITE_FIREBASE_API_KEY=AIzaSyAqcPLTHaIujDMj_lXUxM9bang2AGW6AVA
+VITE_FIREBASE_API_KEY=YOUR_FIREBASE_WEB_API_KEY
 VITE_FIREBASE_AUTH_DOMAIN=creator-loop-ring.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=creator-loop-ring
 VITE_FIREBASE_STORAGE_BUCKET=creator-loop-ring.firebasestorage.app

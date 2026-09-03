@@ -1,20 +1,52 @@
+# Cloudflare Worker configuration for the CreatorLoop API.
+#
+# Deploy:  npm run deploy            (production — top-level config)
+#          npm run deploy:staging    (staging — see [env.staging])
+# Local:   npm run dev               (wrangler dev, local D1/KV/R2 by default)
+#
+# Secrets are NOT stored here and must never be committed. Set them with:
+#   wrangler secret put YOUTUBE_API_KEY
+#   wrangler secret put AI_API_KEY
+#   wrangler secret put YOUTUBE_OAUTH_CLIENT_SECRET
+#   wrangler secret put VAPID_PRIVATE_KEY
+#   wrangler secret put WATCH_SESSION_SECRET
+#   wrangler secret put RESEND_API_KEY            (optional: weekly digest email)
+# See .env.example for the full list and what each one does.
+
 name = "creatorloop-api"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
 account_id = "c567f93a5269d713595b68c75f8f33c5"
+
+# Migrations live in ./migrations and are applied with:
+#   wrangler d1 migrations apply creatorloop-db --remote
+# The legacy [[migrations]] tag list was removed: it listed only the first four
+# files, which made the remaining 25 look unapplied. File order in the directory
+# is the single source of truth.
 
 [vars]
 ENVIRONMENT = "production"
 FIREBASE_PROJECT_ID = "creator-loop-ring"
 AI_PROVIDER = "nvidia"
 AI_MODEL = "meta/llama-3.1-8b-instruct"
-CORS_ORIGINS = "https://loop.freegameplay.site,https://cloudfront-forge.vercel.app"
+
+# Comma-separated allow-list. Entries may start with "*." to allow every
+# subdomain (used for Vercel preview deployments).
+CORS_ORIGINS = "https://loop.freegameplay.site,https://cloudfront-forge.vercel.app,*.vercel.app"
+
 YOUTUBE_OAUTH_CLIENT_ID = "365634472671-dvmns559uga32703kf2l9vpgbmts38tl.apps.googleusercontent.com"
 YOUTUBE_OAUTH_REDIRECT_URI = "https://creatorloop-api.autumn-surf-21ec.workers.dev/api/v1/youtube/oauth/callback"
 VAPID_PUBLIC_KEY = "BIfvnJ6Mp68dCFCkywGZlFpPo-hkg6-LeyE0Uz5pZGxOWYejjQFJg_JMxvcRB288LDcK7vAyRMymGJqVEBNpYvk"
+
+# Anti-cheat: minimum verified watch seconds before a claim pays out, and the
+# cap on how many videos a member can claim watch rewards for per day.
 REQUIRED_WATCH_SEC = "180"
+DAILY_CLAIM_LIMIT = "10"
+
+# Legacy single-shot reward (kept for backwards compatibility with older jobs).
 REWARD_XP = "30"
 REWARD_CREDITS = "10"
+
 # Engagement rewards: watch and genuine feedback (comment) each pay points.
 # Subscribing is an optional, unpaid support signal (0 points) — paying for
 # subscribes is the "sub4sub" pattern that risks YouTube/AdSense standing.
@@ -24,45 +56,103 @@ SUBSCRIBE_REWARD_XP = "0"
 SUBSCRIBE_REWARD_CREDITS = "0"
 COMMENT_REWARD_XP = "10"
 COMMENT_REWARD_CREDITS = "3"
-# Cap on how many videos a member can claim watch rewards for per day.
-DAILY_CLAIM_LIMIT = "10"
+
 REVIEW_XP = "20"
 REVIEW_CREDITS = "5"
 # Bonus XP a reviewer earns the first time their review is rated helpful.
 REVIEW_HELPFUL_XP = "5"
+
+# Per-IP request budget. Auth and expensive endpoints use tighter limits and
+# fail closed if the KV counter is unavailable.
+RATE_LIMIT_MAX_REQUESTS = "200"
+RATE_LIMIT_WINDOW = "60"
+AUTH_RATE_LIMIT_MAX_REQUESTS = "30"
+AUTH_RATE_LIMIT_WINDOW = "60"
+AI_DAILY_USER_LIMIT = "30"
+AI_DAILY_GLOBAL_LIMIT = "2000"
+
+# Signed watch sessions (server-side playback verification). Off until a
+# WATCH_SESSION_SECRET is issued; the client falls back to self-reported
+# watch time plus YouTube API verification.
+WATCH_SESSIONS_ENABLED = "0"
 
 # D1 Database
 [[d1_databases]]
 binding = "DB"
 database_name = "creatorloop-db"
 database_id = "263dfc51-32c0-4973-9e9e-e9c660ebced7"
+migrations_dir = "migrations"
 
-[[migrations]]
-tag = "001_initial_schema"
-
-[[migrations]]
-tag = "002_watch_sessions"
-
-[[migrations]]
-tag = "003_reputation_columns"
-
-[[migrations]]
-tag = "004_youtube_oauth"
-
-# KV Namespaces
+# KV Namespaces (cache: YouTube metadata, rate-limit counters, OAuth state)
 [[kv_namespaces]]
 binding = "KV_CACHE"
 id = "a1a3abb4acf84266add6f7226141ea14"
 preview_id = "a1a3abb4acf84266add6f7226141ea14"
 
-# R2 Bucket
+# R2 Bucket (uploads: top-up proof-of-payment images)
 [[r2_buckets]]
 binding = "ASSETS_BUCKET"
 bucket_name = "creatorloop-assets"
 
+# Nightly maintenance: expire overdue missions/reviews, reset broken streaks,
+# score anomalies, award badges and (on Sundays) send the weekly digest.
 [triggers]
 crons = ["0 0 * * *"]
 
 [observability]
 enabled = true
 head_sampling_rate = 1
+
+# ---------------------------------------------------------------------------
+# Staging: same code, separate data. Create the resources once with
+#   wrangler d1 create creatorloop-db-staging
+#   wrangler kv:namespace create KV_CACHE_STAGING
+#   wrangler r2 bucket create creatorloop-assets-staging
+# then paste the ids below. Deploy with `npm run deploy:staging`.
+# ---------------------------------------------------------------------------
+[env.staging]
+name = "creatorloop-api-staging"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+FIREBASE_PROJECT_ID = "creator-loop-ring"
+AI_PROVIDER = "nvidia"
+AI_MODEL = "meta/llama-3.1-8b-instruct"
+CORS_ORIGINS = "https://cloudfront-forge.vercel.app,*.vercel.app"
+YOUTUBE_OAUTH_CLIENT_ID = "365634472671-dvmns559uga32703kf2l9vpgbmts38tl.apps.googleusercontent.com"
+YOUTUBE_OAUTH_REDIRECT_URI = "https://creatorloop-api-staging.autumn-surf-21ec.workers.dev/api/v1/youtube/oauth/callback"
+VAPID_PUBLIC_KEY = "BIfvnJ6Mp68dCFCkywGZlFpPo-hkg6-LeyE0Uz5pZGxOWYejjQFJg_JMxvcRB288LDcK7vAyRMymGJqVEBNpYvk"
+REQUIRED_WATCH_SEC = "180"
+DAILY_CLAIM_LIMIT = "10"
+REWARD_XP = "30"
+REWARD_CREDITS = "10"
+WATCH_REWARD_XP = "10"
+WATCH_REWARD_CREDITS = "4"
+SUBSCRIBE_REWARD_XP = "0"
+SUBSCRIBE_REWARD_CREDITS = "0"
+COMMENT_REWARD_XP = "10"
+COMMENT_REWARD_CREDITS = "3"
+REVIEW_XP = "20"
+REVIEW_CREDITS = "5"
+REVIEW_HELPFUL_XP = "5"
+RATE_LIMIT_MAX_REQUESTS = "200"
+RATE_LIMIT_WINDOW = "60"
+AUTH_RATE_LIMIT_MAX_REQUESTS = "30"
+AUTH_RATE_LIMIT_WINDOW = "60"
+AI_DAILY_USER_LIMIT = "30"
+AI_DAILY_GLOBAL_LIMIT = "2000"
+WATCH_SESSIONS_ENABLED = "0"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "creatorloop-db-staging"
+database_id = "REPLACE_WITH_STAGING_D1_ID"
+migrations_dir = "migrations"
+
+[[env.staging.kv_namespaces]]
+binding = "KV_CACHE"
+id = "REPLACE_WITH_STAGING_KV_ID"
+
+[[env.staging.r2_buckets]]
+binding = "ASSETS_BUCKET"
+bucket_name = "creatorloop-assets-staging"

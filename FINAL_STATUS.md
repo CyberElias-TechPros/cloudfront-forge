@@ -90,7 +90,7 @@ Created 9 comprehensive guides:
 ### Environment Configuration
 ```
 ✅ .env.local - Fully configured with:
-   - Firebase API Key: AIzaSyAqcPLTHaIujDMj_lXUxM9bang2AGW6AVA
+   - Firebase API Key: YOUR_FIREBASE_WEB_API_KEY
    - Auth Domain: creator-loop-ring.firebaseapp.com
    - Project ID: creator-loop-ring
    - Storage Bucket: creator-loop-ring.firebasestorage.app

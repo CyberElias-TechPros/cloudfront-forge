@@ -1,9 +1,9 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAdmin } from "../middleware/auth";
 import { Database } from "../lib/database";
 
-export const adminRoutes = [
+export const adminRoutes: RouteDefinition[] = [
   // Analytics funnel: submit → watch → claim conversion rates
   {
     method: "GET",

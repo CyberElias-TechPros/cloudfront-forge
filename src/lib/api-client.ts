@@ -229,10 +229,12 @@ export interface SubmissionDTO {
 
 export interface ActivityItem {
   id: string;
-  who: string;
+  /** Actor, when the backend records one. Absent for notification-derived rows. */
+  who?: string | null;
   what: string;
   when: string;
-  points: string;
+  /** Empty when the entry has no point value attached. */
+  points?: string | null;
 }
 
 export interface AdminReport {
