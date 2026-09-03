@@ -71,8 +71,10 @@ vercel.json              Static SPA deployment + caching + security headers
 | `workers/api` | `npm test`                                             | Worker tests (Vitest + in-memory SQLite)           |
 | `workers/api` | `npm run typecheck`                                    | `tsc --noEmit`                                     |
 
-Node **22.5+** is required: the worker test suite drives a real SQLite database
-through `node:sqlite`.
+Node **22** is what the project targets. The worker test suite runs on Node 20
+as well: it drives a real SQLite database through `node:sqlite` when the runtime
+provides it (Node >= 22.5) and falls back to a WebAssembly build of SQLite
+otherwise, so CI on Node 20 stays green.
 
 ---
 
@@ -84,9 +86,11 @@ cd workers/api && npm test   # 198 tests across 27 files
 ```
 
 The worker tests are behavioural, not mock theatre: `tests/helpers/test-env.ts`
-applies every migration to an in-memory SQLite database and provides KV/R2
-doubles, so handlers run against the same SQL, indexes and constraints as
-production. Covered: watch claims and payout idempotency, XP/level maths,
+applies every migration to an in-memory SQLite database (foreign keys on, as D1
+has) and provides KV/R2 doubles, so handlers run against the same SQL, indexes
+and constraints as production. The database comes from `node:sqlite` when the
+runtime has it, otherwise from `node-sqlite3-wasm`; force the fallback with
+`SQLITE_DRIVER=wasm npm test` to check that path. Covered: watch claims and payout idempotency, XP/level maths,
 leaderboard scoring, admin authorization, top-up review, video submission,
 review completion, shop purchases, missions, push encryption (real RFC 8291
 decryption), routing, and the Worker entry point (CORS, rate limiting, 503 on a

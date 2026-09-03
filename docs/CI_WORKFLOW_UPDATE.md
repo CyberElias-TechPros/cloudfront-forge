@@ -1,21 +1,32 @@
-# CI workflow update (needs a manual apply)
+# CI workflow update (optional improvement; no longer blocking)
+
+> **Update 2026-09-03:** the worker test suite no longer requires Node 22. It
+> uses `node:sqlite` when the runtime provides it (Node >= 22.5) and otherwise
+> falls back to `node-sqlite3-wasm`, a WebAssembly build of SQLite, so the
+> existing Node 20 workflow passes. The changes below are still recommended —
+> they make CI match the version the project is developed against, switch to
+> reproducible installs, and run the frontend tests — but nothing is broken
+> without them.
 
 The sandbox/agent GitHub App is **not allowed to create or update files under
 `.github/workflows/`** (GitHub rejects the push with
 `refusing to allow a GitHub App to create or update workflow ... without
 'workflows' permission`). The two workflow files in this repository are
-therefore kept as-is in Git, and the required changes are recorded here so they
-can be applied by someone with `workflows` permission (or by granting the App
-that permission and re-running the change).
+therefore kept as-is in Git, and the recommended changes are recorded here so
+they can be applied by someone with `workflows` permission (or by granting the
+App that permission and re-running the change).
 
-## Why the change is needed
+## Why the change is recommended
 
-1. **Node 20 is no longer enough.** `workers/api` tests drive a real SQLite
-   database through `node:sqlite`, which only exists from Node 22.5 onward. On
-   Node 20 the worker test job fails at import time.
-2. **Frontend tests never ran in CI.** `npm test` (root Vitest: api-client,
-   hooks, repo hygiene) was only executed locally, so regressions in the SPA
-   could ship green.
+1. **Node 20 is behind the project.** Development and deployment target Node 22
+   (`node:sqlite` in the test harness, current LTS tooling). CI pinning Node 20
+   means it verifies a runtime nothing else uses. The suite runs on both today
+   thanks to the wasm fallback.
+2. **Frontend tests still never run in CI.** `npm test` (root Vitest: api-client,
+   hooks, repo hygiene) is only executed locally, so a regression in the SPA can
+   ship green.
+3. **`npm i` is not reproducible.** `npm ci` installs exactly what
+   `package-lock.json` pins, which is what CI should verify.
 
 ## `.github/workflows/ci.yml` (replace the file)
 
@@ -87,11 +98,11 @@ jobs:
 
 ## `.github/workflows/deploy.yml` (same edits)
 
-* add the `NODE_VERSION: "22"` env block next to the `on:` block,
-* replace every `node-version: 20` with `node-version: ${{ env.NODE_VERSION }}`,
-* replace `npm i` / `cd workers/api && npm i` with `npm ci` (plus
+- add the `NODE_VERSION: "22"` env block next to the `on:` block,
+- replace every `node-version: 20` with `node-version: ${{ env.NODE_VERSION }}`,
+- replace `npm i` / `cd workers/api && npm i` with `npm ci` (plus
   `working-directory: workers/api` for the worker steps),
-* keep the `wrangler-action` and `vercel-action` steps unchanged.
+- keep the `wrangler-action` and `vercel-action` steps unchanged.
 
 ## What still works without this change
 

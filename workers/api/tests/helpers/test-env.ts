@@ -1,31 +1,14 @@
 /**
  * In-memory Cloudflare bindings for behavioural tests.
  *
- * D1 is backed by real SQLite (`node:sqlite`) with the production migrations
- * applied, so handler tests exercise the same SQL — including unique indexes,
- * `ON CONFLICT` upserts and partial indexes — that production runs.
+ * D1 is backed by real SQLite with the production migrations applied, so
+ * handler tests exercise the same SQL — including unique indexes, `ON CONFLICT`
+ * upserts, CHECK constraints and foreign keys — that production runs.
  */
 import { readdirSync, readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import path from "node:path";
 import type { Env } from "../../src/types";
-
-// Loaded through createRequire so Vite's resolver leaves the builtin alone
-// (Vite tries to bundle `node:sqlite` and fails with "Failed to load url
-// sqlite").
-const DatabaseSync = createRequire(import.meta.url)("node:sqlite")
-  .DatabaseSync as new (location?: string) => SqliteDatabase;
-
-interface SqliteStatement {
-  all(...params: unknown[]): unknown[];
-  get(...params: unknown[]): unknown;
-  run(...params: unknown[]): { changes?: number | bigint; lastInsertRowid?: number | bigint };
-}
-
-interface SqliteDatabase {
-  exec(sql: string): void;
-  prepare(sql: string): SqliteStatement;
-}
+import { openTestDatabase, type TestDatabase } from "./sqlite-driver";
 
 const MIGRATIONS_DIR = path.resolve(__dirname, "../../migrations");
 
@@ -70,7 +53,7 @@ class Statement {
 
 type AnyStatement = Statement & { sql?: string; params?: unknown[] };
 
-function makeD1(sqlite: DatabaseSync): D1Database {
+function makeD1(sqlite: TestDatabase): D1Database {
   return {
     prepare(sql: string) {
       const statement = new Statement(sqlite, sql) as AnyStatement;
@@ -104,14 +87,14 @@ function makeD1(sqlite: DatabaseSync): D1Database {
   } as unknown as D1Database;
 }
 
-export interface TestDatabase {
+export interface TestDatabaseHandle {
   db: D1Database;
-  sqlite: DatabaseSync;
+  sqlite: TestDatabase;
 }
 
 /** Create a D1 database with every migration applied, in file order. */
-export function createTestDatabase(): TestDatabase {
-  const sqlite = new DatabaseSync(":memory:");
+export function createTestDatabase(): TestDatabaseHandle {
+  const sqlite = openTestDatabase();
   const files = readdirSync(MIGRATIONS_DIR)
     .filter((file) => file.endsWith(".sql"))
     .sort();
@@ -145,9 +128,7 @@ class MemoryKV {
   async put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void> {
     this.store.set(key, {
       value,
-      ...(options?.expirationTtl
-        ? { expiresAt: Date.now() + options.expirationTtl * 1000 }
-        : {}),
+      ...(options?.expirationTtl ? { expiresAt: Date.now() + options.expirationTtl * 1000 } : {}),
     });
   }
 
@@ -192,7 +173,7 @@ class MemoryR2 {
 }
 
 export interface TestEnv extends Env {
-  sqlite: DatabaseSync;
+  sqlite: TestDatabase;
   /** Insert a user row directly and return the internal user id. */
   seedUser(firebaseUid?: string): string;
   /** Grant an admin role to a user id. */
@@ -237,7 +218,9 @@ export function createTestEnv(overrides: Partial<Env> = {}): TestEnv {
     },
     makeAdmin(userId: string, role: "super_admin" | "admin" | "moderator" = "admin") {
       sqlite
-        .prepare("INSERT OR REPLACE INTO admin_users (id, user_id, role, created_at) VALUES (?, ?, ?, ?)")
+        .prepare(
+          "INSERT OR REPLACE INTO admin_users (id, user_id, role, created_at) VALUES (?, ?, ?, ?)",
+        )
         .run(crypto.randomUUID(), userId, role, new Date().toISOString());
     },
   } as unknown as TestEnv;
@@ -251,11 +234,7 @@ export function createTestEnv(overrides: Partial<Env> = {}): TestEnv {
  * `src/services/firebase.ts` accepts the dev token only when
  * ENVIRONMENT === "development", which is what the test env sets.
  */
-export function authRequest(
-  url: string,
-  firebaseUid: string,
-  init: RequestInit = {},
-): Request {
+export function authRequest(url: string, firebaseUid: string, init: RequestInit = {}): Request {
   const token = Buffer.from(
     JSON.stringify({ uid: firebaseUid, email: `${firebaseUid}@example.test`, emailVerified: true }),
   )

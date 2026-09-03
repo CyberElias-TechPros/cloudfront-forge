@@ -11,7 +11,8 @@ point at it), then **frontend**.
 ## 0. Prerequisites
 
 ```sh
-node -v      # >= 22.5 (the worker test suite uses node:sqlite)
+node -v      # 22 is the target; 20 also works — the worker test suite falls
+             # back to a WebAssembly build of SQLite without node:sqlite
 npm -v       # >= 10
 npx wrangler --version   # >= 3
 ```
@@ -158,27 +159,27 @@ domain) — the frontend needs it next.
 Import the repository in Vercel and keep these settings (they are committed in
 `vercel.json`, so the dashboard only needs the environment variables):
 
-| Setting | Value |
-| --- | --- |
+| Setting          | Value                       |
+| ---------------- | --------------------------- |
 | Framework Preset | `Other` / `framework: null` |
-| Build Command | `npm run build` |
-| Output Directory | `dist/client` |
-| Install Command | `npm ci` |
+| Build Command    | `npm run build`             |
+| Output Directory | `dist/client`               |
+| Install Command  | `npm ci`                    |
 
 Environment variables (Vercel → Project → Settings → Environment Variables):
 
-| Variable | Value |
-| --- | --- |
-| `VITE_API_URL` | `https://<worker-host>` — **required**, there is no fallback |
-| `VITE_FIREBASE_API_KEY` | Firebase web API key |
-| `VITE_FIREBASE_AUTH_DOMAIN` | `<project>.firebaseapp.com` |
-| `VITE_FIREBASE_PROJECT_ID` | same value as the Worker's `FIREBASE_PROJECT_ID` |
-| `VITE_FIREBASE_STORAGE_BUCKET` | `<project>.appspot.com` |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase sender id |
-| `VITE_FIREBASE_APP_ID` | Firebase app id |
-| `VITE_VAPID_PUBLIC_KEY` | same public key as the Worker's `VAPID_PUBLIC_KEY` |
-| `SITE_URL` | `https://loop.example.com` (enables `sitemap.xml` + `robots.txt`) |
-| `VITE_ADSENSE_SLOT_ID` | optional |
+| Variable                            | Value                                                             |
+| ----------------------------------- | ----------------------------------------------------------------- |
+| `VITE_API_URL`                      | `https://<worker-host>` — **required**, there is no fallback      |
+| `VITE_FIREBASE_API_KEY`             | Firebase web API key                                              |
+| `VITE_FIREBASE_AUTH_DOMAIN`         | `<project>.firebaseapp.com`                                       |
+| `VITE_FIREBASE_PROJECT_ID`          | same value as the Worker's `FIREBASE_PROJECT_ID`                  |
+| `VITE_FIREBASE_STORAGE_BUCKET`      | `<project>.appspot.com`                                           |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase sender id                                                |
+| `VITE_FIREBASE_APP_ID`              | Firebase app id                                                   |
+| `VITE_VAPID_PUBLIC_KEY`             | same public key as the Worker's `VAPID_PUBLIC_KEY`                |
+| `SITE_URL`                          | `https://loop.example.com` (enables `sitemap.xml` + `robots.txt`) |
+| `VITE_ADSENSE_SLOT_ID`              | optional                                                          |
 
 Then **Deploy**. Vercel runs `npm ci && npm run build`, which produces
 `dist/client` only; the SPA fallback rewrite in `vercel.json` sends every

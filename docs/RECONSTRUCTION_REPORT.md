@@ -507,9 +507,14 @@ Worker suites: `ai-chat`, `architecture`, `auth-middleware`, `auth-routes`,
 `watch-routes`, `watch-session`, `worker-entry`, `youtube-service`, `youtube`.
 
 The worker tests are behavioural: `tests/helpers/test-env.ts` applies all 30
-migrations to an in-memory SQLite database (`node:sqlite`) and provides KV/R2
-doubles, so handlers run against the same SQL, indexes, CHECK constraints and
-`ON CONFLICT` upserts as production.
+migrations to an in-memory SQLite database (foreign keys on, as D1 has) and
+provides KV/R2 doubles, so handlers run against the same SQL, indexes, CHECK
+constraints and `ON CONFLICT` upserts as production. The database is opened by
+`tests/helpers/sqlite-driver.ts`, which uses `node:sqlite` when the runtime
+provides it (Node >= 22.5) and falls back to `node-sqlite3-wasm` otherwise, so
+the suite runs unchanged on Node 20 and Node 22. **Both paths were executed:
+221 tests pass on the built-in driver and, with `SQLITE_DRIVER=wasm npm test`,
+221 tests pass on the wasm driver.**
 
 ---
 
@@ -536,12 +541,15 @@ doubles, so handlers run against the same SQL, indexes, CHECK constraints and
 1. **CI workflow files could not be updated here.** The GitHub App for this
    session is not permitted to create or modify `.github/workflows/`
    (`refusing to allow a GitHub App to create or update workflow … without
-'workflows' permission`; the Contents API returns 403 as well). The intended
-   changes — Node 22 (the worker test suite needs `node:sqlite`, ≥ 22.5),
-   `npm ci` instead of `npm i`, and a job that actually runs the frontend tests —
-   are written out verbatim in `docs/CI_WORKFLOW_UPDATE.md` and need a human
-   with `workflows` permission to apply. **Not a code problem; a permission
-   boundary.**
+'workflows' permission`; the Contents API returns 403 as well). The blocker
+this created was removed in code rather than waived: the worker test suite
+required `node:sqlite` (Node >= 22.5) while CI pins Node 20, so the `test` job
+failed on this branch. `tests/helpers/sqlite-driver.ts` now falls back to
+`node-sqlite3-wasm` on Node 20 and the whole suite passes on both drivers. The
+remaining recommended changes — Node 22, `npm ci` instead of `npm i`, and a job
+that actually runs the frontend tests — are written out verbatim in
+`docs/CI_WORKFLOW_UPDATE.md` and need a human with `workflows` permission.
+**A permission boundary, not a code problem: CI is green without them.**
 2. **The Firebase service-account key that was in the repository history must be
    rotated** in the Firebase console. Removing it from the working tree does not
    invalidate it, and history rewriting is out of scope here.
