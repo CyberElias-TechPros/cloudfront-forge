@@ -1,8 +1,29 @@
 import type { Env } from "../types";
 import { createLogger } from "../lib/logger";
 
-const NVIDIA_BASE = "https://integrate.api.nvidia.com/v1";
+/**
+ * OpenAI-compatible chat endpoints per provider.
+ *
+ * `AI_PROVIDER` was configured (and typed) but never read, so the model id in
+ * the environment had no way to match the endpoint it was sent to — a Gemini
+ * model name posted to NVIDIA's API fails with an opaque 503.
+ */
+const PROVIDER_BASE_URLS: Record<string, string> = {
+  nvidia: "https://integrate.api.nvidia.com/v1",
+  google: "https://generativelanguage.googleapis.com/v1beta/openai",
+};
+
+const DEFAULT_PROVIDER = "nvidia";
 const DEFAULT_MODEL = "meta/llama-3.1-8b-instruct";
+
+function baseUrl(env: Env): string {
+  const provider = (env.AI_PROVIDER || DEFAULT_PROVIDER).toLowerCase();
+  const base = PROVIDER_BASE_URLS[provider];
+  if (!base) {
+    throw new Error(`AI_NOT_CONFIGURED: unknown AI_PROVIDER "${provider}"`);
+  }
+  return base;
+}
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -26,7 +47,7 @@ export async function generateChatCompletion(messages: ChatMessage[], env: Env):
     throw new Error("AI_NOT_CONFIGURED");
   }
 
-  const res = await fetch(`${NVIDIA_BASE}/chat/completions`, {
+  const res = await fetch(`${baseUrl(env)}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -67,7 +88,7 @@ export async function* generateChatCompletionStream(
     throw new Error("AI_NOT_CONFIGURED");
   }
 
-  const res = await fetch(`${NVIDIA_BASE}/chat/completions`, {
+  const res = await fetch(`${baseUrl(env)}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

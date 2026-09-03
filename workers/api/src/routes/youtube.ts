@@ -1,4 +1,4 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
@@ -32,7 +32,7 @@ async function enrichWithChannel(env: Env, userId: string): Promise<void> {
   }
 }
 
-export const youtubeRoutes = [
+export const youtubeRoutes: RouteDefinition[] = [
   {
     method: "GET",
     path: "/api/v1/youtube/oauth/authorize",

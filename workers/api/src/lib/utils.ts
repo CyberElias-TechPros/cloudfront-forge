@@ -22,12 +22,11 @@ export function formatXPForLevel(level: number): number {
 
 export function calculateLevel(xp: number): { level: number; xpToNextLevel: number } {
   let level = 1;
-  let xpForCurrentLevel = 0;
   let xpForNextLevel = formatXPForLevel(level);
 
-  while (xp >= xpForNextLevel) {
+  // Guard against a runaway loop if XP is ever NaN/Infinity.
+  while (Number.isFinite(xp) && xp >= xpForNextLevel && level < 10_000) {
     level++;
-    xpForCurrentLevel = xpForNextLevel;
     xpForNextLevel = formatXPForLevel(level);
   }
 
@@ -56,10 +55,6 @@ export function resolveRequiredWatchSeconds(
   const base = WATCH_TARGET_BUCKETS[hash % WATCH_TARGET_BUCKETS.length] ?? defaultSec;
   const capped = durationSeconds && durationSeconds > 0 ? Math.min(base, durationSeconds) : base;
   return Math.max(30, Math.min(defaultSec, capped));
-}
-
-export function calculateWeightedScore(xp: number, credits: number, reputation: number): number {
-  return Math.round(xp * 0.4 + credits * 0.3 + reputation * 0.3);
 }
 
 export function generateRequestId(): string {

@@ -1,8 +1,9 @@
 import { z } from "zod";
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth, requireAdmin } from "../middleware/auth";
-import { Database } from "../lib/database";
+import { recordAudit } from "../lib/audit";
+import { Database, DatabaseError } from "../lib/database";
 
 // Payout account for naira point purchases (bank transfer).
 export const NGN_BANK_DETAILS = {
@@ -52,9 +53,17 @@ const TOPUP_STATUSES = ["pending", "approved", "rejected"] as const;
 // every one of these natively, so we deliberately exclude HEIC/other formats
 // to keep the review queue trustworthy.
 const ALLOWED_PROOF_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+/** Minimal shape of an uploaded multipart file (Workers runtime `File`). */
+interface UploadedImage {
+  name?: string;
+  size: number;
+  type: string;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
+
 const MAX_PROOF_SIZE = 5 * 1024 * 1024; // 5MB
 
-export const topupRoutes = [
+export const topupRoutes: RouteDefinition[] = [
   // GET /topups — NGN catalog: packs, payout account, and whether the caller
   // already has a pending request.
   {
@@ -100,8 +109,11 @@ export const topupRoutes = [
             400,
           );
         }
-        const file = form.get("image");
-        if (!(file instanceof File)) {
+        // `form.get()` is typed as `File | string | null`; the Workers runtime
+        // only ever yields a File here, and the narrowed union is unusable
+        // under `strict`, so validate the shape we actually need.
+        const file = form.get("image") as unknown as UploadedImage | null;
+        if (!file || typeof file.arrayBuffer !== "function" || typeof file.type !== "string") {
           return createErrorResponse("VALIDATION_ERROR", "Missing proof-of-payment image", 400);
         }
         if (!ALLOWED_PROOF_TYPES.has(file.type)) {
@@ -183,30 +195,59 @@ export const topupRoutes = [
           );
         }
 
+        // A reference may only await review once (including another member
+        // quoting a reference they do not own). Checked explicitly because the
+        // partial unique index is only the last line of defence: Database.execute
+        // throws on constraint violations, so relying on the index alone turned
+        // a duplicate submission into an opaque 500.
+        const pendingReference = await db.querySingle(
+          "SELECT id FROM topup_requests WHERE transfer_reference = ? AND status = 'pending'",
+          [referenceToken],
+        );
+        if (pendingReference) {
+          return createErrorResponse(
+            "CONFLICT",
+            "A pending top-up already exists for this transfer reference",
+            409,
+          );
+        }
+
         const id = db.uuid();
-        const insert = await db.execute(
-          `INSERT INTO topup_requests
+        let insert: { success: boolean };
+        try {
+          insert = await db.execute(
+            `INSERT INTO topup_requests
              (id, user_id, tier_id, ngn_amount, credits_amount, transfer_reference,
               proof_image_path, proof_image_name, proof_image_type,
               status, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
-          [
-            id,
-            userId,
-            tier.id,
-            tier.ngn,
-            tier.credits,
-            referenceToken,
-            proofImage || null,
-            proofImage ? (validation.data.proofImageName ?? proofImage) : null,
-            proofImage ? (validation.data.proofImageType ?? null) : null,
-            now,
-            now,
-          ],
-        );
+            [
+              id,
+              userId,
+              tier.id,
+              tier.ngn,
+              tier.credits,
+              referenceToken,
+              proofImage || null,
+              proofImage ? (validation.data.proofImageName ?? proofImage) : null,
+              proofImage ? (validation.data.proofImageType ?? null) : null,
+              now,
+              now,
+            ],
+          );
+        } catch (error) {
+          // Two members racing on the same reference: the loser of the race
+          // still gets an actionable 409.
+          if (error instanceof DatabaseError) {
+            return createErrorResponse(
+              "CONFLICT",
+              "A pending top-up already exists for this transfer reference",
+              409,
+            );
+          }
+          throw error;
+        }
         if (!insert.success) {
-          // The partial unique index on pending references rejects a
-          // duplicate reference with a constraint error.
           return createErrorResponse(
             "CONFLICT",
             "A pending top-up already exists for this transfer reference",
@@ -289,7 +330,7 @@ export const topupRoutes = [
   // only; streams the object straight out of R2.
   {
     method: "GET",
-    pattern: "^\\\\/api\\\\/v1/admin/topups/([^/]+)/proof$",
+    pattern: "^\\/api\\/v1/admin/topups/([^/]+)/proof$",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
         await requireAdmin(request, env);
@@ -409,6 +450,23 @@ export const topupRoutes = [
           throw new Error("Failed to credit approved top-up");
         }
 
+        await recordAudit(
+          db,
+          {
+            actorId: adminId,
+            action: "topup.approve",
+            resourceType: "topup_request",
+            resourceId: topupId,
+            request,
+            metadata: {
+              credits: topup.credits_amount,
+              ngn: topup.ngn_amount,
+              memberId: topup.user_id,
+            },
+          },
+          env,
+        );
+
         const balanceRowAfter = await db.querySingle(
           "SELECT balance FROM credit_accounts WHERE user_id = ?",
           [topup.user_id],
@@ -455,6 +513,23 @@ export const topupRoutes = [
         if (!lock.success || lock.meta?.changes !== 1) {
           return createErrorResponse("CONFLICT", "Top-up already reviewed", 409);
         }
+
+        await recordAudit(
+          db,
+          {
+            actorId: adminId,
+            action: "topup.reject",
+            resourceType: "topup_request",
+            resourceId: topupId,
+            request,
+            metadata: {
+              ngn: topup.ngn_amount,
+              memberId: topup.user_id,
+              ...(reason ? { reason } : {}),
+            },
+          },
+          env,
+        );
 
         await db.execute(
           `INSERT INTO notifications (id, user_id, type, title, message, created_at)

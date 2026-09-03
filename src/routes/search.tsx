@@ -5,6 +5,7 @@ import { PageHeader, Shell } from "@/components/page-parts";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSearch } from "@/hooks/use-api";
+import { ErrorState } from "@/components/common/query-state";
 
 export const Route = createFileRoute("/search")({
   head: () => ({
@@ -36,7 +37,7 @@ function SearchPage() {
     const params = new URLSearchParams(window.location.search);
     return params.get("q") || "";
   });
-  const { data: results, isLoading } = useSearch(query);
+  const { data: results, isLoading, isError, error, refetch } = useSearch(query);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -86,7 +87,11 @@ function SearchPage() {
       <div className="mt-8 grid gap-6">
         {isLoading && <p className="text-sm text-muted-foreground">Searching...</p>}
 
-        {!isLoading && query.length > 0 && (
+        {isError ? (
+          <ErrorState title="Search failed" error={error} onRetry={() => void refetch()} />
+        ) : null}
+
+        {!isLoading && !isError && query.length > 0 && (
           <>
             <section>
               <h2 className="mb-4 text-2xl font-semibold">Communities</h2>

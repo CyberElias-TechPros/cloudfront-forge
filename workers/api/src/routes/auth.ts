@@ -1,25 +1,24 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { UserService } from "../services/user";
 import { requireAuth } from "../middleware/auth";
 import { getUserPermissions } from "../middleware/permissions";
-import { paginationSchema } from "../middleware/validation";
 import { Database } from "../lib/database";
 import { z } from "zod";
 
 const registerSchema = z.object({
   firebaseUid: z.string().min(1),
   email: z.string().email().nullable().optional(),
-  displayName: z.string().min(1).nullable().optional(),
+  displayName: z.string().min(1).max(50).nullable().optional(),
   photoUrl: z.string().url().nullable().optional(),
 });
 
 const updateUserSchema = z.object({
-  displayName: z.string().min(1).optional(),
+  displayName: z.string().min(1).max(50).optional(),
   email: z.string().email().optional(),
 });
 
-export const authRoutes = [
+export const authRoutes: RouteDefinition[] = [
   {
     method: "POST",
     path: "/api/v1/auth/register",

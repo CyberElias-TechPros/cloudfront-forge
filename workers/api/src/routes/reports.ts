@@ -1,9 +1,10 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireAdmin } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { notifyUserPush } from "../lib/push";
 import { z } from "zod";
+import { sanitize } from "../lib/sanitize";
 
 const createReportSchema = z.object({
   reportedUserId: z.string().uuid().optional(),
@@ -38,7 +39,12 @@ async function applyTrustPenalty(db: Database, userId: string): Promise<void> {
   }
 }
 
-export const reportRoutes = [
+const appealReviewSchema = z.object({
+  status: z.enum(["accepted", "rejected"]),
+  note: z.string().max(2000).optional(),
+});
+
+export const reportRoutes: RouteDefinition[] = [
   {
     method: "POST",
     path: "/api/v1/reports",
@@ -159,7 +165,7 @@ export const reportRoutes = [
         }
 
         await db.execute(
-          `INSERT INTO appeals (id, report_id, user_id, reason, created_at) VALUES (?, ?, ?, ?, ?)`,
+          "INSERT INTO appeals (id, report_id, user_id, reason, created_at) VALUES (?, ?, ?, ?, ?)",
           [crypto.randomUUID(), reportId, userId, validation.data.reason, now],
         );
 
@@ -192,23 +198,20 @@ export const reportRoutes = [
     pattern: "^\\/api\\/v1/admin/appeals/([^/]+)$",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
-        const adminId = await requireAuth(request, env);
+        // Single source of truth for admin checks: the hand-rolled role check
+        // here drifted from `requireAdmin` (moderators were rejected in one
+        // place and accepted in another).
+        const adminId = await requireAdmin(request, env);
         const db = new Database(env);
 
-        // Verify admin role
-        const admin = await db.querySingle(
-          "SELECT role FROM admin_users WHERE user_id = ?",
-          [adminId],
-        );
-        const adminRole = (admin as { role?: string })?.role;
-        if (adminRole !== "super_admin" && adminRole !== "admin") {
-          return createErrorResponse("FORBIDDEN", "Admin access required", 403);
-        }
-
         const appealId = new URL(request.url).pathname.split("/")[5] ?? "";
-        const body = (await request.json().catch(() => ({}))) as { status?: string; note?: string };
-        if (!body.status || !["accepted", "rejected"].includes(body.status)) {
-          return createErrorResponse("VALIDATION_ERROR", "status must be 'accepted' or 'rejected'", 400);
+        const parsed = appealReviewSchema.safeParse(await request.json().catch(() => ({})));
+        if (!parsed.success) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            parsed.error.errors.map((e) => e.message).join(", "),
+            400,
+          );
         }
 
         const appeal = await db.querySingle("SELECT id, report_id FROM appeals WHERE id = ?", [appealId]);
@@ -217,21 +220,30 @@ export const reportRoutes = [
         const now = new Date().toISOString();
         await db.execute(
           "UPDATE appeals SET status = ?, reviewed_by = ?, reviewed_at = ?, note = ? WHERE id = ?",
-          [body.status, adminId, now, body.note ?? null, appealId],
+          [
+            parsed.data.status,
+            adminId,
+            now,
+            parsed.data.note ? sanitize(parsed.data.note) : null,
+            appealId,
+          ],
         );
 
         // If accepted, dismiss the original report
-        if (body.status === "accepted") {
+        if (parsed.data.status === "accepted") {
           await db.execute("UPDATE reports SET status = 'dismissed', updated_at = ? WHERE id = ?", [
             now,
             (appeal as any).report_id,
           ]);
         }
 
-        return createResponse({ message: `Appeal ${body.status}` });
+        return createResponse({ message: `Appeal ${parsed.data.status}` });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        if (error.message === "FORBIDDEN") {
+          return createErrorResponse("FORBIDDEN", "Admin access required", 403);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to review appeal", 500);
       }

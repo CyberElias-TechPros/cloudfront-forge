@@ -26,7 +26,7 @@
 Copy-paste these into Vercel Dashboard:
 
 ```
-VITE_FIREBASE_API_KEY=AIzaSyAqcPLTHaIujDMj_lXUxM9bang2AGW6AVA
+VITE_FIREBASE_API_KEY=YOUR_FIREBASE_WEB_API_KEY
 
 VITE_FIREBASE_AUTH_DOMAIN=creator-loop-ring.firebaseapp.com
 

@@ -295,7 +295,11 @@ function Profile() {
               {activity.map((a, i) => (
                 <li key={i} className="flex items-center justify-between gap-3">
                   <span>
-                    <span className="font-medium">{a.who}</span>{" "}
+                    {a.who ? (
+                      <>
+                        <span className="font-medium">{a.who}</span>{" "}
+                      </>
+                    ) : null}
                     <span className="text-muted-foreground">{a.what}</span>
                   </span>
                   <span className="shrink-0 text-xs text-muted-foreground">{a.when}</span>

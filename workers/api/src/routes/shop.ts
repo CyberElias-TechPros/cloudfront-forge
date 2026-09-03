@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
@@ -13,7 +13,7 @@ const purchaseSchema = z.object({
   videoId: z.string().optional(),
 });
 
-export const shopRoutes = [
+export const shopRoutes: RouteDefinition[] = [
   {
     method: "GET",
     path: "/api/v1/shop",
@@ -68,67 +68,95 @@ export const shopRoutes = [
         const now = new Date().toISOString();
         const cost = validation.data.itemType === "boost" ? BOOST_COST : FREEZE_COST;
 
-        // Deduct balance atomically; fail if insufficient
-        const deduct = await db.execute(
-          `UPDATE credit_accounts SET balance = balance - ?, updated_at = ?
-           WHERE user_id = ? AND balance >= ?`,
-          [cost, now, userId, cost],
-        );
-        if (!deduct.meta.changes) {
-          return createErrorResponse("INSUFFICIENT_CREDITS", `Not enough credits (need ${cost})`, 400);
+        // Validate everything that can make the purchase meaningless *before*
+        // taking the credits: the old order deducted first and only then tried
+        // to apply the effect, so boosting a video you do not own (or one that
+        // is no longer active) charged the member for nothing.
+        if (validation.data.itemType === "boost") {
+          const video = await db.querySingle(
+            "SELECT id FROM videos WHERE id = ? AND user_id = ? AND status = 'active'",
+            [validation.data.videoId, userId],
+          );
+          if (!video) {
+            return createErrorResponse(
+              "NOT_FOUND",
+              "Video not found or no longer active",
+              404,
+            );
+          }
         }
 
-        await db.execute(
-          `INSERT INTO credit_transactions (id, user_id, amount, type, description, created_at)
-           VALUES (?, ?, ?, 'spent', ?, ?)`,
-          [
-            crypto.randomUUID(),
-            userId,
-            -cost,
-            validation.data.itemType === "boost" ? "Video boost" : "Streak freeze",
-            now,
-          ],
+        const account = await db.querySingle(
+          "SELECT balance FROM credit_accounts WHERE user_id = ?",
+          [userId],
         );
-        await db.execute(
-          `INSERT INTO credit_purchases (id, user_id, item_type, item_ref, cost_credits, created_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [
-            crypto.randomUUID(),
-            userId,
-            validation.data.itemType,
-            validation.data.videoId ?? null,
-            cost,
-            now,
-          ],
-        );
+        const balance = Number(account?.balance ?? 0);
+        if (balance < cost) {
+          return createErrorResponse("INSUFFICIENT_CREDITS", `Not enough credits (need ${cost})`, 400);
+        }
+        const balanceAfter = balance - cost;
+
+        // Spend and effect are written in one transaction so a failure can
+        // never leave credits taken without the purchase (or vice versa).
+        const statements: { sql: string; params: unknown[] }[] = [
+          {
+            sql: `UPDATE credit_accounts SET balance = balance - ?, updated_at = ?
+                  WHERE user_id = ? AND balance >= ?`,
+            params: [cost, now, userId, cost],
+          },
+          {
+            sql: `INSERT INTO credit_transactions (id, user_id, amount, type, description, balance_after, created_at)
+                  VALUES (?, ?, ?, 'spent', ?, ?, ?)`,
+            params: [
+              crypto.randomUUID(),
+              userId,
+              -cost,
+              validation.data.itemType === "boost" ? "Video boost" : "Streak freeze",
+              balanceAfter,
+              now,
+            ],
+          },
+          {
+            sql: `INSERT INTO credit_purchases (id, user_id, item_type, item_ref, cost_credits, created_at)
+                  VALUES (?, ?, ?, ?, ?, ?)`,
+            params: [
+              crypto.randomUUID(),
+              userId,
+              validation.data.itemType,
+              validation.data.videoId ?? null,
+              cost,
+              now,
+            ],
+          },
+        ];
 
         let boostedUntil: string | null = null;
         if (validation.data.itemType === "boost") {
           boostedUntil = new Date(Date.now() + BOOST_HOURS * 3600 * 1000).toISOString();
-          await db.execute(
-            `UPDATE videos SET boosted_until = ?, updated_at = ? WHERE id = ? AND user_id = ? AND status = 'active'`,
-            [boostedUntil, now, validation.data.videoId, userId],
-          );
+          statements.push({
+            sql: "UPDATE videos SET boosted_until = ?, updated_at = ? WHERE id = ? AND user_id = ? AND status = 'active'",
+            params: [boostedUntil, now, validation.data.videoId, userId],
+          });
         } else {
-          // Upsert the user's daily_login streak row so the purchased freeze is
-          // never silently dropped (a bare UPDATE no-ops when no row exists yet).
           const streakRow = await db.querySingle(
             "SELECT id FROM streaks WHERE user_id = ? AND streak_type = 'daily_login'",
             [userId],
           );
           if (streakRow) {
-            await db.execute(
-              `UPDATE streaks SET streak_freezes = streak_freezes + 1, updated_at = ? WHERE user_id = ? AND streak_type = 'daily_login'`,
-              [now, userId],
-            );
+            statements.push({
+              sql: "UPDATE streaks SET streak_freezes = streak_freezes + 1, updated_at = ? WHERE user_id = ? AND streak_type = 'daily_login'",
+              params: [now, userId],
+            });
           } else {
-            await db.execute(
-              `INSERT INTO streaks (id, user_id, current_streak, longest_streak, streak_type, streak_freezes, created_at, updated_at)
-               VALUES (?, ?, 0, 0, 'daily_login', 1, ?, ?)`,
-              [crypto.randomUUID(), userId, now, now],
-            );
+            statements.push({
+              sql: `INSERT INTO streaks (id, user_id, current_streak, longest_streak, streak_type, streak_freezes, created_at, updated_at)
+                    VALUES (?, ?, 0, 0, 'daily_login', 1, ?, ?)`,
+              params: [crypto.randomUUID(), userId, now, now],
+            });
           }
         }
+
+        await db.batch(statements);
 
         const balanceRow = await db.querySingle(
           "SELECT balance FROM credit_accounts WHERE user_id = ?",

@@ -1,7 +1,7 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
-import { Database } from "../lib/database";
+import { Database, sqlBool } from "../lib/database";
 import { generateInviteCode, generateSlug } from "../lib/utils";
 import { sanitize } from "../lib/sanitize";
 import { z } from "zod";
@@ -25,21 +25,14 @@ const joinCommunitySchema = z.object({
   inviteCode: z.string().min(4).max(20),
 });
 
-const updateCommunitySchema = z.object({
-  name: z.string().min(3).max(100).optional(),
-  description: z.string().max(500).optional(),
-  isPublic: z.boolean().optional(),
-  maxMembers: z.number().min(10).max(10000).optional(),
-  logoUrl: z.string().url().optional(),
-  bannerUrl: z.string().url().optional(),
+const communitySettingsSchema = z.object({
+  allowPeerReview: z.boolean().optional(),
+  allowCollaboration: z.boolean().optional(),
+  requireApproval: z.boolean().optional(),
+  defaultLanguage: z.string().min(2).max(10).nullable().optional(),
 });
 
-const communityMemberRoleSchema = z.object({
-  userId: z.string().uuid(),
-  role: z.enum(["owner", "admin", "moderator", "mentor", "member"]),
-});
-
-export const communityRoutes = [
+export const communityRoutes: RouteDefinition[] = [
   {
     method: "GET",
     path: "/api/v1/communities",
@@ -148,7 +141,6 @@ export const communityRoutes = [
     method: "POST",
     path: "/api/v1/communities",
     handler: async (request: Request, env: Env): Promise<Response> => {
-      const logger = createLogger(env);
       try {
         const userId = await requireAuth(request, env);
         const body = (await request.json().catch(() => ({}))) as any;
@@ -167,8 +159,12 @@ export const communityRoutes = [
 
         const communityId = db.uuid();
         const inviteCode = generateInviteCode();
-        const sanitizedName = sanitize(body.name);
-        const sanitizedDescription = body.description ? sanitize(body.description) : null;
+        // Use the validated payload, not the raw body: `isPublic`/`maxMembers`
+        // defaults live in the schema.
+        const sanitizedName = sanitize(validation.data.name);
+        const sanitizedDescription = validation.data.description
+          ? sanitize(validation.data.description)
+          : null;
         const slug = `${generateSlug(sanitizedName)}-${communityId.substring(0, 8)}`;
 
         await db.execute(
@@ -180,9 +176,9 @@ export const communityRoutes = [
             sanitizedDescription,
             slug,
             inviteCode,
-            body.isPublic ?? false,
+            sqlBool(validation.data.isPublic) ?? 0,
             userId,
-            body.maxMembers ?? 10000,
+            validation.data.maxMembers ?? 10000,
             now,
             now,
           ],
@@ -229,7 +225,7 @@ export const communityRoutes = [
         const now = new Date().toISOString();
 
         const community = await db.querySingle("SELECT * FROM communities WHERE invite_code = ?", [
-          body.inviteCode.toUpperCase(),
+          validation.data.inviteCode.toUpperCase(),
         ]);
 
         if (!community) {
@@ -285,6 +281,26 @@ export const communityRoutes = [
           return createErrorResponse("VALIDATION_ERROR", "Community ID is required", 400);
         }
         const db = new Database(env);
+
+        // Private community rosters are for members only.
+        const access = await db.querySingle(
+          `SELECT c.is_public,
+                  EXISTS (SELECT 1 FROM community_members m
+                           WHERE m.community_id = c.id AND m.user_id = ? AND m.status = 'active') AS is_member
+             FROM communities c WHERE c.id = ?`,
+          [userId, communityId],
+        );
+        if (!access) {
+          return createErrorResponse("NOT_FOUND", "Community not found", 404);
+        }
+        if (!access.is_public && !access.is_member) {
+          return createErrorResponse(
+            "FORBIDDEN",
+            "Join this community to see its members",
+            403,
+          );
+        }
+
         const result = await db.query(
           `SELECT cm.id, cm.role, cm.status, cm.joined_at, u.id as userId,
                   u.display_name as displayName, u.photo_url as photoUrl
@@ -326,16 +342,23 @@ export const communityRoutes = [
             403,
           );
         }
-        const body = (await request.json().catch(() => ({}))) as any;
+        const parsed = communitySettingsSchema.safeParse(await request.json().catch(() => ({})));
+        if (!parsed.success) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            parsed.error.errors.map((e) => e.message).join(", "),
+            400,
+          );
+        }
         const now = db.now();
         const existing = await db.querySingle(
           "SELECT id FROM community_settings WHERE community_id = ?",
           [communityId],
         );
-        const allowPeerReview = body.allowPeerReview ?? true;
-        const allowCollaboration = body.allowCollaboration ?? true;
-        const requireApproval = body.requireApproval ?? true;
-        const defaultLanguage = body.defaultLanguage ?? null;
+        const allowPeerReview = sqlBool(parsed.data.allowPeerReview) ?? 1;
+        const allowCollaboration = sqlBool(parsed.data.allowCollaboration) ?? 1;
+        const requireApproval = sqlBool(parsed.data.requireApproval) ?? 1;
+        const defaultLanguage = parsed.data.defaultLanguage ?? null;
         if (existing) {
           await db.execute(
             `UPDATE community_settings

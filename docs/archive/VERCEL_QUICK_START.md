@@ -43,7 +43,7 @@ Click "Add Environment Variables" and add all 8:
 
 ```
 VITE_FIREBASE_API_KEY
-AIzaSyAqcPLTHaIujDMj_lXUxM9bang2AGW6AVA
+YOUR_FIREBASE_WEB_API_KEY
 
 VITE_FIREBASE_AUTH_DOMAIN
 creator-loop-ring.firebaseapp.com
@@ -299,7 +299,7 @@ After deployment is working, add a custom domain:
 
 ### Environment Variables Needed
 ```
-VITE_FIREBASE_API_KEY=AIzaSyAqcPLTHaIujDMj_lXUxM9bang2AGW6AVA
+VITE_FIREBASE_API_KEY=YOUR_FIREBASE_WEB_API_KEY
 VITE_FIREBASE_AUTH_DOMAIN=creator-loop-ring.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=creator-loop-ring
 VITE_FIREBASE_STORAGE_BUCKET=creator-loop-ring.firebasestorage.app

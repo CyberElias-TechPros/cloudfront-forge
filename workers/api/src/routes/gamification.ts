@@ -1,9 +1,10 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { ensureDailyQuests } from "../lib/quests";
-import { calculateLevel, calculateWeightedScore } from "../lib/utils";
+import { calculateLevel } from "../lib/utils";
+import { calculateWeightedScore, weightedScoreSql } from "../lib/scoring";
 
 const db = (env: Env) => new Database(env);
 
@@ -14,7 +15,14 @@ function getPagination(request: Request): { limit: number; offset: number } {
   return { limit, offset };
 }
 
-export const gamificationRoutes = [
+/** True when `day` is exactly one day before `today` (both `YYYY-MM-DD`). */
+function isPreviousDay(day: string, today: string): boolean {
+  const yesterday = new Date(`${today}T00:00:00.000Z`);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  return day === yesterday.toISOString().split("T")[0];
+}
+
+export const gamificationRoutes: RouteDefinition[] = [
   {
     method: "GET",
     path: "/api/v1/daily-quests",
@@ -214,12 +222,18 @@ export const gamificationRoutes = [
 
         const database = db(env);
 
-        let dateFilter = "";
-        if (timeframe === "weekly") {
-          dateFilter = "AND xp.created_at >= datetime('now', '-7 days')";
-        } else if (timeframe === "monthly") {
-          dateFilter = "AND xp.created_at >= datetime('now', '-30 days')";
-        }
+        // XP earned inside the selected window (null = all time). XP is the
+        // only time-scoped component: credits and reputation are lifetime
+        // balances, so they are always counted in full.
+        const windowModifier =
+          timeframe === "daily"
+            ? "-1 days"
+            : timeframe === "monthly"
+              ? "-30 days"
+              : timeframe === "all"
+                ? null
+                : "-7 days";
+        const windowParams = windowModifier === null ? [null, null] : [windowModifier, windowModifier];
 
         // Cohort tiers by account age: rookie <7d, rising 7-30d, veteran >30d
         let cohortFilter = "";
@@ -239,23 +253,33 @@ export const gamificationRoutes = [
         const result = await database.query(
           `
           SELECT u.id, u.display_name, u.photo_url,
-                 COALESCE(xp.total_xp, 0) as total_xp,
+                 COALESCE(period.xp, 0) as total_xp,
                  COALESCE(c.balance, 0) as credits,
-                 COALESCE(r.score, 100) as reputation,
-                  ROUND(COALESCE(xp.total_xp, 0) * 0.4 + COALESCE(c.balance, 0) * 0.3 + COALESCE(r.score, 100) * 0.3) as weighted_score
+                 COALESCE(r.score, 100) as reputation
           FROM users u
-          LEFT JOIN xp_accounts xp ON xp.user_id = u.id
+          LEFT JOIN (
+            SELECT user_id, SUM(amount) AS xp
+              FROM xp_transactions
+             WHERE (? IS NULL OR created_at >= datetime('now', ?))
+             GROUP BY user_id
+          ) period ON period.user_id = u.id
           LEFT JOIN credit_accounts c ON c.user_id = u.id
           LEFT JOIN reputation_accounts r ON r.user_id = u.id
           WHERE u.deleted_at IS NULL ${cohortFilter}
-           ORDER BY weighted_score DESC
+           ORDER BY ${weightedScoreSql("period.xp", "c.balance", "r.score")} DESC,
+                    u.created_at ASC
            LIMIT ? OFFSET ?
          `,
-          [limit, offset],
+          [...windowParams, limit, offset],
         );
 
         const items = result.results.map((row: Record<string, unknown>, index: number) => ({
           ...row,
+          weighted_score: calculateWeightedScore(
+            Number(row.total_xp ?? 0),
+            Number(row.credits ?? 0),
+            Number(row.reputation ?? 100),
+          ),
           rank: offset + index + 1,
         }));
 
@@ -264,6 +288,7 @@ export const gamificationRoutes = [
           total: totalResult.results[0]?.count ?? 0,
           limit,
           offset,
+          timeframe,
           cohort: cohort ?? "all",
         });
       } catch (error: any) {
@@ -313,16 +338,26 @@ export const gamificationRoutes = [
           return createErrorResponse("CONFLICT", "Daily bonus already claimed today", 409);
         }
 
-        // Get current streak (daily_login type)
+        // Get current streak (daily_login type). The streak is what the bonus
+        // multiplier is built on, so it has to be advanced here too — nothing
+        // else in the codebase ever incremented it, which left every member at
+        // streak 0 (a flat 5 credits/day, and a streak-freeze purchase that
+        // protected nothing).
         const streak = await database.query(
-          "SELECT current_streak FROM streaks WHERE user_id = ? AND streak_type = 'daily_login'",
+          "SELECT id, current_streak, longest_streak, last_activity_date FROM streaks WHERE user_id = ? AND streak_type = 'daily_login'",
           [userId],
         );
-        const streakCount = streak.results.length > 0
-          ? ((streak.results[0] as Record<string, unknown>).current_streak as number ?? 0)
-          : 0;
+        const streakRow = streak.results[0] as
+          | Record<string, unknown>
+          | undefined;
+        const streakCount = (streakRow?.current_streak as number | undefined) ?? 0;
+        const lastActivity = streakRow?.last_activity_date as string | undefined;
+        const continuesStreak =
+          !!lastActivity && isPreviousDay(lastActivity, today);
+        const nextStreak = streakRow ? (continuesStreak ? streakCount + 1 : 1) : 1;
 
-        // Base 5 credits × (1 + streak × 0.1), capped at 3×
+        // Base 5 credits × (1 + streak × 0.1), capped at 3×. The multiplier
+        // rewards the streak already banked, so day one pays the flat 5.
         const multiplier = Math.min(1 + streakCount * 0.1, 3);
         const baseCredits = 5;
         const bonusCredits = Math.round(baseCredits * multiplier);
@@ -345,12 +380,31 @@ export const gamificationRoutes = [
             sql: "UPDATE credit_accounts SET balance = balance + ?, updated_at = ? WHERE user_id = ?",
             params: [bonusCredits, now, userId],
           },
+          // Streak advance, in the same batch as the payout so a member can
+          // never be credited without their streak moving (or vice versa).
+          streakRow
+            ? {
+                sql: "UPDATE streaks SET current_streak = ?, longest_streak = MAX(COALESCE(longest_streak, 0), ?), last_activity_date = ?, updated_at = ? WHERE id = ?",
+                params: [nextStreak, nextStreak, today, now, streakRow.id],
+              }
+            : {
+                sql: "INSERT INTO streaks (id, user_id, current_streak, longest_streak, last_activity_date, streak_type, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'daily_login', ?, ?)",
+                params: [
+                  crypto.randomUUID(),
+                  userId,
+                  nextStreak,
+                  nextStreak,
+                  today,
+                  now,
+                  now,
+                ],
+              },
         ]);
 
         return createResponse({
           credits: bonusCredits,
           multiplier: Math.round(multiplier * 100) / 100,
-          streak: streakCount,
+          streak: nextStreak,
         });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {

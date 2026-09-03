@@ -1,4 +1,4 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
@@ -45,19 +45,19 @@ async function buildPlatformAwarePrompt(db: Database, userId: string): Promise<s
 
   return (
     AI_SYSTEM_PROMPT +
-    `\n\n--- YOUR LIVE DATA (fetched fresh for this user) ---\n` +
+    "\n\n--- YOUR LIVE DATA (fetched fresh for this user) ---\n" +
     `Name: ${m?.display_name ?? "Creator"}\n` +
     `Trust score: ${m?.trust_score ?? "?"}/100\n` +
     `Level: ${x?.level ?? "?"} (${x?.total_xp ?? 0} XP)\n` +
     `Streak: ${s?.current_streak ?? 0} days (longest: ${s?.longest_streak ?? 0})\n` +
     `Reviews completed: ${reviews?.count ?? 0}\n` +
     `Recent videos:\n${videoList || "(none yet)"}\n` +
-    `\nUse this data when answering questions about their account, videos, or growth. ` +
-    `If they ask about features not listed in your instructions, say you don't have that info.`
+    "\nUse this data when answering questions about their account, videos, or growth. " +
+    "If they ask about features not listed in your instructions, say you don't have that info."
   );
 }
 
-export const aiRoutes = [
+export const aiRoutes: RouteDefinition[] = [
   {
     method: "POST",
     path: "/api/v1/ai/chat",
@@ -77,6 +77,32 @@ export const aiRoutes = [
 
         const db = new Database(env);
         const now = db.now();
+
+        // --- Daily quota (per-user + global ceiling) ---
+        // Checked before anything is written, so an over-quota member does not
+        // leave a trail of empty conversations behind.
+        const DAILY_USER_LIMIT = parseInt(env.AI_DAILY_USER_LIMIT || "20", 10);
+        const DAILY_GLOBAL_LIMIT = parseInt(env.AI_DAILY_GLOBAL_LIMIT || "500", 10);
+        const todayUserCount = await db.querySingle(
+          "SELECT COUNT(*) as cnt FROM ai_messages WHERE user_id = ? AND role = 'user' AND created_at > datetime('now', 'start of day')",
+          [userId],
+        );
+        if ((todayUserCount?.cnt ?? 0) >= DAILY_USER_LIMIT) {
+          return createErrorResponse(
+            "QUOTA_EXCEEDED",
+            `Daily AI limit reached (${DAILY_USER_LIMIT} messages). Resets at midnight.`,
+            429,
+          );
+        }
+        if (DAILY_GLOBAL_LIMIT > 0) {
+          const todayGlobal = await db.querySingle(
+            "SELECT COUNT(*) as cnt FROM ai_messages WHERE role = 'user' AND created_at > datetime('now', 'start of day')",
+          );
+          if ((todayGlobal?.cnt ?? 0) >= DAILY_GLOBAL_LIMIT) {
+            return createErrorResponse("QUOTA_EXCEEDED", "Daily AI capacity reached. Try again tomorrow.", 429);
+          }
+        }
+
         let convId = conversationId;
 
         if (convId) {
@@ -107,29 +133,6 @@ export const aiRoutes = [
           ...history.map((m) => ({ role: m.role as ChatMessage["role"], content: m.content })),
           { role: "user", content: message },
         ];
-
-        // --- Daily quota (per-user + global ceiling) ---
-        const DAILY_USER_LIMIT = parseInt(env.AI_DAILY_USER_LIMIT || "20", 10);
-        const DAILY_GLOBAL_LIMIT = parseInt(env.AI_DAILY_GLOBAL_LIMIT || "500", 10);
-        const todayUserCount = await db.querySingle(
-          "SELECT COUNT(*) as cnt FROM ai_messages WHERE user_id = ? AND role = 'user' AND created_at > datetime('now', 'start of day')",
-          [userId],
-        );
-        if ((todayUserCount?.cnt ?? 0) >= DAILY_USER_LIMIT) {
-          return createErrorResponse(
-            "QUOTA_EXCEEDED",
-            `Daily AI limit reached (${DAILY_USER_LIMIT} messages). Resets at midnight.`,
-            429,
-          );
-        }
-        if (DAILY_GLOBAL_LIMIT > 0) {
-          const todayGlobal = await db.querySingle(
-            "SELECT COUNT(*) as cnt FROM ai_messages WHERE role = 'user' AND created_at > datetime('now', 'start of day')",
-          );
-          if ((todayGlobal?.cnt ?? 0) >= DAILY_GLOBAL_LIMIT) {
-            return createErrorResponse("QUOTA_EXCEEDED", "Daily AI capacity reached. Try again tomorrow.", 429);
-          }
-        }
 
         let reply: string;
         try {
@@ -194,6 +197,22 @@ export const aiRoutes = [
 
         const db = new Database(env);
         const now = db.now();
+
+        // Quota check first (same limits as the non-streaming route): an
+        // over-quota member must not create an empty conversation per attempt.
+        const DAILY_USER_LIMIT = parseInt(env.AI_DAILY_USER_LIMIT || "20", 10);
+        const todayUserCount = await db.querySingle(
+          "SELECT COUNT(*) as cnt FROM ai_messages WHERE user_id = ? AND role = 'user' AND created_at > datetime('now', 'start of day')",
+          [userId],
+        );
+        if ((todayUserCount?.cnt ?? 0) >= DAILY_USER_LIMIT) {
+          return createErrorResponse(
+            "QUOTA_EXCEEDED",
+            `Daily AI limit reached (${DAILY_USER_LIMIT}). Resets at midnight.`,
+            429,
+          );
+        }
+
         let convId = conversationId;
 
         if (convId) {
@@ -221,20 +240,6 @@ export const aiRoutes = [
           ...history.map((m) => ({ role: m.role as ChatMessage["role"], content: m.content })),
           { role: "user", content: message },
         ];
-
-        // Quota check (same as non-streaming)
-        const DAILY_USER_LIMIT = parseInt(env.AI_DAILY_USER_LIMIT || "20", 10);
-        const todayUserCount = await db.querySingle(
-          "SELECT COUNT(*) as cnt FROM ai_messages WHERE user_id = ? AND role = 'user' AND created_at > datetime('now', 'start of day')",
-          [userId],
-        );
-        if ((todayUserCount?.cnt ?? 0) >= DAILY_USER_LIMIT) {
-          return createErrorResponse(
-            "QUOTA_EXCEEDED",
-            `Daily AI limit reached (${DAILY_USER_LIMIT}). Resets at midnight.`,
-            429,
-          );
-        }
 
         // SSE stream
         const encoder = new TextEncoder();

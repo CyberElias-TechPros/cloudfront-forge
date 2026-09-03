@@ -45,7 +45,7 @@ export function diagnoseAuth(): {
 
   if (!firebaseConfigured) {
     firebaseErrors.push(
-      `Missing or placeholder Firebase config: ${missing.join(", ")}. See FIREBASE_SETUP.md`,
+      `Missing or placeholder Firebase config: ${missing.join(", ")}. See .env.example and docs/DEPLOYMENT.md`,
     );
     issues.push("Firebase is not properly configured");
   }

@@ -8,6 +8,7 @@ import {
 } from "@/hooks/use-api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ErrorState } from "@/components/common/query-state";
 
 export const Route = createFileRoute("/notifications")({
   head: () => ({
@@ -20,7 +21,7 @@ export const Route = createFileRoute("/notifications")({
 });
 
 function Notifications() {
-  const { data: notifications = [], isLoading } = useNotifications();
+  const { data: notifications = [], isLoading, isError, error, refetch } = useNotifications();
   const markAll = useMarkAllNotificationsRead();
   const markOne = useMarkNotificationRead();
 
@@ -44,12 +45,19 @@ function Notifications() {
       />
 
       <div className="mt-6 space-y-2">
+        {isError && (
+          <ErrorState
+            title="Could not load notifications"
+            error={error}
+            onRetry={() => void refetch()}
+          />
+        )}
         {isLoading && (
           <div className="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground">
             Loading...
           </div>
         )}
-        {!isLoading && notifications.length === 0 && (
+        {!isLoading && !isError && notifications.length === 0 && (
           <div className="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground">
             No notifications yet. Watch a video or complete a mission to get started.
           </div>

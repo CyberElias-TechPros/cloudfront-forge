@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PageHeader, Shell, StatCard } from "@/components/page-parts";
 import { useLeaderboard } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
+import { ErrorState } from "@/components/common/query-state";
 
 export const Route = createFileRoute("/leaderboard")({
   head: () => ({
@@ -35,7 +36,7 @@ const cohorts = [
 function Leaderboard() {
   const [range, setRange] = useState<(typeof ranges)[number]>("This week");
   const [cohort, setCohort] = useState<string>("");
-  const { data: entries = [], isLoading } = useLeaderboard(cohort);
+  const { data: entries = [], isLoading, isError, error, refetch } = useLeaderboard(cohort);
 
   const sorted = [...entries].sort((a, b) => b.totalXp - a.totalXp);
   const top = sorted.slice(0, 3);
@@ -86,6 +87,14 @@ function Leaderboard() {
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        {isError ? (
+          <ErrorState
+            className="col-span-full"
+            title="Could not load the leaderboard"
+            error={error}
+            onRetry={() => void refetch()}
+          />
+        ) : null}
         {isLoading ? (
           <div className="surface col-span-full flex items-center justify-center py-12 text-sm text-muted-foreground">
             Loading leaderboard...

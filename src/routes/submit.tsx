@@ -5,6 +5,7 @@ import { PageHeader, Shell } from "@/components/page-parts";
 import { useSubmissions, useSubmitVideo } from "@/hooks/use-api";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { ErrorNotice } from "@/components/common/query-state";
 
 export const Route = createFileRoute("/submit")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -33,7 +34,7 @@ const niches = ["Tech", "Food", "Fitness", "Beauty", "Gaming", "Music", "Podcast
 function Submit() {
   const search = Route.useSearch();
   const sharedLink = search["link"];
-  const { data: submissions = [] } = useSubmissions();
+  const { data: submissions = [], isError, error, refetch } = useSubmissions();
   const submitVideo = useSubmitVideo();
   const [niche, setNiche] = useState("Tech");
   const [link, setLink] = useState(sharedLink ?? "");
@@ -229,6 +230,11 @@ function Submit() {
               <Timer className="size-4 text-accent" /> Your recent submissions
             </h2>
             <ul className="mt-4 space-y-3 text-sm">
+              {isError ? (
+                <ErrorNotice error={error} onRetry={() => void refetch()}>
+                  Could not load your submissions
+                </ErrorNotice>
+              ) : null}
               {submissions.map((s) => (
                 <li key={s.id} className="flex items-start justify-between gap-3">
                   <span>

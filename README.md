@@ -1,165 +1,153 @@
-# CreatorLoop (CloudFront Forge)
+# CreatorLoop (`cloudfront-forge`)
 
-Gamified, cheat-proof follow-for-follow platform for YouTube creator communities. Verified watch time, real subscriptions, and a leaderboard that rewards showing up.
+Gamified, cheat-resistant watch-for-watch growth for YouTube creator communities.
+Members earn credits and XP by genuinely watching, subscribing to and commenting
+on each other's videos; verification is server-side, rewards are paid once, and a
+weighted leaderboard ranks the squad.
 
-## Stack
+**Two runtimes, no more:**
 
-- **Frontend**: React/TypeScript (TanStack Start) + Tailwind CSS
-- **Backend**: Cloudflare Workers + D1 SQLite + KV + R2
-- **Auth**: Firebase Authentication (Google Sign-In)
-- **AI**: NVIDIA NIM (Llama 3.1)
-- **Hosting**: Vercel (frontend) + Cloudflare Workers (backend)
+| Layer    | Platform           | What it is                                                          |
+| -------- | ------------------ | ------------------------------------------------------------------- |
+| Frontend | Vercel             | Static SPA (`dist/client`) built by Vite/TanStack Start in SPA mode |
+| API      | Cloudflare Workers | TypeScript Worker on D1 (SQLite), KV, R2 and a daily cron           |
+| Identity | Firebase Auth      | Google Sign-In; the Worker verifies ID tokens                       |
 
-## Security
+---
 
-This project implements several critical security measures:
-
-- **No hardcoded secrets**: All API keys and credentials are loaded from environment variables or Cloudflare Secrets Store
-- **CORS whitelisting**: Only configured origins can access the API
-- **Input validation**: All endpoints use Zod schema validation
-- **Rate limiting**: Per-IP rate limiting with stricter limits for auth endpoints
-- **Firebase JWT verification**: Tokens are verified against Google's public keys
-- **RBAC permissions**: Role-based access control for admin operations
-- **YouTube OAuth**: Secure OAuth 2.0 flow for subscription verification
-
-## Prerequisites
-
-- Node.js >= 18
-- npm >= 9
-- Cloudflare account with Workers, D1, KV, and R2 enabled
-- Firebase project with Google Sign-In enabled
-- YouTube Data API v3 key (for metadata)
-- NVIDIA NIM API key (for AI features)
-
-## Setup
-
-### 1. Clone and install
+## Quick start
 
 ```sh
-git clone <repository-url>
-cd cloudfront-forge
-npm i
-cd workers/api && npm i && cd ../..
-```
-
-### 2. Configure environment variables
-
-Copy `.env.example` to `.env` in the root and `workers/api/.env.example` to `workers/api/.env`, then fill in the values.
-
-Required frontend variables:
-
-- `VITE_FIREBASE_API_KEY`
-- `VITE_FIREBASE_AUTH_DOMAIN`
-- `VITE_FIREBASE_PROJECT_ID`
-- `VITE_FIREBASE_STORAGE_BUCKET`
-- `VITE_FIREBASE_MESSAGING_SENDER_ID`
-- `VITE_FIREBASE_APP_ID`
-- `VITE_API_URL`
-
-Required backend variables (set via `wrangler secret put` or `.env`):
-
-- `FIREBASE_PROJECT_ID`
-- `YOUTUBE_API_KEY`
-- `AI_API_KEY`
-- `AI_MODEL`
-- `YOUTUBE_OAUTH_CLIENT_ID`
-- `YOUTUBE_OAUTH_CLIENT_SECRET`
-- `YOUTUBE_OAUTH_REDIRECT_URI`
-- `CORS_ORIGINS`
-
-### 3. Set up Cloudflare resources
-
-```sh
+# 1. Worker (http://localhost:8787)
 cd workers/api
-wrangler d1 create creatorloop-db
-wrangler kv:namespace create KV_CACHE
-wrangler r2 bucket create creatorloop-assets
-```
-
-Update `wrangler.toml` with the returned database ID and KV namespace ID.
-
-### 4. Run database migrations
-
-```sh
-wrangler d1 migrations apply creatorloop-db --local
-```
-
-### 5. Start development
-
-```sh
-# Terminal 1: Frontend
+cp .env.example .dev.vars        # fill in real values
+npm ci
+npm run db:migrate:local
 npm run dev
 
-# Terminal 2: Backend
-cd workers/api
+# 2. SPA (http://localhost:3000) — Vite proxies /api/* to the worker
+cd ../..
+npm ci
 npm run dev
 ```
+
+In development `VITE_API_URL` stays empty: the browser calls same-origin
+`/api/*` and Vite forwards to the Worker, so no CORS setup is needed.
+
+---
+
+## Repository layout
+
+```
+src/                     React SPA (routes, hooks, components)
+  hooks/use-api.ts       React Query hooks — errors propagate, never swallowed
+  lib/api.ts             API client: VITE_API_URL, auth header, error mapping
+public/sw.js             Service worker (web push notifications)
+scripts/postbuild-spa.mjs  Publishes index.html, SEO files, secret-leak guard
+workers/api/             Cloudflare Worker
+  src/index.ts           Entry: CORS, security headers, rate limits, routing, cron
+  src/routes/index.ts    The single routing table (90 routes)
+  src/lib/               database, xp, scoring, audit, sanitize, push, quests…
+  src/middleware/        auth + RBAC, rate limiting, error envelope
+  migrations/            001…030, applied in filename order
+  tests/                 198 behavioural tests over a real SQLite database
+vercel.json              Static SPA deployment + caching + security headers
+```
+
+---
+
+## Commands
+
+| Where         | Command                                                | What it does                                       |
+| ------------- | ------------------------------------------------------ | -------------------------------------------------- |
+| root          | `npm run dev`                                          | Vite dev server with an `/api` proxy to the Worker |
+| root          | `npm run build`                                        | Static SPA build + postbuild SEO/secret guard      |
+| root          | `npm run preview`                                      | Serve the built SPA                                |
+| root          | `npm run lint`                                         | ESLint (frontend + worker)                         |
+| root          | `npm test`                                             | Frontend unit tests (Vitest)                       |
+| `workers/api` | `npm run dev`                                          | `wrangler dev`                                     |
+| `workers/api` | `npm run deploy` / `deploy:staging`                    | Deploy production / staging                        |
+| `workers/api` | `npm run db:migrate:local` / `:staging` / `db:migrate` | Apply D1 migrations                                |
+| `workers/api` | `npm test`                                             | Worker tests (Vitest + in-memory SQLite)           |
+| `workers/api` | `npm run typecheck`                                    | `tsc --noEmit`                                     |
+
+Node **22** is what the project targets. The worker test suite runs on Node 20
+as well: it drives a real SQLite database through `node:sqlite` when the runtime
+provides it (Node >= 22.5) and falls back to a WebAssembly build of SQLite
+otherwise, so CI on Node 20 stays green.
+
+---
 
 ## Testing
 
 ```sh
-# Backend tests
-cd workers/api
-npm test
-
-# Frontend lint
-npm run lint
+npm test                 # frontend: api client, hooks, repo hygiene
+cd workers/api && npm test   # 198 tests across 27 files
 ```
 
-## Deployment
+The worker tests are behavioural, not mock theatre: `tests/helpers/test-env.ts`
+applies every migration to an in-memory SQLite database (foreign keys on, as D1
+has) and provides KV/R2 doubles, so handlers run against the same SQL, indexes
+and constraints as production. The database comes from `node:sqlite` when the
+runtime has it, otherwise from `node-sqlite3-wasm`; force the fallback with
+`SQLITE_DRIVER=wasm npm test` to check that path. Covered: watch claims and payout idempotency, XP/level maths,
+leaderboard scoring, admin authorization, top-up review, video submission,
+review completion, shop purchases, missions, push encryption (real RFC 8291
+decryption), routing, and the Worker entry point (CORS, rate limiting, 503 on a
+missing secret).
 
-### Frontend (Vercel)
+---
 
-1. Connect the repository to Vercel
-2. Set environment variables in Vercel dashboard
-3. Deploy
+## Documentation
 
-### Backend (Cloudflare Workers)
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — runtime topology, data
+  integrity rules, security model
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — the exact Vercel + Cloudflare
+  runbook (resources, secrets, migrations, verification, rollback)
+- [`docs/API.md`](docs/API.md) — every endpoint, generated from the route table
+- [`docs/RECONSTRUCTION_REPORT.md`](docs/RECONSTRUCTION_REPORT.md) — what was
+  audited, fixed, tested and what remains open
+- [`docs/CI_WORKFLOW_UPDATE.md`](docs/CI_WORKFLOW_UPDATE.md) — CI changes that
+  need a one-time manual apply
+- [`workers/api/.env.example`](workers/api/.env.example) and
+  [`.env.example`](.env.example) — every variable, with what belongs in a secret
+- `docs/archive/` — historical audits and status reports, kept for context only
 
-```sh
-cd workers/api
-wrangler deploy --env production
-```
+---
 
-## Architecture
+## Environment variables at a glance
 
-- `workers/api/` - Cloudflare Worker backend
-- `src/` - TanStack Start frontend
-- `workers/api/src/routes/` - API route handlers
-- `workers/api/src/services/` - Business logic services
-- `workers/api/src/middleware/` - Auth, rate limiting, validation
-- `workers/api/migrations/` - D1 database migrations
+**Frontend (Vercel, all public):** `VITE_API_URL`, `VITE_FIREBASE_*`,
+`VITE_VAPID_PUBLIC_KEY`, optional `VITE_ADSENSE_SLOT_ID`, `SITE_URL`.
 
-## API Endpoints
+**Worker (Cloudflare):** bindings `DB`, `KV_CACHE`, `ASSETS_BUCKET`; secrets
+`FIREBASE_PROJECT_ID`, `WATCH_SESSION_SECRET`, `AI_API_KEY`, `YOUTUBE_API_KEY`,
+`YOUTUBE_OAUTH_CLIENT_ID`, `YOUTUBE_OAUTH_CLIENT_SECRET`, `RESEND_API_KEY`,
+`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`; vars `ENVIRONMENT`, `CORS_ORIGINS`,
+reward/AI/rate-limit tuning (all documented in `wrangler.toml` and
+`.env.example`).
 
-| Method | Path                              | Description              |
-| ------ | --------------------------------- | ------------------------ |
-| POST   | `/api/v1/auth/register`           | Register/get user        |
-| GET    | `/api/v1/auth/me`                 | Get current user         |
-| PUT    | `/api/v1/auth/profile`            | Update profile           |
-| GET    | `/api/v1/auth/permissions`        | Get user permissions     |
-| GET    | `/api/v1/users/me/profile`        | Get full profile         |
-| PUT    | `/api/v1/users/me/profile`        | Update profile           |
-| GET    | `/api/v1/communities`             | List communities         |
-| POST   | `/api/v1/communities`             | Create community         |
-| POST   | `/api/v1/communities/join`        | Join community           |
-| GET    | `/api/v1/videos`                  | List videos              |
-| POST   | `/api/v1/videos`                  | Submit video             |
-| GET    | `/api/v1/reviews`                 | List reviews             |
-| POST   | `/api/v1/watch`                   | Submit watch session     |
-| GET    | `/api/v1/missions`                | List missions            |
-| POST   | `/api/v1/missions`                | Create mission           |
-| POST   | `/api/v1/youtube/oauth/authorize` | Start YouTube OAuth      |
-| POST   | `/api/v1/youtube/oauth/callback`  | YouTube OAuth callback   |
-| GET    | `/api/v1/youtube/status`          | Check YouTube connection |
-| POST   | `/api/v1/youtube/disconnect`      | Disconnect YouTube       |
-| GET    | `/api/v1/credits`                 | Get credits              |
-| GET    | `/api/v1/xp`                      | Get XP                   |
-| GET    | `/api/v1/leaderboards`            | Get leaderboard          |
-| GET    | `/api/v1/notifications`           | Get notifications        |
-| POST   | `/api/v1/admin/reports`           | Submit report            |
-| GET    | `/api/v1/admin/metrics`           | Get admin metrics        |
+`WATCH_SESSION_SECRET` is **mandatory** when `ENVIRONMENT=production` — the
+Worker refuses to sign watch tokens with a fallback key.
+
+---
+
+## Security notes
+
+- Firebase ID tokens are verified against Google's public keys; the dev token is
+  accepted only outside production.
+- Admin routes require an `admin`/`super_admin` row via `requireAdmin`.
+- `CORS_ORIGINS` is enforced (never echoed); `*.example.com` matches one
+  subdomain level.
+- Requests are Zod-validated and the validated payload — not the raw body — is
+  what gets written. Text is stripped of markup, never double-escaped.
+- Rate limits are per IP with stricter tiers for auth, expensive and admin
+  routes (which fail closed).
+- `src/tests/repo-hygiene.test.ts` fails if a credential-shaped string is ever
+  committed again.
+
+---
 
 ## License
 
-Private - All rights reserved
+Private — all rights reserved.

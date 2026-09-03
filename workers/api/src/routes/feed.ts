@@ -1,9 +1,12 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { getRewardSplit } from "../lib/rewards";
 import { resolveRequiredWatchSeconds } from "../lib/utils";
+
+/** Fallback watch target when a video row predates the column default. */
+const DEFAULT_WATCH_TARGET = 20;
 
 function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
@@ -48,7 +51,7 @@ function extractVideoId(url: string | null): string | null {
   return null;
 }
 
-export const feedRoutes = [
+export const feedRoutes: RouteDefinition[] = [
   {
     method: "GET",
     path: "/api/v1/queue",
@@ -62,7 +65,7 @@ export const feedRoutes = [
         const communityId = searchParams.get("communityId");
 
         const communityFilter = communityId
-          ? `AND v.user_id IN (SELECT user_id FROM community_members WHERE community_id = ? AND status = 'active')`
+          ? "AND v.user_id IN (SELECT user_id FROM community_members WHERE community_id = ? AND status = 'active')"
           : "";
         const countParams = communityId ? [userId, communityId] : [userId];
         const totalResult = await db.query(
@@ -154,14 +157,15 @@ export const feedRoutes = [
         const { limit, offset } = getPagination(request);
 
         const totalResult = await db.query(
-          `SELECT COUNT(*) as count FROM videos v WHERE v.user_id = ?`,
+          "SELECT COUNT(*) as count FROM videos v WHERE v.user_id = ?",
           [userId],
         );
 
         const result = await db.query(
-          `SELECT v.id, v.title, v.status, v.created_at,
-                  (SELECT COUNT(*) FROM reviews r WHERE r.video_id = v.id) AS comment_count,
-                  (SELECT COUNT(*) FROM watch_sessions w WHERE w.video_id = v.id AND w.status = 'claimed') AS watcher_count
+          `SELECT v.id, v.title, v.status, v.created_at, v.watch_target,
+                  (SELECT COUNT(*) FROM reviews r WHERE r.video_id = v.id AND r.status = 'completed') AS comment_count,
+                  (SELECT COUNT(*) FROM watch_sessions w WHERE w.video_id = v.id AND w.status = 'claimed') AS watcher_count,
+                  (SELECT COUNT(*) FROM watch_sessions w WHERE w.video_id = v.id AND w.subscribed = 1) AS subs_count
            FROM videos v
            WHERE v.user_id = ?
            ORDER BY v.created_at DESC
@@ -177,8 +181,8 @@ export const feedRoutes = [
             title: v.title ?? "Untitled video",
             postedAgo: timeAgo(v.created_at),
             watchers: v.watcher_count ?? 0,
-            target: 20,
-            subs: 0,
+            target: v.watch_target ?? DEFAULT_WATCH_TARGET,
+            subs: v.subs_count ?? 0,
             comments: v.comment_count ?? 0,
             status,
           };
@@ -209,7 +213,7 @@ export const feedRoutes = [
         const { limit, offset } = getPagination(request);
 
         const totalResult = await db.query(
-          `SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0`,
+          "SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0",
           [userId],
         );
 
@@ -222,9 +226,11 @@ export const feedRoutes = [
           [userId, limit, offset],
         );
 
+        // `who` is intentionally absent: the notifications table does not
+        // record an actor, and inventing one rendered as a fabricated
+        // "<someone> did X" line in the activity feed.
         const items = result.results.map((n: any) => ({
           id: n.id,
-          who: "You",
           what: n.title ?? n.message ?? "New activity",
           when: timeAgo(n.created_at),
           points: "",

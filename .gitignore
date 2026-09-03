@@ -32,6 +32,10 @@ dist-ssr
 *.sw?
 .vercel
 .env*
+# ...but the documented templates are part of the repo: the Worker test suite
+# asserts they exist, and a fresh clone has no other way to learn the required
+# variables. They must contain placeholders only.
+!.env.example
 
 # HAR / network captures
 *.har

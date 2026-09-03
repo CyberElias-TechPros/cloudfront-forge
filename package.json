@@ -5,10 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build",
-    "build:dev": "vite build --mode development",
+    "build": "vite build && node scripts/postbuild-spa.mjs",
     "preview": "vite preview",
-    "lint": "eslint . && (cd workers/api && npm run lint)",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:workers": "npm --prefix workers/api test",
+    "lint": "eslint . && npm --prefix workers/api run lint",
     "lint:workers": "cd workers/api && npm run lint",
     "format": "prettier --write ."
   },

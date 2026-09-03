@@ -108,7 +108,7 @@ Either in CLI or Vercel Dashboard:
 ```bash
 # Via CLI
 vercel env add VITE_FIREBASE_API_KEY
-# Enter: AIzaSyAqcPLTHaIujDMj_lXUxM9bang2AGW6AVA
+# Enter: YOUR_FIREBASE_WEB_API_KEY
 
 vercel env add VITE_FIREBASE_AUTH_DOMAIN
 # Enter: creator-loop-ring.firebaseapp.com
@@ -155,7 +155,7 @@ After deployment:
 
 | Variable | Value |
 |----------|-------|
-| VITE_FIREBASE_API_KEY | AIzaSyAqcPLTHaIujDMj_lXUxM9bang2AGW6AVA |
+| VITE_FIREBASE_API_KEY | YOUR_FIREBASE_WEB_API_KEY |
 | VITE_FIREBASE_AUTH_DOMAIN | creator-loop-ring.firebaseapp.com |
 | VITE_FIREBASE_PROJECT_ID | creator-loop-ring |
 | VITE_FIREBASE_STORAGE_BUCKET | creator-loop-ring.firebasestorage.app |

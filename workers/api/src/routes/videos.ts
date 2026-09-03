@@ -1,13 +1,14 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { notifyUserPush } from "../lib/push";
 import { progressQuest } from "../lib/quests";
 import { trackEvent } from "../lib/analytics";
-import { calculateLevel } from "../lib/utils";
+import { awardXp, getXpState, type XpAccountState } from "../lib/xp";
 import { z } from "zod";
 import { createLogger } from "../lib/logger";
+import { sanitize } from "../lib/sanitize";
 
 const db = (env: Env) => new Database(env);
 
@@ -26,6 +27,23 @@ const submitVideoSchema = z.object({
   niche: z.string().max(50).optional(),
 });
 
+const reviewAnswersSchema = z.object({
+  answers: z
+    .array(
+      z.object({
+        questionId: z.string().min(1).max(100),
+        ratingValue: z.number().min(0).max(5).optional(),
+        textAnswer: z.string().max(500).optional(),
+      }),
+    )
+    .max(20)
+    .default([]),
+});
+
+const helpfulSchema = z.object({
+  helpful: z.boolean(),
+});
+
 const reviewSchema = z.object({
   score: z.number().min(1).max(5).optional(),
   feedbackText: z.string().max(2000).optional(),
@@ -42,13 +60,13 @@ const reviewSchema = z.object({
 
 async function notifyCommunityMembers(db: Database, communityId: string, type: string, title: string, message: string, excludeUserId: string): Promise<void> {
   const members = await db.query(
-    `SELECT user_id FROM community_members WHERE community_id = ? AND user_id != ? AND status = 'active'`,
+    "SELECT user_id FROM community_members WHERE community_id = ? AND user_id != ? AND status = 'active'",
     [communityId, excludeUserId],
   );
 
   const now = new Date().toISOString();
   const statements = members.results.map((m: any) => ({
-    sql: `INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+    sql: "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)",
     params: [db.uuid(), m.user_id, type, title, message, now],
   }));
 
@@ -60,12 +78,12 @@ async function notifyCommunityMembers(db: Database, communityId: string, type: s
 async function notifyUser(db: Database, userId: string, type: string, title: string, message: string): Promise<void> {
   const now = new Date().toISOString();
   await db.execute(
-    `INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+    "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)",
     [db.uuid(), userId, type, title, message, now],
   );
 }
 
-export const videoRoutes = [
+export const videoRoutes: RouteDefinition[] = [
   {
     method: "GET",
     path: "/api/v1/videos",
@@ -79,7 +97,7 @@ export const videoRoutes = [
         const db = new Database(env);
 
         let countQuery = "SELECT COUNT(*) as count FROM videos v WHERE v.status = 'active'";
-        let dataQuery = `SELECT v.*, c.name as community_name FROM videos v LEFT JOIN communities c ON v.community_id = c.id WHERE v.status = 'active'`;
+        let dataQuery = "SELECT v.*, c.name as community_name FROM videos v LEFT JOIN communities c ON v.community_id = c.id WHERE v.status = 'active'";
         const params: any[] = [];
 
         if (communityId) {
@@ -93,7 +111,7 @@ export const videoRoutes = [
         }
 
         const totalResult = await db.query(countQuery, params);
-        dataQuery += ` ORDER BY v.created_at DESC LIMIT ? OFFSET ?`;
+        dataQuery += " ORDER BY v.created_at DESC LIMIT ? OFFSET ?";
         params.push(limit, offset);
 
         const result = await db.query(dataQuery, params);
@@ -134,7 +152,7 @@ export const videoRoutes = [
         const db = new Database(env);
         const now = new Date().toISOString();
 
-        const youtubeVideoId = extractYouTubeId(body.youtubeUrl);
+        const youtubeVideoId = extractYouTubeId(validation.data.youtubeUrl);
         if (!youtubeVideoId) {
           return createErrorResponse("VALIDATION_ERROR", "Invalid YouTube URL", 400);
         }
@@ -217,7 +235,8 @@ export const videoRoutes = [
             );
           }
         }
-        const finalTitle = validation.data.title?.trim() || metadata.title || "Untitled video";
+        const finalTitle =
+          validation.data.title?.trim() || (metadata.title ? sanitize(metadata.title) : "") || "Untitled video";
 
         const videoId = db.uuid();
         const communityId = validation.data.communityId || null;
@@ -250,7 +269,7 @@ export const videoRoutes = [
             communityId,
             "NEW_VIDEO_SUBMITTED",
             "New Video Submitted",
-            `A new video has been submitted to your community.`,
+            "A new video has been submitted to your community.",
             userId,
           );
         }
@@ -373,7 +392,7 @@ export const videoRoutes = [
   },
 ];
 
-export const reviewRoutes = [
+export const reviewRoutes: RouteDefinition[] = [
   {
     method: "GET",
     path: "/api/v1/reviews",
@@ -384,7 +403,7 @@ export const reviewRoutes = [
         const { limit, offset } = getPagination(request);
 
         const totalResult = await db.query(
-          `SELECT COUNT(*) as count FROM reviews WHERE reviewer_id = ? AND status IN ('assigned', 'in_progress', 'overdue')`,
+          "SELECT COUNT(*) as count FROM reviews WHERE reviewer_id = ? AND status IN ('assigned', 'in_progress', 'overdue')",
           [userId],
         );
 
@@ -550,7 +569,7 @@ export const reviewRoutes = [
             review.submitter_id,
             "REVIEW_STARTED",
             "Review Started",
-            `A review of your video has been started.`,
+            "A review of your video has been started.",
           );
         }
 
@@ -585,6 +604,7 @@ export const reviewRoutes = [
         }
 
         const db = new Database(env);
+        const logger = createLogger(env);
         const now = new Date().toISOString();
 
         // Load the review (need submitter + current status for rewards/notification)
@@ -596,7 +616,9 @@ export const reviewRoutes = [
           return createErrorResponse("NOT_FOUND", "Review not found", 404);
         }
 
-        const answers = Array.isArray(body?.answers) ? body.answers : [];
+        // Use the validated payload (not the raw body) so answer/score limits
+        // enforced by the schema are the values that actually get stored.
+        const answers = validation.data.answers ?? [];
 
         // Score = average of rating answers when provided, else the submitted score
         const ratingValues = answers
@@ -605,11 +627,11 @@ export const reviewRoutes = [
         const computedScore =
           ratingValues.length > 0
             ? Math.round(ratingValues.reduce((a: number, b: number) => a + b, 0) / ratingValues.length)
-            : (body.score ?? null);
+            : (validation.data.score ?? null);
 
         await db.execute(
           "UPDATE reviews SET status = 'completed', completed_at = ?, score = ?, feedback_text = ? WHERE id = ? AND reviewer_id = ?",
-          [now, computedScore, body.feedbackText ?? null, reviewId, userId],
+          [now, computedScore, validation.data.feedbackText ?? null, reviewId, userId],
         );
 
         // Daily quest progress
@@ -624,6 +646,7 @@ export const reviewRoutes = [
         const firstCompletion = review.status !== "completed";
         let xpEarned = 0;
         let creditsEarned = 0;
+        let xpState: XpAccountState | null = null;
         if (firstCompletion) {
           xpEarned = REVIEW_XP;
           creditsEarned = REVIEW_CREDITS;
@@ -632,22 +655,7 @@ export const reviewRoutes = [
             "INSERT INTO xp_transactions (id, user_id, amount, type, description, reference_id, created_at) VALUES (?, ?, ?, 'review', 'Review completed', ?, ?)",
             [crypto.randomUUID(), userId, xpEarned, reviewId, now],
           );
-          const xpAccount = await db.querySingle("SELECT * FROM xp_accounts WHERE user_id = ?", [
-            userId,
-          ]);
-          if (xpAccount) {
-            const totalXp = (xpAccount.total_xp ?? 0) + xpEarned;
-            const { level } = calculateLevel(totalXp);
-            await db.execute(
-              "UPDATE xp_accounts SET total_xp = ?, level = ?, updated_at = ? WHERE user_id = ?",
-              [totalXp, level, now, userId],
-            );
-          } else {
-            await db.execute(
-              "INSERT INTO xp_accounts (id, user_id, total_xp, level, xp_to_next_level, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-              [crypto.randomUUID(), userId, xpEarned, 1, 100, now, now],
-            );
-          }
+          xpState = await awardXp(db, userId, xpEarned, now);
 
           await db.execute(
             "INSERT INTO credit_transactions (id, user_id, amount, type, description, reference_id, created_at) VALUES (?, ?, ?, 'earned', 'Review completed', ?, ?)",
@@ -707,7 +715,7 @@ export const reviewRoutes = [
         if (answers.length > 0) {
           await db.execute("DELETE FROM review_answers WHERE review_id = ?", [reviewId]);
           const statements = answers
-            .filter((a: any) => a?.questionId)
+            .filter((a: { questionId: string }) => Boolean(a?.questionId))
             .map((a: any) => ({
               sql: "INSERT INTO review_answers (id, review_id, question_id, rating_value, text_answer, created_at) VALUES (?, ?, ?, ?, ?, ?)",
               params: [
@@ -720,14 +728,41 @@ export const reviewRoutes = [
               ],
             }));
           if (statements.length > 0) {
-            await db.batch(statements);
+            // Only keep answers whose question actually exists: review_answers
+            // has a foreign key to review_questions, and an unknown id would
+            // abort the whole request *after* the payout has already been
+            // written, turning a successful completion into a 500.
+            const questionIds = statements.map((s: { params: unknown[] }) => s.params[2]);
+            const placeholders = questionIds.map(() => "?").join(", ");
+            const known = await db.query(
+              `SELECT id FROM review_questions WHERE id IN (${placeholders})`,
+              questionIds,
+            );
+            const knownIds = new Set(known.results.map((q: any) => q.id as string));
+            const validStatements = statements.filter((s: { params: unknown[] }) =>
+              knownIds.has(s.params[2] as string),
+            );
+            const dropped = statements.length - validStatements.length;
+            if (dropped > 0) {
+              logger.warn("Dropped review answers for unknown questions", {
+                reviewId,
+                dropped,
+              });
+            }
+            if (validStatements.length > 0) {
+              await db.batch(validStatements);
+            }
           }
         }
+
+        const finalXpState = xpState ?? (await getXpState(db, userId));
 
         return createResponse({
           message: "Review completed successfully",
           xpEarned,
           creditsEarned,
+          level: finalXpState.level,
+          totalXp: finalXpState.totalXp,
         });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
@@ -749,10 +784,18 @@ export const reviewRoutes = [
         if (!reviewId) {
           return createErrorResponse("VALIDATION_ERROR", "Review ID is required", 400);
         }
-        const body = (await request.json().catch(() => ({}))) as any;
-        const answers: any[] = Array.isArray(body?.answers) ? body.answers : [];
+        const parsed = reviewAnswersSchema.safeParse(await request.json().catch(() => ({})));
+        if (!parsed.success) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            parsed.error.errors.map((e) => e.message).join(", "),
+            400,
+          );
+        }
+        const answers = parsed.data.answers;
 
         const db = new Database(env);
+        const logger = createLogger(env);
         const review = await db.querySingle(
           "SELECT id FROM reviews WHERE id = ? AND (reviewer_id = ? OR submitter_id = ?)",
           [reviewId, userId, userId],
@@ -762,23 +805,40 @@ export const reviewRoutes = [
         }
 
         const now = db.now();
-        const statements = answers
-          .filter((a) => a?.questionId)
-          .map((a) => ({
-            sql: "INSERT INTO review_answers (id, review_id, question_id, rating_value, text_answer, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            params: [
-              db.uuid(),
-              reviewId,
-              a.questionId,
-              a.ratingValue ?? null,
-              a.textAnswer ?? null,
-              now,
-            ],
-          }));
+        const statements = answers.map((a) => ({
+          sql: "INSERT INTO review_answers (id, review_id, question_id, rating_value, text_answer, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+          params: [
+            db.uuid(),
+            reviewId,
+            a.questionId,
+            a.ratingValue ?? null,
+            a.textAnswer ? sanitize(a.textAnswer) : null,
+            now,
+          ],
+        }));
 
         if (statements.length > 0) {
+          // Same guard as the completion path: review_answers has a foreign key
+          // to review_questions, and an unknown question id would abort the
+          // whole batch with a 500.
+          const questionIds = statements.map((s) => s.params[2] as string);
+          const placeholders = questionIds.map(() => "?").join(", ");
+          const known = await db.query(
+            `SELECT id FROM review_questions WHERE id IN (${placeholders})`,
+            questionIds,
+          );
+          const knownIds = new Set(known.results.map((q: any) => q.id as string));
+          const valid = statements.filter((s) => knownIds.has(s.params[2] as string));
+          if (valid.length !== statements.length) {
+            logger.warn("Dropped review answers for unknown questions", {
+              reviewId,
+              dropped: statements.length - valid.length,
+            });
+          }
           await db.execute("DELETE FROM review_answers WHERE review_id = ?", [reviewId]);
-          await db.batch(statements);
+          if (valid.length > 0) {
+            await db.batch(valid);
+          }
         }
 
         return createResponse({ message: "Answers submitted", saved: statements.length });
@@ -812,11 +872,22 @@ export const reviewRoutes = [
           return createErrorResponse("FORBIDDEN", "Only the video submitter can rate this review", 403);
         }
 
-        const body = (await request.json()) as { helpful: boolean };
-        await database.query("UPDATE reviews SET helpful = ? WHERE id = ?", [body.helpful ? 1 : 0, reviewId]);
+        const parsed = helpfulSchema.safeParse(await request.json().catch(() => ({})));
+        if (!parsed.success) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            "helpful must be a boolean",
+            400,
+          );
+        }
+        const helpful = parsed.data.helpful;
+        await database.query("UPDATE reviews SET helpful = ? WHERE id = ?", [
+          helpful ? 1 : 0,
+          reviewId,
+        ]);
 
         // Boost reviewer trust by 1 per helpful review (base 100, capped at 100)
-        if (body.helpful) {
+        if (helpful) {
           const nowTs = new Date().toISOString();
           await database.query(
             `INSERT INTO reputation_accounts (id, user_id, score, last_calculated, created_at, updated_at)
@@ -825,7 +896,7 @@ export const reviewRoutes = [
             [crypto.randomUUID(), reviewRow.reviewer_id, nowTs, nowTs, nowTs],
           );
           await database.query(
-            `UPDATE reputation_accounts SET score = MIN(100, score + 1), updated_at = ? WHERE user_id = ?`,
+            "UPDATE reputation_accounts SET score = MIN(100, score + 1), updated_at = ? WHERE user_id = ?",
             [nowTs, reviewRow.reviewer_id],
           );
           await database.query(
@@ -840,25 +911,13 @@ export const reviewRoutes = [
           if (((reviewRow.helpful as number | null) ?? 0) !== 1) {
             const REVIEW_HELPFUL_XP = parseInt(env.REVIEW_HELPFUL_XP || "5", 10);
             const reviewerId = reviewRow.reviewer_id as string;
-            const xpAccount = await database.querySingle(
-              "SELECT * FROM xp_accounts WHERE user_id = ?",
-              [reviewerId],
-            );
-            if (xpAccount) {
-              const totalXp = Number(xpAccount.total_xp ?? 0) + REVIEW_HELPFUL_XP;
-              const { level } = calculateLevel(totalXp);
-              await database.execute(
-                "UPDATE xp_accounts SET total_xp = ?, level = ?, updated_at = ? WHERE user_id = ?",
-                [totalXp, level, nowTs, reviewerId],
-              );
-            } else {
-              await database.execute(
-                "INSERT INTO xp_accounts (id, user_id, total_xp, level, xp_to_next_level, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                [crypto.randomUUID(), reviewerId, REVIEW_HELPFUL_XP, 1, 100, nowTs, nowTs],
-              );
-            }
+            await awardXp(database, reviewerId, REVIEW_HELPFUL_XP, nowTs);
             await database.execute(
-              "INSERT INTO xp_transactions (id, user_id, amount, type, description, reference_id, created_at) VALUES (?, ?, ?, 'review_helpful', 'Review rated helpful', ?, ?)",
+              // `type` is CHECK-constrained to a fixed list; 'review' is the
+              // entry for review-derived XP and the description carries the
+              // distinction. Anything else aborts the request with a 500 after
+              // the rating has already been written.
+              "INSERT INTO xp_transactions (id, user_id, amount, type, description, reference_id, created_at) VALUES (?, ?, ?, 'review', 'Review rated helpful', ?, ?)",
               [crypto.randomUUID(), reviewerId, REVIEW_HELPFUL_XP, reviewId, nowTs],
             );
           }
@@ -874,6 +933,15 @@ export const reviewRoutes = [
     },
   },
 ];
+
+interface YouTubeMetadata {
+  title: string | null;
+  description: string | null;
+  thumbnailUrl: string;
+  durationSeconds: number | null;
+  channelId: string | null;
+  channelTitle: string | null;
+}
 
 // Helper: Extract YouTube video ID from URL
 function extractYouTubeId(url: string): string | null {
@@ -911,7 +979,7 @@ async function fetchYouTubeMetadata(videoId: string, env: Env): Promise<any> {
   const cached = (await env.KV_CACHE.get<any>(`youtube:meta:${videoId}`, { type: "json" })) as any;
   if (cached && cached.channelId) return cached;
 
-  const fallback = {
+  const fallback: YouTubeMetadata = {
     title: null,
     description: null,
     thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
@@ -924,7 +992,7 @@ async function fetchYouTubeMetadata(videoId: string, env: Env): Promise<any> {
     return fallback;
   }
 
-  let meta = fallback;
+  let meta: YouTubeMetadata = fallback;
   try {
     const response = await fetch(
       `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${videoId}&key=${env.YOUTUBE_API_KEY}`,

@@ -1,4 +1,4 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
@@ -9,31 +9,14 @@ import { progressQuest } from "../lib/quests";
 import { trackEvent } from "../lib/analytics";
 import { getRewardSplit } from "../lib/rewards";
 import { resolveRequiredWatchSeconds } from "../lib/utils";
-
-function levelForXp(totalXp: number): number {
-  return Math.max(1, Math.floor(totalXp / 250) + 1);
-}
+import { awardXp, getXpState, type XpAccountState } from "../lib/xp";
 
 async function sha256Hex(input: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function ensureReputation(db: Database, userId: string, now: string): Promise<void> {
-  const existing = await db.querySingle("SELECT id FROM reputation_accounts WHERE user_id = ?", [
-    userId,
-  ]);
-  if (!existing) {
-    await db.execute(
-      `INSERT INTO reputation_accounts (id, user_id, score, last_calculated, created_at, updated_at)
-       VALUES (?, ?, 100, ?, ?, ?)`,
-      [db.uuid(), userId, now, now, now],
-    );
-  }
-}
-
 async function verifyYouTubeSubscription(
-  db: Database,
   watcherId: string,
   videoChannelId: string,
   videoId: string,
@@ -102,7 +85,7 @@ async function verifyYouTubeSubscription(
 async function notifyUser(db: Database, userId: string, type: string, title: string, message: string): Promise<void> {
   const now = new Date().toISOString();
   await db.execute(
-    `INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+    "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)",
     [db.uuid(), userId, type, title, message, now],
   );
 }
@@ -120,6 +103,22 @@ function sessionsEnabled(env: Env): boolean {
   return env.WATCH_SESSIONS_ENABLED === "1" || env.WATCH_SESSIONS_ENABLED === "true";
 }
 
+/**
+ * Signing key for watch-session tokens.
+ *
+ * A predictable fallback in production would let anyone forge session tokens,
+ * so the secret is mandatory there (`MISSING_ENV` → 503 from the error
+ * handler). Reusing `AI_API_KEY` was removed too: one credential should not
+ * double as another subsystem's signing key.
+ */
+export function watchSessionSecret(env: Env): string {
+  if (env.WATCH_SESSION_SECRET) return env.WATCH_SESSION_SECRET;
+  if (env.ENVIRONMENT === "production") {
+    throw new Error("MISSING_ENV: WATCH_SESSION_SECRET");
+  }
+  return "watch-session-secret-development-only";
+}
+
 async function hmacSign(secret: string, data: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -132,12 +131,7 @@ async function hmacSign(secret: string, data: string): Promise<string> {
   return btoa(String.fromCharCode(...new Uint8Array(sig)));
 }
 
-function extractUserId(request: Request): string | null {
-  const auth = (request as any).__auth;
-  return auth?.userId ?? null;
-}
-
-export const watchRoutes = [
+export const watchRoutes: RouteDefinition[] = [
   // POST /watch/challenge - issue an attention check (mid-watch overlay)
   {
     method: "POST",
@@ -255,7 +249,7 @@ export const watchRoutes = [
         const videoId = body.videoId as string | undefined;
         if (!videoId) return createErrorResponse("VALIDATION_ERROR", "videoId required", 400);
 
-        const secret = env.WATCH_SESSION_SECRET || env.AI_API_KEY || "fallback-dev-secret";
+        const secret = watchSessionSecret(env);
         const startTs = Math.floor(Date.now() / 1000);
         const payload = `${userId}:${videoId}:${startTs}`;
         const signature = await hmacSign(secret, payload);
@@ -372,7 +366,6 @@ export const watchRoutes = [
           watchSeconds: verifiedWatchSeconds,
           reason: subReason,
         } = await verifyYouTubeSubscription(
-          db,
           watcherId,
           video.channel_id ?? "",
           videoId,
@@ -540,29 +533,17 @@ export const watchRoutes = [
           await db.batch(subBatch);
         }
 
+        let xpState: XpAccountState | null = null;
+
         if ((xpDelta > 0 || creditsDelta > 0) && !attentionBlocked) {
           xpAwarded = xpDelta;
           creditsAwarded = creditsDelta;
 
           const batchStatements: Array<{ sql: string; params: unknown[] }> = [];
 
-          const xp = await db.querySingle("SELECT * FROM xp_accounts WHERE user_id = ?", [
-            watcherId,
-          ]);
-
-          if (xp) {
-            const totalXp = (xp.total_xp ?? 0) + xpAwarded;
-            batchStatements.push({
-              sql: "UPDATE xp_accounts SET total_xp = ?, level = ?, updated_at = ? WHERE user_id = ?",
-              params: [totalXp, levelForXp(totalXp), now, watcherId],
-            });
-          } else {
-            batchStatements.push({
-              sql: `INSERT INTO xp_accounts (id, user_id, total_xp, level, xp_to_next_level, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)`,
-              params: [db.uuid(), watcherId, xpAwarded, levelForXp(xpAwarded), 250, now, now],
-            });
-          }
+          // XP is written by the shared awarder so the level always matches the
+          // curve every other reward path uses (and self-heals stale rows).
+          xpState = await awardXp(db, watcherId, xpAwarded, now);
 
           // Credit account & transaction
           const creditAccount = await db.querySingle(
@@ -577,7 +558,7 @@ export const watchRoutes = [
             params: [db.uuid(), watcherId, now, now],
           });
           batchStatements.push({
-            sql: `UPDATE credit_accounts SET balance = balance + ?, updated_at = ? WHERE user_id = ?`,
+            sql: "UPDATE credit_accounts SET balance = balance + ?, updated_at = ? WHERE user_id = ?",
             params: [creditsAwarded, now, watcherId],
           });
           batchStatements.push({
@@ -641,11 +622,13 @@ export const watchRoutes = [
                 video.user_id,
                 "WATCH_SESSION_CLAIMED",
                 "Your video was watched",
-                `Someone completed watching your video and earned rewards.`,
+                "Someone completed watching your video and earned rewards.",
               );
             }
           }
         }
+
+        const finalXpState = xpState ?? (await getXpState(db, watcherId));
 
         return createResponse({
           status,
@@ -662,6 +645,8 @@ export const watchRoutes = [
             comment: rewards.comment,
           },
           subReason,
+          level: finalXpState.level,
+          totalXp: finalXpState.totalXp,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";

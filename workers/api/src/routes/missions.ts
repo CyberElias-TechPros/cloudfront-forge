@@ -1,7 +1,9 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth, requireAdmin } from "../middleware/auth";
 import { Database } from "../lib/database";
+import { awardXp } from "../lib/xp";
+import { recordAudit } from "../lib/audit";
 import { z } from "zod";
 
 function getPagination(request: Request): { limit: number; offset: number } {
@@ -37,7 +39,7 @@ const completeMissionSchema = z.object({
   completionData: z.string().max(2000).optional(),
 });
 
-export const missionRoutes = [
+export const missionRoutes: RouteDefinition[] = [
   {
     method: "GET",
     path: "/api/v1/missions",
@@ -86,7 +88,7 @@ export const missionRoutes = [
     path: "/api/v1/missions",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
-        await requireAdmin(request, env);
+        const adminId = await requireAdmin(request, env);
         const body = (await request.json().catch(() => ({}))) as any;
         const validation = createMissionSchema.safeParse(body);
 
@@ -98,30 +100,41 @@ export const missionRoutes = [
           );
         }
 
+        const input = validation.data;
         const db = new Database(env);
         const now = new Date().toISOString();
+        const missionId = crypto.randomUUID();
 
         await db.execute(
           `INSERT INTO missions (id, title, description, difficulty, xp_reward, credit_reward, time_estimate_minutes, is_active, valid_from, chain_id, chain_step, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
-            crypto.randomUUID(),
-            body.title,
-            body.description ?? null,
-            body.difficulty,
-            body.xpReward,
-            body.creditReward,
-            body.timeEstimateMinutes,
+            missionId,
+            input.title,
+            input.description ?? null,
+            input.difficulty,
+            input.xpReward,
+            input.creditReward,
+            input.timeEstimateMinutes,
             1,
             now,
-            body.chainId ?? null,
-            body.chainStep ?? null,
+            input.chainId ?? null,
+            input.chainStep ?? null,
             now,
             now,
           ],
         );
 
-        return createResponse({ message: "Mission created" }, 201);
+        await recordAudit(db, {
+          actorId: adminId,
+          action: "mission.create",
+          resourceType: "mission",
+          resourceId: missionId,
+          request,
+          metadata: { title: input.title, xpReward: input.xpReward },
+        });
+
+        return createResponse({ message: "Mission created", missionId }, 201);
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
@@ -160,6 +173,9 @@ export const missionRoutes = [
           "SELECT title FROM missions WHERE id = ?",
           [missionId],
         );
+        if (!mission) {
+          return createErrorResponse("NOT_FOUND", "Mission not found", 404);
+        }
 
         await db.execute(
           "INSERT INTO mission_assignments (id, mission_id, user_id, assigned_at, status) VALUES (?, ?, ?, ?, ?)",
@@ -237,7 +253,16 @@ export const missionRoutes = [
         const parts = url.pathname.split("/");
         const assignmentId = parts[5];
 
-        const body = (await request.json().catch(() => ({}))) as any;
+        const completion = completeMissionSchema.safeParse(
+          await request.json().catch(() => ({})),
+        );
+        if (!completion.success) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            completion.error.errors.map((e) => e.message).join(", "),
+            400,
+          );
+        }
 
         const db = new Database(env);
         const now = new Date().toISOString();
@@ -283,21 +308,11 @@ export const missionRoutes = [
         const balanceAfter =
           ((creditAccount?.balance as number | undefined) ?? 0) + assignment.credit_reward;
 
+        // XP goes through the shared awarder so `level` is recomputed on the
+        // canonical curve (the old upsert left `level` frozen at 1 forever).
+        const xpState = await awardXp(db, userId, assignment.xp_reward ?? 0, now);
+
         const statements: Array<{ sql: string; params: unknown[] }> = [
-          {
-            sql: `INSERT INTO xp_accounts (id, user_id, total_xp, level, xp_to_next_level, created_at, updated_at)
-                  VALUES (?, ?, ?, 1, 100, ?, ?)
-                  ON CONFLICT(user_id) DO UPDATE SET total_xp = total_xp + ?, updated_at = ?`,
-            params: [
-              db.uuid(),
-              userId,
-              assignment.xp_reward,
-              now,
-              now,
-              assignment.xp_reward,
-              now,
-            ],
-          },
           {
             sql: "INSERT INTO xp_transactions (id, user_id, amount, type, description, created_at) VALUES (?, ?, ?, 'mission', 'Completed mission', ?)",
             params: [db.uuid(), userId, assignment.xp_reward, now],
@@ -335,10 +350,31 @@ export const missionRoutes = [
           throw new Error("Failed to record mission rewards");
         }
 
+        await recordAudit(
+          db,
+          {
+            actorId: userId,
+            action: "mission.complete",
+            resourceType: "mission_assignment",
+            resourceId: assignmentId,
+            request,
+            metadata: {
+              xpEarned: assignment.xp_reward,
+              creditsEarned: assignment.credit_reward,
+              ...(completion.data.completionData
+                ? { completionData: completion.data.completionData.slice(0, 500) }
+                : {}),
+            },
+          },
+          env,
+        );
+
         return createResponse({
           message: "Mission completed!",
           xpEarned: assignment.xp_reward,
           creditsEarned: assignment.credit_reward,
+          level: xpState.level,
+          totalXp: xpState.totalXp,
         });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
@@ -391,7 +427,7 @@ export const missionRoutes = [
     path: "/api/v1/missions/chain",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
-        await requireAdmin(request, env);
+        const adminId = await requireAdmin(request, env);
         const body = (await request.json().catch(() => ({}))) as any;
         const validation = createChainSchema.safeParse(body);
 
@@ -432,6 +468,15 @@ export const missionRoutes = [
             ],
           );
         }
+
+        await recordAudit(db, {
+          actorId: adminId,
+          action: "mission_chain.create",
+          resourceType: "mission_chain",
+          resourceId: chainId,
+          request,
+          metadata: { niche: validation.data.niche, steps: validation.data.steps.length },
+        });
 
         return createResponse({
           message: "Mission chain created",

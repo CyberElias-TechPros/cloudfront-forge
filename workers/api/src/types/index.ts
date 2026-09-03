@@ -40,6 +40,19 @@ export interface Env {
   RESEND_API_KEY?: string;
 }
 
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+/**
+ * A route handler. Handlers declare EITHER an exact `path` OR a `pattern`
+ * (regular-expression source) that the router matches against the pathname.
+ */
+export interface RouteDefinition {
+  method: HttpMethod;
+  path?: string;
+  pattern?: string;
+  handler: (request: Request, env: Env) => Promise<Response>;
+}
+
 export interface User {
   id: string;
   firebaseUid: string;

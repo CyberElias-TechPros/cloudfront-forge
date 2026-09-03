@@ -36,7 +36,11 @@ export const Route = createFileRoute("/settings")({
 });
 
 function Settings() {
-  const { data: youtubeStatus, refetch: refetchYoutubeStatus } = useYouTubeStatus();
+  const {
+    data: youtubeStatus,
+    refetch: refetchYoutubeStatus,
+    isError: youtubeStatusError,
+  } = useYouTubeStatus();
   const connectYouTube = useConnectYouTube();
   const disconnectYouTube = useDisconnectYouTube();
   const queryClient = useQueryClient();
@@ -85,6 +89,7 @@ function Settings() {
   };
 
   const youtubeConnected = youtubeStatus?.connected ?? false;
+  const youtubeUnreachable = youtubeStatusError && !youtubeStatus;
   const youtubeChannelId = youtubeStatus?.channelId ?? null;
 
   return (
@@ -119,10 +124,22 @@ function Settings() {
                     : "Not connected"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {youtubeConnected
-                    ? "Subscription verification is active."
-                    : "Connect your YouTube account to enable subscription verification."}
+                  {youtubeUnreachable
+                    ? "Connection status unavailable — check your connection and retry."
+                    : youtubeConnected
+                      ? "Subscription verification is active."
+                      : "Connect your YouTube account to enable subscription verification."}
                 </p>
+                {youtubeUnreachable ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => void refetchYoutubeStatus()}
+                  >
+                    Retry
+                  </Button>
+                ) : null}
               </div>
               {youtubeConnected ? (
                 <Button

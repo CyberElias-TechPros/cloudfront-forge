@@ -1,9 +1,9 @@
-import type { Env } from "../types";
+import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
 
-export const searchRoutes = [
+export const searchRoutes: RouteDefinition[] = [
   {
     method: "GET",
     path: "/api/v1/search",
@@ -18,12 +18,15 @@ export const searchRoutes = [
         }
 
         const db = new Database(env);
-        const searchTerm = `%${q}%`;
+        // `%` and `_` are wildcards in SQL LIKE, so a member searching for
+        // "100%" (or "_") would otherwise match almost every row.
+        const escaped = q.replace(/[\\%_]/g, (char) => `\\${char}`);
+        const searchTerm = `%${escaped}%`;
 
         const communitiesResult = await db.query(
           `SELECT id, name, description, slug, is_public, created_at
            FROM communities
-           WHERE (name LIKE ? OR description LIKE ?) AND is_public = 1
+           WHERE (name LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\') AND is_public = 1
            ORDER BY created_at DESC
            LIMIT 20`,
           [searchTerm, searchTerm],
@@ -34,7 +37,7 @@ export const searchRoutes = [
                   u.display_name as creator_name
            FROM videos v
            LEFT JOIN users u ON v.user_id = u.id
-           WHERE v.title LIKE ? AND v.status = 'active'
+           WHERE v.title LIKE ? ESCAPE '\\' AND v.status = 'active'
            ORDER BY v.created_at DESC
            LIMIT 20`,
           [searchTerm],

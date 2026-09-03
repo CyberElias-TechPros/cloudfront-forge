@@ -44,7 +44,7 @@ function validateFirebaseConfig(): string | null {
   });
 
   if (missing.length > 0) {
-    return `Firebase is not properly configured. Missing or placeholder env vars: ${missing.join(", ")}. See FIREBASE_SETUP.md for configuration instructions.`;
+    return `Firebase is not properly configured. Missing or placeholder env vars: ${missing.join(", ")}. See .env.example and docs/DEPLOYMENT.md for configuration instructions.`;
   }
   return null;
 }
