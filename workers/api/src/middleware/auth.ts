@@ -49,14 +49,26 @@ export async function requireAuth(request: Request, env: Env): Promise<string> {
   );
 
   if (!user) {
+    // `INSERT OR IGNORE` rather than `INSERT`: two devices signing in for the
+    // first time at once must not turn the second one into a UNIQUE-constraint
+    // 500 — whichever insert wins, both requests proceed with the row.
     const id = db.uuid();
     const now = new Date().toISOString();
     await db.execute(
-      `INSERT INTO users (id, firebase_uid, email, email_verified, created_at, updated_at, last_active)
+      `INSERT OR IGNORE INTO users (id, firebase_uid, email, email_verified, created_at, updated_at, last_active)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [id, auth.userId, auth.email, auth.emailVerified ? 1 : 0, now, now, now],
     );
-    user = { id };
+    user = await db.querySingle(
+      "SELECT id FROM users WHERE firebase_uid = ? AND deleted_at IS NULL",
+      [auth.userId],
+    );
+    if (!user) {
+      // The uid row exists but is soft-deleted: the account was removed. Do not
+      // resurrect it silently — a banned member should not come back through a
+      // new device login.
+      throw new Error("FORBIDDEN");
+    }
   } else {
     await db.execute("UPDATE users SET last_active = ? WHERE firebase_uid = ?", [
       new Date().toISOString(),

@@ -1,14 +1,27 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
 User-agent: *
-Allow: /
+Allow: /$
+Allow: /rules$
+Allow: /resources$
+Allow: /privacy$
+Allow: /terms$
+
+# Everything else is the authenticated app: no member-facing page under these
+# paths should be crawled, and deep links all serve the same SPA shell.
+Disallow: /auth/
+Disallow: /dashboard
+Disallow: /queue
+Disallow: /admin
+Disallow: /ai
+Disallow: /collaborate
+Disallow: /communities
+Disallow: /gamification
+Disallow: /insights
+Disallow: /leaderboard
+Disallow: /missions
+Disallow: /notifications
+Disallow: /profile
+Disallow: /reviews
+Disallow: /search
+Disallow: /settings
+Disallow: /submit
+Disallow: /api/
