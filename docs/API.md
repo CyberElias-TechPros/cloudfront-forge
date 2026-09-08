@@ -13,18 +13,20 @@ Two non-versioned endpoints live outside this table:
 | ------ | ---- | ------- |
 | `GET` | `/health` | Liveness probe. Answers even when required secrets are missing, so a misconfigured deploy is distinguishable from a dead one. |
 
-Every route is authenticated unless it is `/health`. Admin routes additionally
-require an `admin` or `super_admin` row in `admin_users`. All responses use the
-envelope `{ success, data?, error?, meta }`.
+Every route is authenticated unless it is `/health` — including
+`/auth/register`, which creates or syncs the *caller's* row from the verified
+Firebase ID token and ignores any client-supplied `firebaseUid`. Admin routes
+additionally require an `admin` or `super_admin` row in `admin_users`. All
+responses use the envelope `{ success, data?, error?, meta }`.
 
 ### Auth
 
-| Method | Path |
-| ------ | ---- |
-| `POST` | `/api/v1/auth/register` |
-| `GET` | `/api/v1/auth/me` |
-| `PUT` | `/api/v1/auth/profile` |
-| `GET` | `/api/v1/auth/permissions` |
+| Method | Path | Notes |
+| ------ | ---- | ----- |
+| `POST` | `/api/v1/auth/register` | Verified token only; body `firebaseUid`/`email` ignored. Returns `{ message, user }` |
+| `GET` | `/api/v1/auth/me` | Current user's full row |
+| `PUT` | `/api/v1/auth/profile` | Update `displayName` |
+| `GET` | `/api/v1/auth/permissions` | Own role/permissions; admins may pass `?userId=` to read another user. `?userId=` is not a public lookup — anonymous callers get 401 |
 
 ### Users & profiles
 

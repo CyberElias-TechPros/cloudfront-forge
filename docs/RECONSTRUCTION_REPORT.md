@@ -662,3 +662,123 @@ npm ci && npm run dev                                  # :3000, proxies /api →
 **Rollback:** Vercel → promote a previous deployment; Worker → `npx wrangler
 rollback`. Migrations are additive and re-runnable — revert with a new forward
 migration, never by editing an applied file.
+
+---
+
+# 17. Follow-up pass (2026-09-08)
+
+A second independent audit was run on HEAD `6326da9`. Everything below was
+verified in this workspace on 2026-09-08; results are stated exactly as run.
+
+## 17.1 Baseline verification (all previously green, still green)
+
+| Check                     | Command                     | Result |
+| ------------------------- | --------------------------- | ------ |
+| Frontend tests            | `npm test`                  | 3 files / 19 passed |
+| Worker tests              | `npm test` (`workers/api`)  | 29 files / 221 passed |
+| Frontend + worker typecheck | `npm run typecheck` + worker | clean |
+| Lint                      | `npm run lint`              | 0 errors |
+| Production build          | `npm run build` (SITE_URL set) | exit 0, `dist/client` only, secret scan clean |
+
+## 17.2 Issues found and fixed
+
+### S1. Identity endpoints trusted the client (auth/register + auth/permissions)
+
+- **Problem:** `POST /api/v1/auth/register` performed no token verification and
+  created/looked up users by a client-supplied `firebaseUid`, so an anonymous
+  caller could create rows for arbitrary accounts and — when a target uid was
+  already registered — read that account's full profile (internal id, email,
+  photo). `GET /api/v1/auth/permissions?userId=<id>` skipped authentication
+  whenever the query parameter was present and returned any member's role
+  (including admin membership) and permission list; its error path also
+  swallowed auth failures and answered `member`/`["read"]`.
+- **Fix:** register now runs `requireAuth` first; the row is created/looked up
+  from the *verified* Firebase uid, the body's `firebaseUid`/`email` are
+  ignored (kept in the schema for older clients), and Google display
+  name/photo are written only while empty so in-app renames are never
+  clobbered. `auth/permissions` always requires auth, answers for the caller,
+  and lets an admin read others via `?userId=`; unknown/anonymous callers get
+  401/403 instead of a fake `member` answer. The unverifiable `getOrCreateUser`
+  service method was removed; `requireAuth`'s first-login insert is now
+  `INSERT OR IGNORE` + re-select so two devices signing in concurrently can't
+  produce a UNIQUE-constraint 500, and a soft-deleted (banned) account now
+  gets 403 instead of a 500 when its owner tries to sign back in.
+- **Tests:** `tests/auth-routes.test.ts` grew 3 → 12 behavioural tests
+  (anonymous 401 with nothing written; forged body uid ignored; no profile
+  leak cross-uid; rename not clobbered; permissions self / cross-user 403 /
+  admin cross-user 200 / anonymous-with-param 401).
+
+### S2. Badge-award cron bypassed both ledgers
+
+- **Problem:** `sweepBadgeAwards` inserted `user_badges`, then separately
+  `UPDATE xp_accounts` / `UPDATE credit_accounts` with **no
+  xp_transactions/credit_transactions rows** (credit rewards were invisible in
+  transaction history and `balance_after` was never recorded), no level
+  recompute, and no atomicity: an interruption between the statements could
+  leave a badge granted without its payout. The review-count and supporter
+  thresholds were also hardcoded (50, `supporter-1`) instead of reading the
+  badge catalogue.
+- **Fix:** rewritten catalogue-driven (`criteria_type`/`criteria_value` read
+  from `badges`, so new badges need no code), with each award (badge row +
+  notification + XP ledger + credit ledger with `balance_after` + account
+  updates incl. level recompute) in **one D1 batch**. In-run duplicate
+  prevention across criteria passes plus a pre-check keep re-runs idempotent.
+- **Tests:** new `tests/jobs-badges.test.ts` (4 tests): ledgers written with
+  the right types/amounts/`balance_after`, no double-award on re-run,
+  catalogue threshold honoured, supporter badge after first purchase.
+
+### S3. Local development ran in production mode
+
+- **Problem:** `wrangler.toml` sets `ENVIRONMENT = "production"` at the top
+  level and `.env.example` did not override it, so the documented local
+  quick-start (`cp .env.example .dev.vars && npm run dev`) ran the Worker in
+  production mode: dev-auth tokens were rejected (every authenticated local
+  call 401'd) and `WATCH_SESSION_SECRET` became mandatory.
+- **Fix:** `.env.example` documents and sets `ENVIRONMENT=development` for
+  `.dev.vars`; `docs/DEPLOYMENT.md` explains why.
+
+### S4. Third-party ad script loaded unconditionally
+
+- **Problem:** the AdSense loader (`adsbygoogle.js`) was hardcoded in the root
+  head, so every visitor to every page — including signed-in app pages and
+  deployments with no ad slot configured — downloaded Google's ad script.
+- **Fix:** the loader is injected by `AdSlot` only on pages that render an ad
+  and only when `VITE_ADSENSE_SLOT_ID` is set (single instance, guarded).
+
+### S5. Crawler hygiene (robots, absolute social metadata, sign-in page)
+
+- `robots.txt` (static fallback and the `SITE_URL`-generated copy) now
+  disallows **all** authenticated client routes (`/auth/`, `/dashboard`,
+  `/queue`, `/admin`, `/ai`, `/collaborate`, `/communities`, `/gamification`,
+  `/insights`, `/leaderboard`, `/missions`, `/notifications`, `/profile`,
+  `/reviews`, `/search`, `/settings`, `/submit`) instead of three paths — deep
+  links all serve the same SPA shell, so anything outside the five public
+  routes was indexable near-duplicate content.
+- `og:image` and the canonical link in the published `index.html` are
+  rewritten to absolute URLs when `SITE_URL` is set (Open Graph requires
+  absolute URLs).
+- `/auth/signin` gained a head (`title`, description, `noindex,follow`).
+
+### S6. Stale documentation numbers
+
+- README still claimed 198 tests / 27 files; the suite is now 232 tests / 30
+  files. README security notes and `docs/API.md` auth-section semantics
+  updated to match the hardened endpoints.
+
+## 17.3 Verification (2026-09-08)
+
+| Check                     | Result |
+| ------------------------- | ------ |
+| Worker tests              | **30 files / 234 passed** |
+| Worker typecheck / lint   | clean / 0 errors |
+| Frontend tests            | 3 files / 19 passed |
+| Frontend typecheck / lint | clean / 0 errors |
+| Frontend build (with and without SITE_URL) | exit 0; `dist/client` only; robots/sitemap/canonical/og verified in the output |
+| Local end-to-end smoke    | `wrangler dev` + Vite proxy: `/health` 200; anonymous `register` → **401**; register with dev token → 200 and returns the token's uid (forged body uid ignored); permissions self → 200; anonymous `?userId=` → 401; member probing another user → **403** |
+
+## 17.4 Still open (unchanged from §15)
+
+The §15 remaining issues are unchanged; notably CI workflow files still need a
+human with `workflows` permission to apply `docs/CI_WORKFLOW_UPDATE.md`, the
+Firebase key rotation from the original history remains outstanding, and
+staging D1/KV ids are still placeholders in `wrangler.toml`.

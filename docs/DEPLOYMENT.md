@@ -230,6 +230,12 @@ npm run dev                     # Vite proxies /api and /health to :8787
 Leave `VITE_API_URL` empty locally: the Vite proxy means the browser calls
 same-origin `/api/*`.
 
+`.env.example` ships `ENVIRONMENT=development` for `.dev.vars` because
+`wrangler.toml` sets `ENVIRONMENT = "production"` as the top-level default.
+Without the override, `wrangler dev` runs in production mode: development
+tokens are rejected (the frontend dev-auth flow 401s on every call) and
+`WATCH_SESSION_SECRET` becomes mandatory.
+
 ---
 
 ## 8. Rollback

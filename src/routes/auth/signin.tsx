@@ -6,6 +6,17 @@ import { useState, useEffect } from "react";
 import { attemptGoogleSignIn, watchAuthState } from "@/lib/auth-diagnostics";
 
 export const Route = createFileRoute("/auth/signin")({
+  head: () => ({
+    meta: [
+      { title: "Sign in — LoopSquad" },
+      {
+        name: "description",
+        content: "Sign in with Google to join your LoopSquad creator group.",
+      },
+      // A sign-in form has no search-engine audience; keep it out of the index.
+      { name: "robots", content: "noindex,follow" },
+    ],
+  }),
   beforeLoad: async () => {
     const user = auth?.currentUser;
     if (user) {

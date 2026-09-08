@@ -50,7 +50,7 @@ workers/api/             Cloudflare Worker
   src/lib/               database, xp, scoring, audit, sanitize, push, quests…
   src/middleware/        auth + RBAC, rate limiting, error envelope
   migrations/            001…030, applied in filename order
-  tests/                 198 behavioural tests over a real SQLite database
+  tests/                 234 behavioural tests over a real SQLite database
 vercel.json              Static SPA deployment + caching + security headers
 ```
 
@@ -82,7 +82,7 @@ otherwise, so CI on Node 20 stays green.
 
 ```sh
 npm test                 # frontend: api client, hooks, repo hygiene
-cd workers/api && npm test   # 198 tests across 27 files
+cd workers/api && npm test   # 234 tests across 30 files
 ```
 
 The worker tests are behavioural, not mock theatre: `tests/helpers/test-env.ts`
@@ -135,7 +135,11 @@ Worker refuses to sign watch tokens with a fallback key.
 ## Security notes
 
 - Firebase ID tokens are verified against Google's public keys; the dev token is
-  accepted only outside production.
+  accepted only outside production. Identity endpoints derive the account from
+  the verified token: `POST /auth/register` ignores any client-supplied
+  `firebaseUid` (it can neither read nor pre-create another account), and
+  `GET /auth/permissions` answers only for the caller — an admin role is needed
+  to read another member's permissions.
 - Admin routes require an `admin`/`super_admin` row via `requireAdmin`.
 - `CORS_ORIGINS` is enforced (never echoed); `*.example.com` matches one
   subdomain level.

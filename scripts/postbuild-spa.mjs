@@ -23,6 +23,48 @@ const siteUrl = (process.env.SITE_URL ?? process.env.VITE_SITE_URL ?? "").replac
 // is blocked for crawlers by robots.txt.
 const PUBLIC_ROUTES = ["/", "/rules", "/resources", "/privacy", "/terms"];
 
+// Every top-level client route that requires sign-in. The SPA shell is
+// identical on all deep links, so leaving these crawlable would index near-
+// duplicate shells. Kept in sync with public/robots.txt (the fallback that
+// ships when SITE_URL is unset).
+const PRIVATE_ROUTE_PREFIXES = [
+  "/auth/",
+  "/dashboard",
+  "/queue",
+  "/admin",
+  "/ai",
+  "/collaborate",
+  "/communities",
+  "/gamification",
+  "/insights",
+  "/leaderboard",
+  "/missions",
+  "/notifications",
+  "/profile",
+  "/reviews",
+  "/search",
+  "/settings",
+  "/submit",
+];
+
+const robotsRules = (withSitemap) => {
+  const lines = [
+    "User-agent: *",
+    "Allow: /$",
+    "Allow: /rules$",
+    "Allow: /resources$",
+    "Allow: /privacy$",
+    "Allow: /terms$",
+    "",
+    "# Everything else is the authenticated app: no member-facing page under these",
+    "# paths should be crawled, and deep links all serve the same SPA shell.",
+    ...PRIVATE_ROUTE_PREFIXES.map((prefix) => `Disallow: ${prefix}`),
+    "Disallow: /api/",
+  ];
+  if (withSitemap) lines.push("", `Sitemap: ${withSitemap}/sitemap.xml`);
+  return lines.join("\n");
+};
+
 function fail(message) {
   console.error(`\n[postbuild] ${message}`);
   process.exit(1);
@@ -54,6 +96,10 @@ if (siteUrl) {
   if (!html.includes('rel="canonical"')) {
     html = html.replace("</head>", `  ${canonical}\n  </head>`);
   }
+  // og:image must be an absolute URL or social crawlers reject the preview.
+  // The shell ships a relative "/og-image.png" (correct for browsers on any
+  // domain), so rewrite it for the configured production origin.
+  html = html.split(`content="/og-image.png"`).join(`content="${siteUrl}/og-image.png"`);
 }
 
 await writeFile(indexPath, html);
@@ -69,20 +115,7 @@ ${PUBLIC_ROUTES.map(
 `;
   await writeFile(path.join(outDir, "sitemap.xml"), sitemap);
 
-  const robots = `User-agent: *
-Allow: /$
-Allow: /rules$
-Allow: /resources$
-Allow: /privacy$
-Allow: /terms$
-Disallow: /dashboard
-Disallow: /queue
-Disallow: /admin
-Disallow: /api/
-
-Sitemap: ${siteUrl}/sitemap.xml
-`;
-  await writeFile(path.join(outDir, "robots.txt"), robots);
+  await writeFile(path.join(outDir, "robots.txt"), robotsRules(siteUrl));
 }
 
 // Leak guard: nothing secret-shaped may ship to the browser.
