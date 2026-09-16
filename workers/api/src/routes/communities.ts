@@ -111,6 +111,16 @@ export const communityRoutes: RouteDefinition[] = [
           [communityId],
         );
 
+        const settingsRow = await db.querySingle(
+          "SELECT allow_peer_review, allow_collaboration, require_approval, default_language FROM community_settings WHERE community_id = ?",
+          [communityId],
+        );
+
+        const myMembership = await db.querySingle(
+          "SELECT role FROM community_members WHERE community_id = ? AND user_id = ? AND status = 'active'",
+          [communityId, userId],
+        );
+
         return createResponse({
           community: {
             id: community.id,
@@ -126,6 +136,13 @@ export const communityRoutes: RouteDefinition[] = [
             memberCount,
             isOwner: community.owner_id === userId,
             inviteCode: community.invite_code,
+            myRole: myMembership?.role ?? null,
+            settings: {
+              allowPeerReview: settingsRow ? Boolean(settingsRow.allow_peer_review) : true,
+              allowCollaboration: settingsRow ? Boolean(settingsRow.allow_collaboration) : true,
+              requireApproval: settingsRow ? Boolean(settingsRow.require_approval) : true,
+              defaultLanguage: settingsRow?.default_language ?? null,
+            },
           },
           members: members.results,
         });

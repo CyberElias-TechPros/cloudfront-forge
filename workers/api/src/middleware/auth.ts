@@ -96,3 +96,23 @@ export async function requireAdmin(request: Request, env: Env): Promise<string> 
 
   return userId;
 }
+
+/**
+ * Moderation tier: moderators plus admins and super admins.
+ *
+ * Matches `ROLE_PERMISSIONS.moderator` (`moderate`, `manage_videos`,
+ * `manage_reviews`): reports, appeals, support and video restore. Analytics,
+ * user management, top-ups and role changes stay `requireAdmin`.
+ */
+export async function requireModerator(request: Request, env: Env): Promise<string> {
+  const userId = await requireAuth(request, env);
+  const db = new Database(env);
+
+  const result = await db.querySingle("SELECT role FROM admin_users WHERE user_id = ?", [userId]);
+
+  if (!result || !["super_admin", "admin", "moderator"].includes(result.role)) {
+    throw new Error("FORBIDDEN");
+  }
+
+  return userId;
+}

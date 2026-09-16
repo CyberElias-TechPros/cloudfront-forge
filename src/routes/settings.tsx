@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Youtube, Settings2, Bell, Shield } from "lucide-react";
+import { Youtube, Settings2, Bell, Shield, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader, Shell } from "@/components/page-parts";
@@ -12,7 +12,9 @@ import {
   useDisconnectYouTube,
   useNotificationPreferences,
   useUpdateNotificationPreferences,
+  useDeleteAccount,
 } from "@/hooks/use-api";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { usePushSubscription } from "@/hooks/use-push";
 
@@ -49,8 +51,12 @@ function Settings() {
   const push = usePushSubscription();
   const { data: preferences } = useNotificationPreferences();
   const updatePreferences = useUpdateNotificationPreferences();
+  const deleteAccount = useDeleteAccount();
+  const { signOut } = useAuth();
 
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [localPrefs, setLocalPrefs] = useState({
     emailEnabled: true,
     pushEnabled: true,
@@ -86,6 +92,21 @@ function Settings() {
   const handlePreferenceChange = (key: string, value: boolean | number | null) => {
     setLocalPrefs((prev) => ({ ...prev, [key]: value }));
     updatePreferences.mutate({ [key]: value });
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      await deleteAccount.mutateAsync();
+      setShowDeleteDialog(false);
+      toast.success("Your account has been deleted");
+      await signOut();
+      navigate({ to: "/" });
+    } catch (error) {
+      console.error("Delete account error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Could not delete your account. Try again.",
+      );
+    }
   };
 
   const youtubeConnected = youtubeStatus?.connected ?? false;
@@ -335,7 +356,76 @@ function Settings() {
             </div>
           </CardContent>
         </Card>
+
+        <Card className="border-destructive/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="size-5" /> Danger zone
+            </CardTitle>
+            <CardDescription>
+              Permanently close your account. Your videos leave the queue, your community
+              memberships end, and you can no longer sign in with this Google account.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground">
+                Your watch history and reward ledger are kept for audit purposes, but your name is
+                removed from leaderboards, discovery and every member list.
+              </p>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  setDeleteConfirmText("");
+                  setShowDeleteDialog(true);
+                }}
+              >
+                Delete my account
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {showDeleteDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="surface w-full max-w-md p-6">
+            <h3 className="text-xl font-semibold text-destructive">Delete your account?</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              This closes your account immediately: you leave every community, your videos are
+              removed from the queue, and pending top-ups and requests are cancelled. This cannot be
+              undone.
+            </p>
+            <label className="mt-4 block text-xs font-medium text-muted-foreground">
+              Type <span className="font-mono text-foreground">DELETE</span> to confirm
+            </label>
+            <input
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="DELETE"
+              className="mt-2 w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
+            />
+            <div className="mt-4 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteDialog(false)}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDeleteAccount()}
+                disabled={deleteConfirmText !== "DELETE" || deleteAccount.isPending}
+                className="rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+              >
+                {deleteAccount.isPending ? "Deleting..." : "Permanently delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showDisconnectDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">

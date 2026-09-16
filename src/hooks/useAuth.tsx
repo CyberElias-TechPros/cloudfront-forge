@@ -31,6 +31,8 @@ interface AuthContextType {
   user: FirebaseUser | null;
   profile: Profile | null;
   loading: boolean;
+  /** Set when the API blocks this account (suspended / banned / deleted). */
+  accountError: string | null;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -42,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accountError, setAccountError] = useState<string | null>(null);
 
   const fetchProfile = async (user: User) => {
     try {
@@ -53,7 +56,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         photoUrl: user.photoURL,
       });
       setProfile(response.user);
+      setAccountError(null);
     } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "";
+      // The entry-point gate rejects suspended/banned/deleted accounts with a
+      // specific message — surface it instead of showing a broken dashboard.
+      if (/suspend|banned|deleted/i.test(message)) {
+        setAccountError(message);
+      }
       console.error("Error fetching profile:", error);
     }
   };
@@ -127,12 +137,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearDevSession();
       setFirebaseUser(null);
       setProfile(null);
+      setAccountError(null);
       return;
     }
     try {
       await signOutUser();
       setFirebaseUser(null);
       setProfile(null);
+      setAccountError(null);
     } catch (error) {
       console.error("Sign out error:", error);
       throw error;
@@ -177,6 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: firebaseUser,
         profile,
         loading,
+        accountError,
         signIn,
         signOut,
         refreshProfile,

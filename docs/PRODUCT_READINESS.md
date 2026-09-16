@@ -90,6 +90,14 @@ fair queue placement.
   accessible labels, loading/error states, and a bespoke public experience.
 - Frontend/backend contract corrections for Worker camel-cased responses
   (daily quests, top-ups, AI conversations, search, and admin analytics).
+- Full lifecycle and moderation (2026-09-16): account deletion (soft, closes
+  every open loop), entry-point gate for deleted/suspended/banned accounts,
+  community leave / join-requests with approval / member roles / member removal /
+  invite-code rotation / archive, video archive, admin suspension & reinstatement,
+  platform role management, appeals queue (accepted appeals reverse the penalty
+  and restore removed videos), member support channel, overdue-review
+  notify-then-reassign sweep, and the "reports against me" appeal entry point.
+  See `docs/COMPLETENESS.md` for the gap analysis and user-story flows.
 
 ## Launch blockers outside the codebase
 
@@ -130,7 +138,8 @@ The repository's automated suites were run on 2026-09-16:
 
 - Frontend: `npm run typecheck`, `npm test`, and `npm run build` — passed.
 - Worker: `npm --prefix workers/api run typecheck`,
-  `npm --prefix workers/api test` — 234 tests passed.
+  `npm --prefix workers/api test` — 282 tests passed (36 files), including the
+  lifecycle/moderation suites added with the completeness work.
 - Lint: `npm run lint` — passed with existing non-blocking warnings in generated/UI
   component exports and a few test fixtures.
 - Worker bundle: `npx wrangler deploy --dry-run` — passed.

@@ -1,6 +1,6 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAdmin } from "../middleware/auth";
+import { requireAdmin, requireModerator } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { recordAudit } from "../lib/audit";
 import { z } from "zod";
@@ -168,7 +168,7 @@ export const adminRoutes: RouteDefinition[] = [
     path: "/api/v1/admin/reports",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
-        await requireAdmin(request, env);
+        await requireModerator(request, env);
         const { searchParams } = new URL(request.url);
         const status = searchParams.get("status") ?? "pending";
 
@@ -204,7 +204,7 @@ export const adminRoutes: RouteDefinition[] = [
     pattern: "^\\/api\\/v1/admin/reports/([^/]+)/resolve$",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
-        const adminId = await requireAdmin(request, env);
+        const adminId = await requireModerator(request, env);
         const url = new URL(request.url);
         const reportId = url.pathname.split("/")[5];
         const body = await request.json().catch(() => ({}));
@@ -333,7 +333,7 @@ export const adminRoutes: RouteDefinition[] = [
     path: "/api/v1/admin/appeals",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
-        await requireAdmin(request, env);
+        await requireModerator(request, env);
         const { searchParams } = new URL(request.url);
         const status = searchParams.get("status") ?? "pending";
         if (!["pending", "accepted", "rejected"].includes(status)) {
@@ -367,7 +367,7 @@ export const adminRoutes: RouteDefinition[] = [
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
         const adminId = await requireAdmin(request, env);
-        const targetId = new URL(request.url).pathname.split("/")[4];
+        const targetId = new URL(request.url).pathname.split("/")[5];
         if (!targetId) return createErrorResponse("VALIDATION_ERROR", "User ID is required", 400);
 
         const parsed = suspendSchema.safeParse(await request.json().catch(() => ({})));
@@ -442,7 +442,7 @@ export const adminRoutes: RouteDefinition[] = [
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
         const adminId = await requireAdmin(request, env);
-        const targetId = new URL(request.url).pathname.split("/")[4];
+        const targetId = new URL(request.url).pathname.split("/")[5];
         if (!targetId) return createErrorResponse("VALIDATION_ERROR", "User ID is required", 400);
 
         const db = new Database(env);
@@ -479,7 +479,7 @@ export const adminRoutes: RouteDefinition[] = [
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
         const adminId = await requireAdmin(request, env);
-        const targetId = new URL(request.url).pathname.split("/")[4];
+        const targetId = new URL(request.url).pathname.split("/")[5];
         if (!targetId) return createErrorResponse("VALIDATION_ERROR", "User ID is required", 400);
 
         const parsed = roleChangeSchema.safeParse(await request.json().catch(() => ({})));
@@ -557,8 +557,8 @@ export const adminRoutes: RouteDefinition[] = [
     pattern: "^\\/api\\/v1/admin/videos/([^/]+)/restore$",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
-        const adminId = await requireAdmin(request, env);
-        const videoId = new URL(request.url).pathname.split("/")[4];
+        const adminId = await requireModerator(request, env);
+        const videoId = new URL(request.url).pathname.split("/")[5];
         if (!videoId) return createErrorResponse("VALIDATION_ERROR", "Video ID is required", 400);
 
         const db = new Database(env);

@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
+import { ShieldAlert } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export function PageHeader({
   eyebrow,
@@ -29,6 +31,32 @@ export function PageHeader({
 }
 
 export function Shell({ children, className }: { children: ReactNode; className?: string }) {
+  const { accountError, signOut } = useAuth();
+
+  // A suspended/banned/deleted account may not reach any app data — show the
+  // reason and a way out instead of a wall of failed requests.
+  if (accountError) {
+    return (
+      <main className={cn("mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10", className)}>
+        <div className="mx-auto max-w-md py-16 text-center">
+          <ShieldAlert className="mx-auto size-12 text-warning" />
+          <h1 className="mt-4 text-3xl font-semibold">Account unavailable</h1>
+          <p className="mt-3 text-sm text-muted-foreground">{accountError}</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            If you believe this is a mistake, sign out and reach out through the support page.
+          </p>
+          <button
+            type="button"
+            onClick={() => void signOut()}
+            className="mt-6 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-secondary"
+          >
+            Sign out
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className={cn("mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10", className)}>
       {children}

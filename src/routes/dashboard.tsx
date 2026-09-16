@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Clock, Eye, Flame, Target, Trophy, Users } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader, Shell, StatCard, Thumb } from "@/components/page-parts";
 import {
   useXp,
@@ -9,6 +10,8 @@ import {
   useSubmissions,
   useActivity,
   useDailyQuests,
+  useCommunities,
+  useArchiveVideo,
 } from "@/hooks/use-api";
 
 export const Route = createFileRoute("/dashboard")({
@@ -42,6 +45,8 @@ function Dashboard() {
   } = useSubmissions();
   const { data: activity = [], isLoading: activityLoading, isError: activityError } = useActivity();
   const { data: dailyQuests, isLoading: questsLoading, isError: questsError } = useDailyQuests();
+  const { data: communities = [] } = useCommunities();
+  const archiveVideo = useArchiveVideo();
 
   const loading =
     xpLoading ||
@@ -157,6 +162,53 @@ function Dashboard() {
         />
       </div>
 
+      {(() => {
+        const steps = [
+          {
+            label: "Join or create a community",
+            done: communities.length > 0,
+            to: "/communities",
+          },
+          {
+            label: "Submit your first video",
+            done: submissions.length > 0,
+            to: "/submit",
+          },
+          {
+            label: "Watch a squad video and claim it",
+            done: currentUser.watchMinutes > 0,
+            to: "/queue",
+          },
+        ];
+        if (steps.every((s) => s.done)) return null;
+        return (
+          <section className="surface mt-6 p-6">
+            <h2 className="text-3xl">Get started</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Three steps to get the loop working for you.
+            </p>
+            <ul className="mt-4 space-y-3">
+              {steps.map((s) => (
+                <li key={s.label} className="flex items-center justify-between gap-3 text-sm">
+                  <span className={s.done ? "text-success" : ""}>
+                    {s.done ? "✓ " : "• "}
+                    {s.label}
+                  </span>
+                  {!s.done ? (
+                    <Link
+                      to={s.to}
+                      className="shrink-0 rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:bg-secondary"
+                    >
+                      Do it
+                    </Link>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })()}
+
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <section className="surface p-6">
           <div className="flex items-center justify-between gap-4">
@@ -250,6 +302,28 @@ function Dashboard() {
                     <span>{s.subs} subs</span>
                     <span>{s.comments} comments</span>
                   </p>
+                  {s.status === "active" ? (
+                    <button
+                      type="button"
+                      className="mt-3 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+                      disabled={archiveVideo.isPending}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            "Take this video out of the queue? Existing rewards are kept.",
+                          )
+                        )
+                          return;
+                        void archiveVideo.mutate(s.id, {
+                          onSuccess: () => toast.success("Video archived — it is out of the queue"),
+                          onError: (e) =>
+                            toast.error(e instanceof Error ? e.message : "Failed to archive"),
+                        });
+                      }}
+                    >
+                      {archiveVideo.isPending ? "Archiving..." : "Archive video"}
+                    </button>
+                  ) : null}
                 </li>
               ))}
             </ul>

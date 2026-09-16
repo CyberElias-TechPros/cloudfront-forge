@@ -12,6 +12,10 @@ export interface UserProfile {
   deletedAt: string | null;
   lastActive: string;
   trustScore?: number;
+  /** Only present on admin user listings. */
+  status?: "active" | "suspended" | "banned";
+  /** Only present on admin user listings. */
+  platformRole?: "super_admin" | "admin" | "moderator" | null;
 }
 
 export interface Member {
@@ -48,6 +52,15 @@ export interface Community {
   niche: string;
   thumbHue: number;
   updatedAt: string;
+  /** Present on the detail endpoint: caller's role, or null when not a member. */
+  myRole?: "owner" | "admin" | "moderator" | "mentor" | "member" | null;
+  /** Present on the detail endpoint. */
+  settings?: {
+    allowPeerReview: boolean;
+    allowCollaboration: boolean;
+    requireApproval: boolean;
+    defaultLanguage: string | null;
+  };
 }
 
 export interface CommunityMember {
@@ -307,6 +320,11 @@ const putData = async <T, D extends object = object>(url: string, data?: D): Pro
   return response.data.data as T;
 };
 
+const deleteData = async <T>(url: string): Promise<T> => {
+  const response = await apiClient.delete(url);
+  return response.data.data as T;
+};
+
 export interface TopupTier {
   id: string;
   name: string;
@@ -390,6 +408,61 @@ export interface DiscoverMember {
   intent: string;
 }
 
+export interface JoinRequest {
+  id: string;
+  message: string | null;
+  status: "pending" | "approved" | "rejected" | "cancelled";
+  requestedAt: string;
+  userId: string;
+  displayName: string | null;
+  photoUrl: string | null;
+}
+
+export interface Appeal {
+  id: string;
+  reason: string;
+  status: "pending" | "accepted" | "rejected";
+  createdAt: string;
+  reviewedAt: string | null;
+  note: string | null;
+  reportId: string;
+  reportReason: string;
+  resourceType: string;
+  resourceId: string;
+  reportStatus: string;
+  reportedName: string | null;
+  reporterName: string | null;
+}
+
+export interface SupportRequest {
+  id: string;
+  topic: "account" | "credits" | "community" | "video" | "moderation" | "bug" | "other";
+  message: string;
+  status: "open" | "resolved";
+  createdAt: string;
+  resolvedAt: string | null;
+  userName: string | null;
+  userEmail: string | null;
+}
+
+export interface ReportAgainstMe {
+  id: string;
+  reason: string;
+  resourceType: string;
+  resourceId: string;
+  status: "pending" | "investigating" | "resolved" | "dismissed";
+  createdAt: string;
+  resolutionNotes: string | null;
+  appealed: number | boolean;
+}
+
+export interface CommunitySettingsInput {
+  allowPeerReview?: boolean;
+  allowCollaboration?: boolean;
+  requireApproval?: boolean;
+  defaultLanguage?: string | null;
+}
+
 export const apiClientService = {
   auth: {
     register: (data: {
@@ -402,6 +475,10 @@ export const apiClientService = {
     permissions: () => getData<UserPermissions>("/api/v1/auth/permissions"),
   },
 
+  account: {
+    delete: () => deleteData<{ message: string }>("/api/v1/users/me"),
+  },
+
   communities: {
     list: () => getData<PaginatedResponse<Community>>("/api/v1/communities"),
     get: (communityId: string) => getData<CommunityDetail>(`/api/v1/communities/${communityId}`),
@@ -412,6 +489,37 @@ export const apiClientService = {
         "/api/v1/communities/join",
         { inviteCode },
       ),
+    joinPublic: (communityId: string, message?: string) =>
+      postData<
+        | { message: string; communityId: string; communityName: string }
+        | { message: string; requestId: string; pending: boolean }
+      >(`/api/v1/communities/${communityId}/join`, message ? { message } : {}),
+    leave: (communityId: string) =>
+      postData<{ message: string }>(`/api/v1/communities/${communityId}/leave`),
+    requests: (communityId: string) =>
+      getData<{ items: JoinRequest[] }>(`/api/v1/communities/${communityId}/requests`),
+    approveRequest: (communityId: string, requestId: string) =>
+      postData<{ message: string }>(
+        `/api/v1/communities/${communityId}/requests/${requestId}/approve`,
+      ),
+    rejectRequest: (communityId: string, requestId: string) =>
+      postData<{ message: string }>(
+        `/api/v1/communities/${communityId}/requests/${requestId}/reject`,
+      ),
+    setMemberRole: (communityId: string, userId: string, role: "member" | "moderator") =>
+      postData<{ message: string }>(`/api/v1/communities/${communityId}/members/${userId}/role`, {
+        role,
+      }),
+    removeMember: (communityId: string, userId: string) =>
+      postData<{ message: string }>(`/api/v1/communities/${communityId}/members/${userId}/remove`),
+    regenerateInvite: (communityId: string) =>
+      postData<{ message: string; inviteCode: string }>(
+        `/api/v1/communities/${communityId}/invite/regenerate`,
+      ),
+    updateSettings: (communityId: string, data: CommunitySettingsInput) =>
+      putData<{ message: string }>(`/api/v1/communities/${communityId}/settings`, data),
+    archive: (communityId: string) =>
+      deleteData<{ message: string }>(`/api/v1/communities/${communityId}`),
   },
 
   missions: {
@@ -436,6 +544,15 @@ export const apiClientService = {
       title?: string;
       magicWord?: string;
     }) => postData<{ message: string; videoId: string }>("/api/v1/videos", data),
+    archive: (videoId: string) =>
+      postData<{ message: string }>(`/api/v1/videos/${videoId}/archive`),
+  },
+
+  support: {
+    create: (data: {
+      topic: "account" | "credits" | "community" | "video" | "moderation" | "bug" | "other";
+      message: string;
+    }) => postData<{ message: string; supportId: string }>("/api/v1/support", data),
   },
 
   reviews: {
@@ -541,6 +658,7 @@ export const apiClientService = {
     }) => postData<{ message: string }>("/api/v1/reports", data),
     appeal: (reportId: string, data: { reason: string }) =>
       postData<{ message: string }>(`/api/v1/reports/${reportId}/appeal`, data),
+    mine: () => getData<{ items: ReportAgainstMe[] }>("/api/v1/reports/mine"),
   },
 
   quests: {
@@ -660,6 +778,24 @@ export const apiClientService = {
           week4Retention: number;
         }>;
       }>("/api/v1/admin/retention"),
+    appeals: (status: "pending" | "accepted" | "rejected" = "pending") =>
+      getData<{ items: Appeal[] }>(`/api/v1/admin/appeals?status=${status}`),
+    reviewAppeal: (appealId: string, data: { status: "accepted" | "rejected"; note?: string }) =>
+      postData<{ message: string }>(`/api/v1/admin/appeals/${appealId}`, data),
+    suspendUser: (userId: string, reason?: string) =>
+      postData<{ message: string }>(`/api/v1/admin/users/${userId}/suspend`, {
+        ...(reason ? { reason } : {}),
+      }),
+    reinstateUser: (userId: string) =>
+      postData<{ message: string }>(`/api/v1/admin/users/${userId}/reinstate`),
+    setUserRole: (userId: string, role: "moderator" | "admin" | null) =>
+      postData<{ message: string }>(`/api/v1/admin/users/${userId}/role`, { role }),
+    restoreVideo: (videoId: string) =>
+      postData<{ message: string }>(`/api/v1/admin/videos/${videoId}/restore`),
+    support: (status: "open" | "resolved" = "open") =>
+      getData<{ items: SupportRequest[] }>(`/api/v1/admin/support?status=${status}`),
+    resolveSupport: (supportId: string) =>
+      postData<{ message: string }>(`/api/v1/admin/support/${supportId}/resolve`),
   },
 };
 

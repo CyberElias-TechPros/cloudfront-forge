@@ -17,6 +17,13 @@ import {
   useAdminTopups,
   useApproveTopup,
   useRejectTopup,
+  useAdminAppeals,
+  useReviewAppeal,
+  useAdminSupport,
+  useResolveSupport,
+  useSuspendUser,
+  useReinstateUser,
+  useSetUserRole,
 } from "@/hooks/use-api";
 import { ErrorNotice } from "@/components/common/query-state";
 
@@ -51,16 +58,37 @@ function Admin() {
   const users = usersQuery.data ?? [];
   const topupsQuery = useAdminTopups("pending");
   const topups = topupsQuery.data ?? [];
+  const appealsQuery = useAdminAppeals("pending");
+  const appeals = appealsQuery.data ?? [];
+  const supportQuery = useAdminSupport("open");
+  const supportRequests = supportQuery.data ?? [];
+  const reviewAppeal = useReviewAppeal();
+  const resolveSupport = useResolveSupport();
+  const suspendUser = useSuspendUser();
+  const reinstateUser = useReinstateUser();
+  const setUserRole = useSetUserRole();
+  const [memberFilter, setMemberFilter] = useState<"active" | "suspended">("active");
+  const membersQuery = useAdminUsers(memberFilter);
+  const isAdminRole = permissionsData?.role === "admin" || permissionsData?.role === "super_admin";
   const panels = [
-    { label: "metrics", query: statsQuery },
+    // Moderator-tier accounts never load the admin-only panels, so their
+    // queries are left out of the failure surface.
+    ...(isAdminRole ? [{ label: "metrics", query: statsQuery }] : []),
     { label: "reports", query: flagsQuery },
-    { label: "users", query: usersQuery },
-    { label: "top-ups", query: topupsQuery },
+    ...(isAdminRole
+      ? [
+          { label: "users", query: usersQuery },
+          { label: "top-ups", query: topupsQuery },
+        ]
+      : []),
   ];
   const failedQuery = panels.find((p) => p.query.isError);
   const approveTopup = useApproveTopup();
   const rejectTopup = useRejectTopup();
   const isAdmin = permissionsData?.role === "admin" || permissionsData?.role === "super_admin";
+  // Moderators work the moderation tier (reports, appeals, support) without
+  // seeing analytics, user management or money flows.
+  const isModerator = permissionsData?.role === "moderator";
 
   if (memberLoading) {
     return (
@@ -70,7 +98,7 @@ function Admin() {
     );
   }
 
-  if (!isAdmin) {
+  if (!isAdmin && !isModerator) {
     return (
       <Shell>
         <div className="py-16 text-center">
@@ -125,32 +153,47 @@ function Admin() {
         </ErrorNotice>
       ) : null}
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Members"
-          value={statsQuery.data?.users?.toString() ?? "—"}
-          icon={<Users className="size-4" />}
-        />
-        <StatCard
-          label="Open flags"
-          value={(flagsQuery.data?.length ?? 0).toString()}
-          hint={`${flagsQuery.data?.filter((f) => f.status === "pending").length || 0} high severity`}
-          icon={<AlertTriangle className="size-4" />}
-        />
-        <StatCard
-          label="Reviews"
-          value={statsQuery.data?.reviews?.toString() ?? "—"}
-          icon={<CheckCircle2 className="size-4" />}
-        />
-        <StatCard
-          label="Communities"
-          value={statsQuery.data?.communities?.toString() ?? "—"}
-          icon={<Users className="size-4" />}
-        />
-      </div>
+      {isAdmin ? (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label="Members"
+            value={statsQuery.data?.users?.toString() ?? "—"}
+            icon={<Users className="size-4" />}
+          />
+          <StatCard
+            label="Open flags"
+            value={(flagsQuery.data?.length ?? 0).toString()}
+            hint={`${flagsQuery.data?.filter((f) => f.status === "pending").length || 0} high severity`}
+            icon={<AlertTriangle className="size-4" />}
+          />
+          <StatCard
+            label="Reviews"
+            value={statsQuery.data?.reviews?.toString() ?? "—"}
+            icon={<CheckCircle2 className="size-4" />}
+          />
+          <StatCard
+            label="Communities"
+            value={statsQuery.data?.communities?.toString() ?? "—"}
+            icon={<Users className="size-4" />}
+          />
+        </div>
+      ) : (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <StatCard
+            label="Open flags"
+            value={(flagsQuery.data?.length ?? 0).toString()}
+            icon={<AlertTriangle className="size-4" />}
+          />
+          <StatCard
+            label="Pending appeals"
+            value={appeals.length.toString()}
+            icon={<CheckCircle2 className="size-4" />}
+          />
+        </div>
+      )}
 
       {/* Analytics funnel */}
-      {analyticsQuery.data && (
+      {isAdmin && analyticsQuery.data && (
         <div className="mt-6 surface p-6">
           <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             <BarChart3 className="size-4" /> Funnel — {analyticsQuery.data.period}
@@ -172,7 +215,7 @@ function Admin() {
       )}
 
       {/* Cohort retention */}
-      {retentionQuery.data && retentionQuery.data.cohorts.length > 0 && (
+      {isAdmin && retentionQuery.data && retentionQuery.data.cohorts.length > 0 && (
         <div className="mt-6 surface p-6">
           <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             <Users className="size-4" /> Cohort Retention (W1 / W4)
@@ -332,107 +375,361 @@ function Admin() {
             </ul>
           </section>
 
-          <section className="surface p-6">
-            <h2 className="text-3xl">Low trust watchlist</h2>
-            <ul className="mt-4 space-y-3 text-sm">
-              {watchlist.map((m) => (
-                <li key={m.id} className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-3">
-                    <span className="grid size-8 place-items-center rounded-full bg-secondary text-xs font-semibold">
-                      {m.avatar}
-                    </span>
-                    <span>
-                      <span className="block font-medium">{m.name}</span>
-                      <span className="text-xs text-muted-foreground">{m.handle}</span>
-                    </span>
-                  </span>
-                  <span className="text-sm text-warning">{m.trustScore}%</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="surface p-6">
-            <h2 className="text-3xl">NGN top-ups</h2>
-            {topupsQuery.isError ? (
-              <ErrorNotice
-                error={topupsQuery.error}
-                onRetry={() => void topupsQuery.refetch()}
-                className="mt-4"
-              >
-                Could not load pending top-ups
-              </ErrorNotice>
-            ) : null}
-            {topups.length ? (
-              <ul className="mt-4 space-y-3">
-                {topups.map((t) => (
-                  <li key={t.id} className="rounded-lg bg-secondary/60 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-medium">{t.displayName ?? t.email ?? "Member"}</p>
-                      <span className="text-sm font-semibold tabular-nums">
-                        ₦{t.ngnAmount.toLocaleString()} → {t.creditsAmount} credits
+          {isAdmin && (
+            <>
+              <section className="surface p-6">
+                <h2 className="text-3xl">Low trust watchlist</h2>
+                <ul className="mt-4 space-y-3 text-sm">
+                  {watchlist.map((m) => (
+                    <li key={m.id} className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-3">
+                        <span className="grid size-8 place-items-center rounded-full bg-secondary text-xs font-semibold">
+                          {m.avatar}
+                        </span>
+                        <span>
+                          <span className="block font-medium">{m.name}</span>
+                          <span className="text-xs text-muted-foreground">{m.handle}</span>
+                        </span>
                       </span>
-                    </div>
-                    {t.proofImagePath ? (
-                      <div className="mt-2">
-                        <ProofThumb id={t.id} name={t.proofImageName} />
-                      </div>
-                    ) : (
-                      <p className="mt-1 font-mono text-xs text-muted-foreground">
-                        Ref: {t.transferReference}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(t.createdAt).toLocaleString()}
-                    </p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
-                        onClick={() => {
-                          void approveTopup.mutate(t.id, {
-                            onSuccess: (res) =>
-                              toast.success(
-                                `Top-up approved — ${res.credits} credits issued (balance ${res.balance})`,
-                              ),
-                            onError: (e: unknown) =>
-                              toast.error(e instanceof Error ? e.message : String(e)),
-                          });
-                        }}
-                      >
-                        <CheckCircle2 className="size-3.5" /> Approve
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold"
-                        onClick={() => {
-                          const reason =
-                            window.prompt(
-                              "Reason for rejection (shown to the member)",
-                              "Payment not found",
-                            ) ?? "Payment not found";
-                          void rejectTopup.mutate(
-                            { id: t.id, reason },
+                      <span className="text-sm text-warning">{m.trustScore}%</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              <section className="surface p-6">
+                <h2 className="text-3xl">NGN top-ups</h2>
+                {topupsQuery.isError ? (
+                  <ErrorNotice
+                    error={topupsQuery.error}
+                    onRetry={() => void topupsQuery.refetch()}
+                    className="mt-4"
+                  >
+                    Could not load pending top-ups
+                  </ErrorNotice>
+                ) : null}
+                {topups.length ? (
+                  <ul className="mt-4 space-y-3">
+                    {topups.map((t) => (
+                      <li key={t.id} className="rounded-lg bg-secondary/60 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="font-medium">{t.displayName ?? t.email ?? "Member"}</p>
+                          <span className="text-sm font-semibold tabular-nums">
+                            ₦{t.ngnAmount.toLocaleString()} → {t.creditsAmount} credits
+                          </span>
+                        </div>
+                        {t.proofImagePath ? (
+                          <div className="mt-2">
+                            <ProofThumb id={t.id} name={t.proofImageName} />
+                          </div>
+                        ) : (
+                          <p className="mt-1 font-mono text-xs text-muted-foreground">
+                            Ref: {t.transferReference}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(t.createdAt).toLocaleString()}
+                        </p>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+                            onClick={() => {
+                              void approveTopup.mutate(t.id, {
+                                onSuccess: (res) =>
+                                  toast.success(
+                                    `Top-up approved — ${res.credits} credits issued (balance ${res.balance})`,
+                                  ),
+                                onError: (e: unknown) =>
+                                  toast.error(e instanceof Error ? e.message : String(e)),
+                              });
+                            }}
+                          >
+                            <CheckCircle2 className="size-3.5" /> Approve
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold"
+                            onClick={() => {
+                              const reason =
+                                window.prompt(
+                                  "Reason for rejection (shown to the member)",
+                                  "Payment not found",
+                                ) ?? "Payment not found";
+                              void rejectTopup.mutate(
+                                { id: t.id, reason },
+                                {
+                                  onSuccess: () => toast.success("Top-up rejected"),
+                                  onError: (e: unknown) =>
+                                    toast.error(e instanceof Error ? e.message : String(e)),
+                                },
+                              );
+                            }}
+                          >
+                            <XCircle className="size-3.5" /> Reject
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-4 text-sm text-muted-foreground">No pending NGN top-ups</p>
+                )}
+              </section>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Appeals */}
+      <section className="surface mt-6 p-6">
+        <h2 className="text-3xl">Appeals</h2>
+        {appealsQuery.isError ? (
+          <ErrorNotice
+            error={appealsQuery.error}
+            onRetry={() => void appealsQuery.refetch()}
+            className="mt-4"
+          >
+            Could not load appeals
+          </ErrorNotice>
+        ) : null}
+        {appeals.length ? (
+          <ul className="mt-4 space-y-3">
+            {appeals.map((a) => (
+              <li key={a.id} className="rounded-lg bg-secondary/60 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-medium">
+                    {a.reportedName ?? "Member"} · {a.reportReason} report on {a.resourceType}
+                  </p>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(a.createdAt).toLocaleString()}
+                  </span>
+                </div>
+                <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{a.reason}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+                    disabled={reviewAppeal.isPending}
+                    onClick={() => {
+                      void reviewAppeal.mutate(
+                        { appealId: a.id, status: "accepted" },
+                        {
+                          onSuccess: () =>
+                            toast.success(
+                              "Appeal accepted — report dismissed, penalty reversed, video restored if it was removed",
+                            ),
+                          onError: (e: unknown) =>
+                            toast.error(e instanceof Error ? e.message : String(e)),
+                        },
+                      );
+                    }}
+                  >
+                    <CheckCircle2 className="size-3.5" /> Accept appeal
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold"
+                    disabled={reviewAppeal.isPending}
+                    onClick={() => {
+                      const note = window.prompt("Optional note shown to the member") ?? undefined;
+                      void reviewAppeal.mutate(
+                        { appealId: a.id, status: "rejected", note },
+                        {
+                          onSuccess: () => toast.success("Appeal rejected"),
+                          onError: (e: unknown) =>
+                            toast.error(e instanceof Error ? e.message : String(e)),
+                        },
+                      );
+                    }}
+                  >
+                    <XCircle className="size-3.5" /> Reject appeal
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">No pending appeals</p>
+        )}
+      </section>
+
+      {/* Support inbox */}
+      <section className="surface mt-6 p-6">
+        <h2 className="text-3xl">Support inbox</h2>
+        {supportQuery.isError ? (
+          <ErrorNotice
+            error={supportQuery.error}
+            onRetry={() => void supportQuery.refetch()}
+            className="mt-4"
+          >
+            Could not load support requests
+          </ErrorNotice>
+        ) : null}
+        {supportRequests.length ? (
+          <ul className="mt-4 space-y-3">
+            {supportRequests.map((s) => (
+              <li key={s.id} className="rounded-lg bg-secondary/60 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-medium">
+                    {s.userName ?? "Member"}{" "}
+                    <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] uppercase tracking-widest text-accent">
+                      {s.topic}
+                    </span>
+                  </p>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(s.createdAt).toLocaleString()}
+                  </span>
+                </div>
+                <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
+                  {s.message}
+                </p>
+                {s.userEmail ? (
+                  <p className="mt-1 text-xs text-muted-foreground">{s.userEmail}</p>
+                ) : null}
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+                    disabled={resolveSupport.isPending}
+                    onClick={() => {
+                      void resolveSupport.mutate(s.id, {
+                        onSuccess: () => toast.success("Request resolved — member notified"),
+                        onError: (e: unknown) =>
+                          toast.error(e instanceof Error ? e.message : String(e)),
+                      });
+                    }}
+                  >
+                    <CheckCircle2 className="size-3.5" /> Mark resolved
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">No open support requests</p>
+        )}
+      </section>
+
+      {/* Member moderation (admin tier only) */}
+      {isAdmin && (
+        <section className="surface mt-6 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-3xl">Member moderation</h2>
+            <div className="flex gap-2">
+              {(["active", "suspended"] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setMemberFilter(f)}
+                  className={cn(
+                    "rounded-md border px-3 py-1.5 text-xs font-semibold capitalize",
+                    memberFilter === f
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card text-muted-foreground",
+                  )}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+          {membersQuery.isError ? (
+            <ErrorNotice
+              error={membersQuery.error}
+              onRetry={() => void membersQuery.refetch()}
+              className="mt-4"
+            >
+              Could not load members
+            </ErrorNotice>
+          ) : null}
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-widest text-muted-foreground">
+                  <th className="p-3">Member</th>
+                  <th className="p-3">Trust</th>
+                  <th className="p-3">Role</th>
+                  <th className="p-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(membersQuery.data ?? []).slice(0, 25).map((u) => (
+                  <tr key={u.id} className="border-b border-border/50 last:border-0">
+                    <td className="p-3">
+                      <p className="font-medium">{u.displayName ?? u.email ?? "Member"}</p>
+                      <p className="text-xs text-muted-foreground">{u.email}</p>
+                    </td>
+                    <td className="p-3 tabular-nums">{u.trustScore ?? 100}%</td>
+                    <td className="p-3">
+                      <select
+                        value={u.platformRole ?? "member"}
+                        onChange={(e) => {
+                          const role = e.target.value as "moderator" | "admin" | "member";
+                          void setUserRole.mutate(
+                            { userId: u.id, role: role === "member" ? null : role },
                             {
-                              onSuccess: () => toast.success("Top-up rejected"),
-                              onError: (e: unknown) =>
-                                toast.error(e instanceof Error ? e.message : String(e)),
+                              onSuccess: () => toast.success("Platform role updated"),
+                              onError: (err: unknown) =>
+                                toast.error(err instanceof Error ? err.message : String(err)),
                             },
                           );
                         }}
+                        className="rounded-md border border-border bg-card px-2 py-1 text-xs"
                       >
-                        <XCircle className="size-3.5" /> Reject
-                      </button>
-                    </div>
-                  </li>
+                        <option value="member">member</option>
+                        <option value="moderator">moderator</option>
+                        <option value="admin">admin</option>
+                      </select>
+                      {u.platformRole === "super_admin" ? (
+                        <span className="ml-2 text-xs text-accent">super admin</span>
+                      ) : null}
+                    </td>
+                    <td className="p-3 text-right">
+                      {memberFilter === "active" ? (
+                        <button
+                          type="button"
+                          className="rounded-md border border-destructive/50 px-2.5 py-1 text-xs font-semibold text-destructive"
+                          disabled={suspendUser.isPending}
+                          onClick={() => {
+                            const reason = window.prompt("Reason for suspension (shown to member)");
+                            if (reason === null) return;
+                            void suspendUser.mutate(
+                              { userId: u.id, reason: reason || undefined },
+                              {
+                                onSuccess: () => toast.success("Member suspended"),
+                                onError: (e: unknown) =>
+                                  toast.error(e instanceof Error ? e.message : String(e)),
+                              },
+                            );
+                          }}
+                        >
+                          Suspend
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold"
+                          disabled={reinstateUser.isPending}
+                          onClick={() => {
+                            void reinstateUser.mutate(u.id, {
+                              onSuccess: () => toast.success("Member reinstated"),
+                              onError: (e: unknown) =>
+                                toast.error(e instanceof Error ? e.message : String(e)),
+                            });
+                          }}
+                        >
+                          Reinstate
+                        </button>
+                      )}
+                    </td>
+                  </tr>
                 ))}
-              </ul>
-            ) : (
-              <p className="mt-4 text-sm text-muted-foreground">No pending NGN top-ups</p>
-            )}
-          </section>
-        </div>
-      </div>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </Shell>
   );
 }

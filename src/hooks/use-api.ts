@@ -24,6 +24,11 @@ import apiClientService, {
   type TopupAdminItem,
   type CreatorInsights,
   type DiscoverMember,
+  type JoinRequest,
+  type Appeal,
+  type SupportRequest,
+  type CommunitySettingsInput,
+  type ReportAgainstMe,
 } from "@/lib/api-client";
 
 const queryKeys = {
@@ -295,9 +300,23 @@ export function useAnswerChallenge() {
 }
 
 export function useAppealReport() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ reportId, reason }: { reportId: string; reason: string }) =>
       apiClientService.reports.appeal(reportId, { reason }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["reports", "mine"] });
+    },
+  });
+}
+
+export function useMyReports() {
+  return useQuery({
+    queryKey: ["reports", "mine"],
+    queryFn: async (): Promise<ReportAgainstMe[]> => {
+      const res = await apiClientService.reports.mine();
+      return res.items;
+    },
   });
 }
 
@@ -905,6 +924,250 @@ export function useSearch(query?: string) {
         return { communities: [], videos: [] };
       }
       return await apiClientService.search.search(query);
+    },
+  });
+}
+
+/* ---------------- account lifecycle ---------------- */
+
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: () => apiClientService.account.delete(),
+  });
+}
+
+/* ---------------- community management ---------------- */
+
+export function useLeaveCommunity() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (communityId: string) => apiClientService.communities.leave(communityId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.communities });
+      void queryClient.invalidateQueries({ queryKey: ["feed", "queue"] });
+    },
+  });
+}
+
+export function useJoinPublicCommunity() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ communityId, message }: { communityId: string; message?: string }) =>
+      apiClientService.communities.joinPublic(communityId, message),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.communities });
+    },
+  });
+}
+
+export function useCommunityRequests(communityId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["communities", communityId, "requests"],
+    queryFn: async (): Promise<JoinRequest[]> => {
+      const res = await apiClientService.communities.requests(communityId);
+      return res.items;
+    },
+    enabled,
+    refetchInterval: 60_000,
+  });
+}
+
+export function useReviewJoinRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      communityId,
+      requestId,
+      approve,
+    }: {
+      communityId: string;
+      requestId: string;
+      approve: boolean;
+    }) =>
+      approve
+        ? apiClientService.communities.approveRequest(communityId, requestId)
+        : apiClientService.communities.rejectRequest(communityId, requestId),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: ["communities", variables.communityId, "requests"],
+      });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.community(variables.communityId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.communities });
+    },
+  });
+}
+
+export function useSetMemberRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      communityId,
+      userId,
+      role,
+    }: {
+      communityId: string;
+      userId: string;
+      role: "member" | "moderator";
+    }) => apiClientService.communities.setMemberRole(communityId, userId, role),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.community(variables.communityId) });
+    },
+  });
+}
+
+export function useRemoveMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ communityId, userId }: { communityId: string; userId: string }) =>
+      apiClientService.communities.removeMember(communityId, userId),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.community(variables.communityId) });
+    },
+  });
+}
+
+export function useRegenerateInvite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (communityId: string) => apiClientService.communities.regenerateInvite(communityId),
+    onSuccess: (_data, communityId) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.community(communityId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.communities });
+    },
+  });
+}
+
+export function useUpdateCommunitySettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      communityId,
+      settings,
+    }: {
+      communityId: string;
+      settings: CommunitySettingsInput;
+    }) => apiClientService.communities.updateSettings(communityId, settings),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.community(variables.communityId) });
+    },
+  });
+}
+
+export function useArchiveCommunity() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (communityId: string) => apiClientService.communities.archive(communityId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.communities });
+      void queryClient.invalidateQueries({ queryKey: ["feed", "queue"] });
+      void queryClient.invalidateQueries({ queryKey: ["feed", "submissions"] });
+    },
+  });
+}
+
+/* ---------------- video lifecycle ---------------- */
+
+export function useArchiveVideo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (videoId: string) => apiClientService.videos.archive(videoId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["feed", "submissions"] });
+      void queryClient.invalidateQueries({ queryKey: ["feed", "queue"] });
+    },
+  });
+}
+
+/* ---------------- support ---------------- */
+
+export function useSubmitSupport() {
+  return useMutation({
+    mutationFn: (data: {
+      topic: "account" | "credits" | "community" | "video" | "moderation" | "bug" | "other";
+      message: string;
+    }) => apiClientService.support.create(data),
+  });
+}
+
+export function useAdminSupport(status: "open" | "resolved" = "open") {
+  return useQuery({
+    queryKey: ["admin", "support", status],
+    queryFn: async (): Promise<SupportRequest[]> => {
+      const res = await apiClientService.admin.support(status);
+      return res.items;
+    },
+  });
+}
+
+export function useResolveSupport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (supportId: string) => apiClientService.admin.resolveSupport(supportId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "support"] });
+    },
+  });
+}
+
+/* ---------------- admin moderation ---------------- */
+
+export function useAdminAppeals(status: "pending" | "accepted" | "rejected" = "pending") {
+  return useQuery({
+    queryKey: ["admin", "appeals", status],
+    queryFn: async (): Promise<Appeal[]> => {
+      const res = await apiClientService.admin.appeals(status);
+      return res.items;
+    },
+  });
+}
+
+export function useReviewAppeal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      appealId,
+      status,
+      note,
+    }: {
+      appealId: string;
+      status: "accepted" | "rejected";
+      note?: string | undefined;
+    }) => apiClientService.admin.reviewAppeal(appealId, { status, ...(note ? { note } : {}) }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "appeals"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.adminReports("pending") });
+    },
+  });
+}
+
+export function useSuspendUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, reason }: { userId: string; reason?: string | undefined }) =>
+      apiClientService.admin.suspendUser(userId, reason),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+  });
+}
+
+export function useReinstateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => apiClientService.admin.reinstateUser(userId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+  });
+}
+
+export function useSetUserRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: "moderator" | "admin" | null }) =>
+      apiClientService.admin.setUserRole(userId, role),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     },
   });
 }

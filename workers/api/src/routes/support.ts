@@ -1,6 +1,6 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth, requireAdmin } from "../middleware/auth";
+import { requireAuth, requireModerator } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { recordAudit } from "../lib/audit";
 import { notifyUserPush } from "../lib/push";
@@ -95,7 +95,7 @@ export const supportRoutes: RouteDefinition[] = [
     path: "/api/v1/admin/support",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
-        await requireAdmin(request, env);
+        await requireModerator(request, env);
         const { searchParams } = new URL(request.url);
         const status = searchParams.get("status") ?? "open";
         if (!["open", "resolved"].includes(status)) {
@@ -129,7 +129,7 @@ export const supportRoutes: RouteDefinition[] = [
     pattern: "^\\/api\\/v1/admin/support/([^/]+)/resolve$",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
-        const adminId = await requireAdmin(request, env);
+        const adminId = await requireModerator(request, env);
         const supportId = new URL(request.url).pathname.split("/")[5];
         if (!supportId) return createErrorResponse("VALIDATION_ERROR", "Support ID is required", 400);
 

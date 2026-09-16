@@ -30,35 +30,46 @@ responses use the envelope `{ success, data?, error?, meta }`.
 
 ### Users & profiles
 
-| Method | Path |
-| ------ | ---- |
-| `GET` | `/api/v1/users/:id` |
-| `GET` | `/api/v1/users/me/profile` |
-| `PUT` | `/api/v1/users/me/profile` |
-| `POST` | `/api/v1/users/me/youtube-channel` |
-| `GET` | `/api/v1/users/me/member` |
-| `GET` | `/api/v1/users/me/youtube-channels` |
-| `GET` | `/api/v1/users/me/insights` |
+| Method | Path | Notes |
+| ------ | ---- | ----- |
+| `GET` | `/api/v1/users/:id` | |
+| `GET` | `/api/v1/users/me/profile` | |
+| `PUT` | `/api/v1/users/me/profile` | |
+| `POST` | `/api/v1/users/me/youtube-channel` | |
+| `GET` | `/api/v1/users/me/member` | |
+| `GET` | `/api/v1/users/me/youtube-channels` | |
+| `GET` | `/api/v1/users/me/insights` | |
+| `DELETE` | `/api/v1/users/me` | Soft account deletion: memberships end, videos are archived, open reviews skipped, pending requests/top-ups cancelled, push subscriptions removed. Ledgers stay for audit. |
 
 ### Communities
 
-| Method | Path |
-| ------ | ---- |
-| `GET` | `/api/v1/communities` |
-| `GET` | `/api/v1/communities/:id` |
-| `POST` | `/api/v1/communities` |
-| `POST` | `/api/v1/communities/join` |
-| `GET` | `/api/v1/communities/:id/members` |
-| `PUT` | `/api/v1/communities/:id/settings` |
-| `GET` | `/api/v1/admin/communities` |
+| Method | Path | Notes |
+| ------ | ---- | ----- |
+| `GET` | `/api/v1/communities` | |
+| `GET` | `/api/v1/communities/:id` | Includes caller's `myRole` and community `settings` |
+| `POST` | `/api/v1/communities` | |
+| `POST` | `/api/v1/communities/join` | Join by invite code (always immediate) |
+| `POST` | `/api/v1/communities/:id/join` | Public communities only: joins immediately or creates a pending request when approval is required (202) |
+| `POST` | `/api/v1/communities/:id/leave` | Members leave; owners must archive instead |
+| `GET` | `/api/v1/communities/:id/members` | |
+| `GET` | `/api/v1/communities/:id/requests` | Managers only: pending join requests |
+| `POST` | `/api/v1/communities/:id/requests/:requestId/approve` | Status-locked; capacity re-checked |
+| `POST` | `/api/v1/communities/:id/requests/:requestId/reject` | Status-locked |
+| `POST` | `/api/v1/communities/:id/members/:userId/role` | Owner only; body `{ role: "member" \| "moderator" }` |
+| `POST` | `/api/v1/communities/:id/members/:userId/remove` | Owner or moderator; owners cannot be removed |
+| `POST` | `/api/v1/communities/:id/invite/regenerate` | Owner only; old code stops working |
+| `DELETE` | `/api/v1/communities/:id` | Owner only; archives the community, its videos and pending requests |
+| `PUT` | `/api/v1/communities/:id/settings` | |
+| `GET` | `/api/v1/admin/communities` | |
 
 ### Videos
 
-| Method | Path |
-| ------ | ---- |
-| `GET` | `/api/v1/videos` |
-| `POST` | `/api/v1/videos` |
-| `GET` | `/api/v1/videos/:id` |
+| Method | Path | Notes |
+| ------ | ---- | ----- |
+| `GET` | `/api/v1/videos` | |
+| `POST` | `/api/v1/videos` | |
+| `GET` | `/api/v1/videos/:id` | |
+| `POST` | `/api/v1/videos/:id/archive` | Owner only; takes the video out of rotation, history kept |
 
 ### Reviews
 
@@ -157,13 +168,23 @@ responses use the envelope `{ success, data?, error?, meta }`.
 
 ### Reports & appeals
 
-| Method | Path |
-| ------ | ---- |
-| `GET` | `/api/v1/admin/reports` |
-| `POST` | `/api/v1/admin/reports/:id/resolve` |
-| `POST` | `/api/v1/reports` |
-| `POST` | `/api/v1/reports/:id/appeal` |
-| `POST` | `/api/v1/admin/appeals/:id` |
+| Method | Path | Notes |
+| ------ | ---- | ----- |
+| `GET` | `/api/v1/admin/reports` | Moderation tier (moderator+) |
+| `POST` | `/api/v1/admin/reports/:id/resolve` | Moderation tier |
+| `POST` | `/api/v1/reports` | |
+| `GET` | `/api/v1/reports/mine` | Reports filed against the caller, with appeal state |
+| `POST` | `/api/v1/reports/:id/appeal` | One appeal per report per member |
+| `GET` | `/api/v1/admin/appeals` | Moderation tier; `?status=pending\|accepted\|rejected` |
+| `POST` | `/api/v1/admin/appeals/:id` | Moderation tier; body `{ status: accepted\|rejected, note? }`. Accepting dismisses the report, restores the trust penalty and re-activates a removed video |
+
+### Support
+
+| Method | Path | Notes |
+| ------ | ---- | ----- |
+| `POST` | `/api/v1/support` | Body `{ topic, message }`; admins notified, optional email ack |
+| `GET` | `/api/v1/admin/support` | Moderation tier; `?status=open\|resolved` |
+| `POST` | `/api/v1/admin/support/:id/resolve` | Moderation tier; notifies the member |
 
 ### Shop (credit sinks)
 
@@ -185,18 +206,31 @@ responses use the envelope `{ success, data?, error?, meta }`.
 | `POST` | `/api/v1/admin/topups/:id/approve` |
 | `POST` | `/api/v1/admin/topups/:id/reject` |
 
-### Admin
+### Admin (admin tier)
 
-| Method | Path |
-| ------ | ---- |
-| `GET` | `/api/v1/admin/analytics` |
-| `GET` | `/api/v1/admin/users` |
-| `GET` | `/api/v1/admin/metrics` |
-| `GET` | `/api/v1/admin/retention` |
+| Method | Path | Notes |
+| ------ | ---- | ----- |
+| `GET` | `/api/v1/admin/analytics` | |
+| `GET` | `/api/v1/admin/users` | `?status=active\|suspended\|deleted`; includes `status` and `platformRole` |
+| `GET` | `/api/v1/admin/metrics` | |
+| `GET` | `/api/v1/admin/retention` | |
+| `POST` | `/api/v1/admin/users/:id/suspend` | Body `{ reason? }`; member notified; entry gate blocks them everywhere |
+| `POST` | `/api/v1/admin/users/:id/reinstate` | |
+| `POST` | `/api/v1/admin/users/:id/role` | Body `{ role: "moderator" \| "admin" \| null }`; admin tier manages admins only via super admins; super admins are immutable |
+| `POST` | `/api/v1/admin/videos/:id/restore` | Re-activates removed/archived videos |
+
+Two tiers exist: **admin** (`requireAdmin`: super_admin/admin) and
+**moderation** (`requireModerator`: adds moderators). Moderators get reports,
+appeals, support and video restore; analytics, user management, top-ups and
+role changes stay admin-only — matching `ROLE_PERMISSIONS` in
+`workers/api/src/middleware/permissions.ts`.
 
 ## Conventions
 
-- **Auth**: `Authorization: Bearer <firebase-id-token>`.
+- **Auth**: `Authorization: Bearer <firebase-id-token>`. Accounts that are
+  deleted, suspended or banned are rejected at the entry point with a 403 and
+  a distinguishable code: `ACCOUNT_DELETED`, `ACCOUNT_SUSPENDED`,
+  `ACCOUNT_BANNED`.
 - **Errors**: `{ success: false, error: { code, message } }` with a meaningful
   HTTP status (`400` validation, `401` unauthenticated, `403` forbidden,
   `404` not found, `409` conflict, `429` rate limited or quota exceeded,

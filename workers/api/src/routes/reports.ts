@@ -1,6 +1,6 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth, requireAdmin } from "../middleware/auth";
+import { requireAuth, requireModerator } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { notifyUserPush } from "../lib/push";
 import { z } from "zod";
@@ -123,6 +123,34 @@ export const reportRoutes: RouteDefinition[] = [
     },
   },
 
+  // Reports filed against the caller — needed so members can appeal them.
+  {
+    method: "GET",
+    path: "/api/v1/reports/mine",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const userId = await requireAuth(request, env);
+        const db = new Database(env);
+        const result = await db.query(
+          `SELECT r.id, r.reason, r.resource_type, r.resource_id, r.status, r.created_at,
+                  r.resolution_notes,
+                  EXISTS (SELECT 1 FROM appeals a WHERE a.report_id = r.id AND a.user_id = ?) AS appealed
+           FROM reports r
+           WHERE r.reported_user_id = ?
+           ORDER BY r.created_at DESC
+           LIMIT 20`,
+          [userId, userId],
+        );
+        return createResponse({ items: result.results });
+      } catch (error: any) {
+        if (error.message === "AUTH_REQUIRED" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to fetch your reports", 500);
+      }
+    },
+  },
+
   // Submit appeal for a report you were named in
   {
     method: "POST",
@@ -200,8 +228,9 @@ export const reportRoutes: RouteDefinition[] = [
       try {
         // Single source of truth for admin checks: the hand-rolled role check
         // here drifted from `requireAdmin` (moderators were rejected in one
-        // place and accepted in another).
-        const adminId = await requireAdmin(request, env);
+        // place and accepted in another). Appeal review is part of the
+        // `moderate` permission, so the moderator tier is allowed too.
+        const adminId = await requireModerator(request, env);
         const db = new Database(env);
 
         const appealId = new URL(request.url).pathname.split("/")[5] ?? "";
