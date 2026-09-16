@@ -22,13 +22,13 @@ export const Route = createFileRoute("/ai")({
 interface Conversation {
   id: string;
   title: string | null;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
-  created_at?: string;
+  createdAt?: string;
 }
 
 const prompts = [

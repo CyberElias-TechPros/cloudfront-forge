@@ -12,10 +12,13 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
   tanstackStart: {
-    // SPA mode: no Node/Worker server is emitted. `dist/client/_shell.html`
-    // doubles as the prerendered landing page; `scripts/postbuild-spa.mjs`
-    // publishes it as `index.html` so Vercel can serve the SPA fallback.
-    spa: { enabled: true },
+    // SPA mode: no Node/Worker server is emitted. Explicitly queue `/` before
+    // the internal mask page is added so the public landing route is genuinely
+    // prerendered for crawlers and link previews. Vercel still serves the
+    // static client bundle with the root page as the deep-link fallback.
+    spa: { enabled: true, maskPath: "/shell" },
+    prerender: { enabled: true, autoStaticPathsDiscovery: false },
+    pages: [{ path: "/", prerender: { enabled: true } }],
   },
   // No server output — Vercel serves the static build, Cloudflare Workers
   // serves the API. (`nitro: false` disables the Cloudflare-target build.)

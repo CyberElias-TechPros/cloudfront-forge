@@ -28,6 +28,7 @@ import { Route as ReviewsRouteImport } from './routes/reviews'
 import { Route as RulesRouteImport } from './routes/rules'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ShellRouteImport } from './routes/shell'
 import { Route as SubmitRouteImport } from './routes/submit'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthSigninRouteImport } from './routes/auth/signin'
@@ -129,6 +130,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShellRoute = ShellRouteImport.update({
+  id: '/shell',
+  path: '/shell',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SubmitRoute = SubmitRouteImport.update({
   id: '/submit',
   path: '/submit',
@@ -175,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/rules': typeof RulesRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
+  '/shell': typeof ShellRoute
   '/submit': typeof SubmitRoute
   '/terms': typeof TermsRoute
   '/auth/signin': typeof AuthSigninRoute
@@ -201,6 +208,7 @@ export interface FileRoutesByTo {
   '/rules': typeof RulesRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
+  '/shell': typeof ShellRoute
   '/submit': typeof SubmitRoute
   '/terms': typeof TermsRoute
   '/auth/signin': typeof AuthSigninRoute
@@ -228,6 +236,7 @@ export interface FileRoutesById {
   '/rules': typeof RulesRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
+  '/shell': typeof ShellRoute
   '/submit': typeof SubmitRoute
   '/terms': typeof TermsRoute
   '/auth/signin': typeof AuthSigninRoute
@@ -256,6 +265,7 @@ export interface FileRouteTypes {
     | '/rules'
     | '/search'
     | '/settings'
+    | '/shell'
     | '/submit'
     | '/terms'
     | '/auth/signin'
@@ -282,6 +292,7 @@ export interface FileRouteTypes {
     | '/rules'
     | '/search'
     | '/settings'
+    | '/shell'
     | '/submit'
     | '/terms'
     | '/auth/signin'
@@ -308,6 +319,7 @@ export interface FileRouteTypes {
     | '/rules'
     | '/search'
     | '/settings'
+    | '/shell'
     | '/submit'
     | '/terms'
     | '/auth/signin'
@@ -335,6 +347,7 @@ export interface RootRouteChildren {
   RulesRoute: typeof RulesRoute
   SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRoute
+  ShellRoute: typeof ShellRoute
   SubmitRoute: typeof SubmitRoute
   TermsRoute: typeof TermsRoute
   AuthSigninRoute: typeof AuthSigninRoute
@@ -475,6 +488,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/shell': {
+      id: '/shell'
+      path: '/shell'
+      fullPath: '/shell'
+      preLoaderRoute: typeof ShellRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/submit': {
       id: '/submit'
       path: '/submit'
@@ -556,6 +576,7 @@ const rootRouteChildren: RootRouteChildren = {
   RulesRoute: RulesRoute,
   SearchRoute: SearchRoute,
   SettingsRoute: SettingsRoute,
+  ShellRoute: ShellRoute,
   SubmitRoute: SubmitRoute,
   TermsRoute: TermsRoute,
   AuthSigninRoute: AuthSigninRoute,

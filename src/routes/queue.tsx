@@ -181,7 +181,7 @@ function Queue() {
     setAttentionVoided(false);
     setChallengeAnswer("");
     sessionTokenRef.current = null;
-  }, [activeId]);
+  }, [active]);
 
   // Watch time is sampled from the YouTube player's own clock so the platform
   // timer matches real playback: buffering doesn't count, seeking doesn't credit,
@@ -249,7 +249,7 @@ function Queue() {
         },
       });
     }
-  }, [elapsed, active, attentionVoided]);
+  }, [elapsed, active, attentionVoided, getChallenge]);
 
   // Signed watch session: request a token on first play, then send heartbeats every 30s
   useEffect(() => {

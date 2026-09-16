@@ -8,6 +8,7 @@ import {
   useQueueTasks,
   useSubmissions,
   useActivity,
+  useDailyQuests,
 } from "@/hooks/use-api";
 
 export const Route = createFileRoute("/dashboard")({
@@ -29,15 +30,6 @@ export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
 });
 
-interface Quest {
-  label: string;
-  done: number;
-  total: number;
-  reward: number;
-}
-
-const quests: Quest[] = [];
-
 function Dashboard() {
   const { data: xp, isLoading: xpLoading, isError: xpError } = useXp();
   const { data: streaks, isLoading: streaksLoading, isError: streaksError } = useStreaks();
@@ -49,6 +41,7 @@ function Dashboard() {
     isError: submissionsError,
   } = useSubmissions();
   const { data: activity = [], isLoading: activityLoading, isError: activityError } = useActivity();
+  const { data: dailyQuests, isLoading: questsLoading, isError: questsError } = useDailyQuests();
 
   const loading =
     xpLoading ||
@@ -56,7 +49,8 @@ function Dashboard() {
     memberLoading ||
     tasksLoading ||
     submissionsLoading ||
-    activityLoading;
+    activityLoading ||
+    questsLoading;
 
   if (loading) {
     return (
@@ -72,7 +66,13 @@ function Dashboard() {
   }
 
   const error =
-    xpError || streaksError || memberError || tasksError || submissionsError || activityError;
+    xpError ||
+    streaksError ||
+    memberError ||
+    tasksError ||
+    submissionsError ||
+    activityError ||
+    questsError;
   if (error) {
     return (
       <Shell>
@@ -106,25 +106,16 @@ function Dashboard() {
   const points = xp?.totalXp ?? currentUser.points;
   const streak = streaks?.currentStreak ?? currentUser.streak;
 
-  if (loading) {
-    return (
-      <Shell>
-        <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="text-center">
-            <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-            <p className="text-sm text-muted-foreground">Loading your dashboard...</p>
-          </div>
-        </div>
-      </Shell>
-    );
-  }
-
   return (
     <Shell>
       <PageHeader
         eyebrow={`Level ${currentUser.level} · ${currentUser.niche}`}
         title={`Welcome back, ${currentUser.name.split(" ")[0]}`}
-        description="You are 2 verified watches away from unlocking priority placement for tomorrow's queue."
+        description={
+          tasks.length > 0
+            ? `${tasks.length} videos are ready for your attention. Keep the loop moving.`
+            : "Your next best move will appear here as your squad starts the loop."
+        }
         action={
           <Link
             to="/queue"
@@ -168,30 +159,33 @@ function Dashboard() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <section className="surface p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <h2 className="text-3xl">Today&apos;s quests</h2>
-            <span className="text-xs uppercase tracking-widest text-muted-foreground">
-              resets in 4h 12m
+            <span className="text-right text-xs uppercase tracking-widest text-muted-foreground">
+              resets at midnight UTC
             </span>
           </div>
-          {quests.length === 0 ? (
-            <p className="mt-5 text-sm text-muted-foreground">
-              No active quests —{" "}
-              <Link to="/missions" className="underline">
-                Browse missions
-              </Link>{" "}
-              to earn XP.
-            </p>
-          ) : (
+          {dailyQuests?.items.length ? (
             <ul className="mt-5 space-y-4">
-              {quests.map((q) => {
-                const pct = Math.round((q.done / q.total) * 100);
+              {dailyQuests.items.map((quest) => {
+                const pct = Math.min(
+                  100,
+                  Math.round((quest.progress / Math.max(1, quest.targetCount)) * 100),
+                );
+                const labels: Record<string, string> = {
+                  watchVideos: "Watch squad videos",
+                  giveReviews: "Complete a peer review",
+                  submitVideo: "Submit a video",
+                };
                 return (
-                  <li key={q.label}>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className={pct === 100 ? "text-success" : ""}>{q.label}</span>
-                      <span className="text-muted-foreground">
-                        {q.done}/{q.total} · +{q.reward} pts
+                  <li key={quest.id}>
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className={pct === 100 ? "text-success" : ""}>
+                        {labels[quest.questType] ?? quest.questType}
+                      </span>
+                      <span className="shrink-0 text-muted-foreground">
+                        {Math.min(quest.progress, quest.targetCount)}/{quest.targetCount} · +
+                        {quest.rewardXp} XP
                       </span>
                     </div>
                     <div className="mt-2 h-2 overflow-hidden rounded-full bg-secondary">
@@ -204,6 +198,14 @@ function Dashboard() {
                 );
               })}
             </ul>
+          ) : (
+            <p className="mt-5 text-sm text-muted-foreground">
+              No daily quests are active yet —{" "}
+              <Link to="/missions" className="text-foreground underline underline-offset-4">
+                browse missions
+              </Link>{" "}
+              to keep earning XP.
+            </p>
           )}
 
           <h3 className="mt-8 text-2xl">Next in your queue</h3>

@@ -714,10 +714,10 @@ function BuyCreditsCard() {
               {mine.slice(0, 5).map((t) => (
                 <div key={t.id} className="flex items-center justify-between text-xs">
                   <span className="truncate font-mono text-muted-foreground">
-                    {t.proof_image_name ??
-                      (t.transfer_reference.startsWith("proof:")
+                    {t.proofImageName ??
+                      (t.transferReference.startsWith("proof:")
                         ? "Proof of payment"
-                        : t.transfer_reference)}
+                        : t.transferReference)}
                   </span>
                   <span
                     className={cn(

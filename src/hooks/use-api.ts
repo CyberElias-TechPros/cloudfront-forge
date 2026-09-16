@@ -145,6 +145,7 @@ export function useJoinCommunity() {
 
 function mapMissionAssignment(a: {
   id: string;
+  missionId?: string;
   title: string;
   description: string | null;
   difficulty?: string;
@@ -156,7 +157,7 @@ function mapMissionAssignment(a: {
 }): MissionAssignment {
   return {
     id: a.id,
-    missionId: a.id,
+    missionId: a.missionId ?? a.id,
     title: a.title,
     description: a.description ?? "",
     reward: { xp: a.xpReward ?? 0, credits: a.creditReward ?? 0 },

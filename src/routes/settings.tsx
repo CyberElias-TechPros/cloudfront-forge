@@ -81,7 +81,7 @@ function Settings() {
       );
     }
     void navigate({ search: {}, replace: true });
-  }, [search.youtube]);
+  }, [search.youtube, search.reason, navigate, queryClient, refetchYoutubeStatus]);
 
   const handlePreferenceChange = (key: string, value: boolean | number | null) => {
     setLocalPrefs((prev) => ({ ...prev, [key]: value }));

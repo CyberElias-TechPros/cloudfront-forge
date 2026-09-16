@@ -2,12 +2,13 @@
 /**
  * Post-build step for the Vercel (static SPA) build.
  *
- * `vite build` in TanStack Start SPA mode writes `dist/client/_shell.html`,
- * which is both the app shell and the prerendered landing page. Vercel needs a
- * conventional `index.html` for the directory root and for the SPA fallback
- * rewrite, so we publish the shell as `index.html` and emit supporting SEO
- * files. The script also fails the build if a secret-shaped string ever makes
- * it into the public bundle.
+ * `vite build` in TanStack Start SPA mode writes the mask shell to
+ * `dist/client/_shell.html` and the public `/` route to `dist/client/index.html`.
+ * Vercel needs a conventional `index.html` for the directory root and SPA
+ * fallback rewrite, so this script preserves the prerendered landing page (or
+ * uses the shell only as a defensive fallback) and emits supporting SEO files.
+ * The script also fails the build if a secret-shaped string ever makes it into
+ * the public bundle.
  */
 import { copyFile, readdir, readFile, writeFile, stat, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -28,6 +29,7 @@ const PUBLIC_ROUTES = ["/", "/rules", "/resources", "/privacy", "/terms"];
 // duplicate shells. Kept in sync with public/robots.txt (the fallback that
 // ships when SITE_URL is unset).
 const PRIVATE_ROUTE_PREFIXES = [
+  "/shell",
   "/auth/",
   "/dashboard",
   "/queue",
@@ -85,7 +87,10 @@ if (!existsSync(shellPath)) {
   fail(`expected SPA shell at ${shellPath}. Did "vite build" run in SPA mode?`);
 }
 
-await copyFile(shellPath, indexPath);
+// The build explicitly queues `/` before the SPA mask page, so TanStack writes
+// the real prerendered landing page to index.html. Preserve it. The fallback
+// keeps builds resilient if a future plugin version only emits the mask shell.
+if (!existsSync(indexPath)) await copyFile(shellPath, indexPath);
 
 let html = await readFile(indexPath, "utf8");
 
