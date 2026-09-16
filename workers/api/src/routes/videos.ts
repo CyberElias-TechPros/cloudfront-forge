@@ -6,6 +6,7 @@ import { notifyUserPush } from "../lib/push";
 import { progressQuest } from "../lib/quests";
 import { trackEvent } from "../lib/analytics";
 import { awardXp, getXpState, type XpAccountState } from "../lib/xp";
+import { recordAudit } from "../lib/audit";
 import { z } from "zod";
 import { createLogger } from "../lib/logger";
 import { sanitize } from "../lib/sanitize";
@@ -387,6 +388,56 @@ export const videoRoutes: RouteDefinition[] = [
       } catch (error) {
         logger.error("Get video error", error);
         return createErrorResponse("INTERNAL_ERROR", "Failed to get video", 500);
+      }
+    },
+  },
+
+  // Owner (or admin) takes a video out of rotation without deleting history.
+  {
+    method: "POST",
+    pattern: "^\\/api\\/v1/videos/([^/]+)/archive$",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const userId = await requireAuth(request, env);
+        const videoId = new URL(request.url).pathname.split("/")[4];
+        if (!videoId) {
+          return createErrorResponse("VALIDATION_ERROR", "Video ID is required", 400);
+        }
+
+        const db = new Database(env);
+        const video = await db.querySingle("SELECT id, user_id, status FROM videos WHERE id = ?", [
+          videoId,
+        ]);
+        if (!video) {
+          return createErrorResponse("NOT_FOUND", "Video not found", 404);
+        }
+        if (video.user_id !== userId) {
+          return createErrorResponse("FORBIDDEN", "You can only archive your own videos", 403);
+        }
+        if (video.status === "archived") {
+          return createErrorResponse("CONFLICT", "Video is already archived", 409);
+        }
+
+        // Conditional update: only active/pending videos leave rotation.
+        const result = await db.execute(
+          "UPDATE videos SET status = 'archived', updated_at = ? WHERE id = ? AND status IN ('active', 'pending')",
+          [db.now(), videoId],
+        );
+        if ((result.meta?.changes ?? 0) === 0) {
+          return createErrorResponse("CONFLICT", "Video can no longer be archived", 409);
+        }
+
+        await recordAudit(
+          db,
+          { actorId: userId, action: "video.archive", resourceType: "video", resourceId: videoId, request },
+          env,
+        );
+        return createResponse({ message: "Video archived — it is out of the queue" });
+      } catch (error: any) {
+        if (error.message === "AUTH_REQUIRED" || error.message === "AUTH_TOKEN_INVALID") {
+          return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        return createErrorResponse("INTERNAL_ERROR", "Failed to archive video", 500);
       }
     },
   },

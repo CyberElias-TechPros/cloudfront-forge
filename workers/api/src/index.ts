@@ -11,6 +11,7 @@ import { authMiddleware } from "./middleware/auth";
 import { routes } from "./routes";
 import { findRoute } from "./lib/router";
 import { runAllJobs } from "./jobs";
+import { Database } from "./lib/database";
 
 /**
  * Resolve the CORS response for an incoming origin.
@@ -141,6 +142,43 @@ export default {
 
       const auth = await authMiddleware(request, env);
       (request as unknown as { __auth: unknown }).__auth = auth;
+
+      // Moderated or deleted accounts may not use any route. Enforced once at
+      // the entry point (not per handler) so every endpoint rejects with the
+      // same distinguishable 403 — the frontend maps the codes to a useful
+      // screen instead of a generic failure.
+      if (auth.isAuthenticated) {
+        const account = await new Database(env).querySingle(
+          "SELECT status, deleted_at FROM users WHERE firebase_uid = ?",
+          [auth.userId],
+        );
+        if (account) {
+          if (account.deleted_at) {
+            return createErrorResponse(
+              "ACCOUNT_DELETED",
+              "This account has been deleted",
+              403,
+              corsHeaders,
+            );
+          }
+          if (account.status === "suspended") {
+            return createErrorResponse(
+              "ACCOUNT_SUSPENDED",
+              "This account is suspended. Contact support for details.",
+              403,
+              corsHeaders,
+            );
+          }
+          if (account.status === "banned") {
+            return createErrorResponse(
+              "ACCOUNT_BANNED",
+              "This account has been banned from the platform",
+              403,
+              corsHeaders,
+            );
+          }
+        }
+      }
 
       const response = await route.handler(request, env);
 

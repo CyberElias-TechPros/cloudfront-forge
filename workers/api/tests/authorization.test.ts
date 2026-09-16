@@ -50,16 +50,26 @@ describe("admin endpoints", () => {
     expect(response.status).toBe(200);
   });
 
-  it("let a moderator read metrics but not manage users", async () => {
+  it("confine moderators to the moderation tier", async () => {
     const env = createTestEnv();
     const uid = "mod-uid";
     const user = env.seedUser(uid);
     env.makeAdmin(user, "moderator");
 
+    // Moderation tier: the reports queue is open to moderators.
+    const reports = adminRoutes.find((r) => r.path === "/api/v1/admin/reports")!;
+    const reportsResponse = await reports.handler(
+      authRequest(`${BASE}/api/v1/admin/reports`, uid),
+      env,
+    );
+    expect(reportsResponse.status).toBe(200);
+
+    // Admin tier: metrics and user management stay closed.
     const metricsResponse = await metrics.handler(
       authRequest(`${BASE}/api/v1/admin/metrics`, uid),
       env,
     );
+    expect(metricsResponse.status).toBe(403);
     const usersResponse = await adminUsers.handler(
       authRequest(`${BASE}/api/v1/admin/users`, uid),
       env,

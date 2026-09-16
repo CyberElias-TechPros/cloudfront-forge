@@ -30,6 +30,7 @@ import { Route as SearchRouteImport } from './routes/search'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ShellRouteImport } from './routes/shell'
 import { Route as SubmitRouteImport } from './routes/submit'
+import { Route as SupportRouteImport } from './routes/support'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthSigninRouteImport } from './routes/auth/signin'
 import { Route as CommunitiesCommunityIdRouteImport } from './routes/communities/$communityId'
@@ -140,6 +141,11 @@ const SubmitRoute = SubmitRouteImport.update({
   path: '/submit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SupportRoute = SupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -183,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/shell': typeof ShellRoute
   '/submit': typeof SubmitRoute
+  '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/auth/signin': typeof AuthSigninRoute
   '/communities/$communityId': typeof CommunitiesCommunityIdRoute
@@ -210,6 +217,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/shell': typeof ShellRoute
   '/submit': typeof SubmitRoute
+  '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/auth/signin': typeof AuthSigninRoute
   '/communities/$communityId': typeof CommunitiesCommunityIdRoute
@@ -238,6 +246,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/shell': typeof ShellRoute
   '/submit': typeof SubmitRoute
+  '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/auth/signin': typeof AuthSigninRoute
   '/communities/$communityId': typeof CommunitiesCommunityIdRoute
@@ -267,6 +276,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/shell'
     | '/submit'
+    | '/support'
     | '/terms'
     | '/auth/signin'
     | '/communities/$communityId'
@@ -294,6 +304,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/shell'
     | '/submit'
+    | '/support'
     | '/terms'
     | '/auth/signin'
     | '/communities/$communityId'
@@ -321,6 +332,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/shell'
     | '/submit'
+    | '/support'
     | '/terms'
     | '/auth/signin'
     | '/communities/$communityId'
@@ -349,6 +361,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   ShellRoute: typeof ShellRoute
   SubmitRoute: typeof SubmitRoute
+  SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
   AuthSigninRoute: typeof AuthSigninRoute
 }
@@ -502,6 +515,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SubmitRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -578,6 +598,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   ShellRoute: ShellRoute,
   SubmitRoute: SubmitRoute,
+  SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
   AuthSigninRoute: AuthSigninRoute,
 }

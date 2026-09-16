@@ -279,6 +279,9 @@ export function SiteFooter() {
           <Link to="/terms" className="transition-colors hover:text-foreground">
             Terms
           </Link>
+          <Link to="/support" className="transition-colors hover:text-foreground">
+            Support
+          </Link>
         </nav>
         <p>LoopSquad — creator feedback &amp; growth community.</p>
       </div>

@@ -45,12 +45,12 @@ src/                     React SPA (routes, hooks, components)
 public/sw.js             Service worker (web push notifications)
 scripts/postbuild-spa.mjs  Publishes index.html, SEO files, secret-leak guard
 workers/api/             Cloudflare Worker
-  src/index.ts           Entry: CORS, security headers, rate limits, routing, cron
-  src/routes/index.ts    The single routing table (90 routes)
+  src/index.ts           Entry: CORS, security headers, rate limits, account gate, routing, cron
+  src/routes/index.ts    The single routing table (110 routes)
   src/lib/               database, xp, scoring, audit, sanitize, push, quests…
-  src/middleware/        auth + RBAC, rate limiting, error envelope
-  migrations/            001…030, applied in filename order
-  tests/                 234 behavioural tests over a real SQLite database
+  src/middleware/        auth + RBAC (admin & moderator tiers), rate limiting, error envelope
+  migrations/            001…036, applied in filename order
+  tests/                 282 behavioural tests over a real SQLite database
 vercel.json              Static SPA deployment + caching + security headers
 ```
 
@@ -82,7 +82,7 @@ otherwise, so CI on Node 20 stays green.
 
 ```sh
 npm test                 # frontend: api client, hooks, repo hygiene
-cd workers/api && npm test   # 234 tests across 30 files
+cd workers/api && npm test   # 282 tests across 36 files
 ```
 
 The worker tests are behavioural, not mock theatre: `tests/helpers/test-env.ts`
@@ -140,6 +140,11 @@ Worker refuses to sign watch tokens with a fallback key.
   `firebaseUid` (it can neither read nor pre-create another account), and
   `GET /auth/permissions` answers only for the caller — an admin role is needed
   to read another member's permissions.
+- Account lifecycle is complete: members can delete their own account
+  (`DELETE /users/me`, soft delete with every open loop closed), and admins can
+  suspend/reinstate members. Deleted, suspended and banned accounts are
+  rejected at the Worker entry point with `ACCOUNT_DELETED` /
+  `ACCOUNT_SUSPENDED` / `ACCOUNT_BANNED` before any handler runs.
 - Admin routes require an `admin`/`super_admin` row via `requireAdmin`.
 - `CORS_ORIGINS` is enforced (never echoed); `*.example.com` matches one
   subdomain level.

@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
+import { toast } from "sonner";
 import { PageHeader, Shell } from "@/components/page-parts";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useSearch } from "@/hooks/use-api";
+import { useSearch, useJoinPublicCommunity } from "@/hooks/use-api";
 import { ErrorState } from "@/components/common/query-state";
 
 export const Route = createFileRoute("/search")({
@@ -38,6 +40,20 @@ function SearchPage() {
     return params.get("q") || "";
   });
   const { data: results, isLoading, isError, error, refetch } = useSearch(query);
+  const joinCommunity = useJoinPublicCommunity();
+
+  const handleJoin = async (communityId: string, name: string) => {
+    try {
+      const res = await joinCommunity.mutateAsync({ communityId });
+      if ("pending" in res && res.pending) {
+        toast.success(`Request sent — the owners of ${name} will review it`);
+      } else {
+        toast.success(`Joined ${name}!`);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not join community");
+    }
+  };
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -106,6 +122,14 @@ function SearchPage() {
                     </CardHeader>
                     <CardContent>
                       <p className="text-sm text-muted-foreground">{c.description}</p>
+                      <Button
+                        size="sm"
+                        className="mt-3"
+                        disabled={joinCommunity.isPending}
+                        onClick={() => void handleJoin(c.id, c.name)}
+                      >
+                        {joinCommunity.isPending ? "Joining..." : "Ask to join"}
+                      </Button>
                     </CardContent>
                   </Card>
                 ))}
