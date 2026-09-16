@@ -1,4 +1,6 @@
 import { Database } from "../lib/database";
+import type { Env } from "../types";
+import { notifyUserPush } from "../lib/push";
 
 /**
  * Mark mission assignments expired after 7 days still in assigned/in_progress.
@@ -72,4 +74,94 @@ export async function sweepStreakReset(db: Database): Promise<number> {
     }
   }
   return resets;
+}
+
+/**
+ * Recover overdue reviews: notify once, then reassign to another member.
+ *
+ * `sweepOverdueReviews` only flags reviews after the 48h SLA. Without a
+ * recovery step the submitter waited forever. This sweep:
+ *
+ * 1. tells the late reviewer and the submitter once (overdue_notified guard);
+ * 2. reassigns the review to the active community member with the fewest open
+ *    reviews (never the submitter, never the current reviewer), resetting the
+ *    SLA clock and notifying the new reviewer.
+ *
+ * If nobody else is available (single-member community), the review stays
+ * overdue so the admin console can still see it. Returns rows processed.
+ */
+export async function recoverOverdueReviews(env: Env): Promise<number> {
+  const db = new Database(env);
+  const overdue = await db.query(
+    `SELECT r.id, r.video_id, r.reviewer_id, r.submitter_id, r.overdue_notified
+       FROM reviews r WHERE r.status = 'overdue'`,
+    [],
+  );
+  if (overdue.results.length === 0) return 0;
+
+  const now = new Date().toISOString();
+  let processed = 0;
+
+  for (const review of overdue.results as Array<{
+    id: string;
+    video_id: string;
+    reviewer_id: string;
+    submitter_id: string;
+    overdue_notified: number | null;
+  }>) {
+    if (!review.overdue_notified) {
+      await db.execute(
+        "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'REVIEW_OVERDUE', 'Review overdue', 'A review assigned to you is more than 48 hours overdue and will be reassigned.', ?)",
+        [crypto.randomUUID(), review.reviewer_id, now],
+      );
+      await db.execute(
+        "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'REVIEW_OVERDUE', 'Review overdue', 'The review of your video is overdue — we are finding a new reviewer.', ?)",
+        [crypto.randomUUID(), review.submitter_id, now],
+      );
+      await db.execute("UPDATE reviews SET overdue_notified = 1, updated_at = ? WHERE id = ?", [
+        now,
+        review.id,
+      ]);
+      processed++;
+      continue; // notify this cycle, reassign the next one
+    }
+
+    const candidate = await db.querySingle(
+      `SELECT cm.user_id
+         FROM community_members cm
+         JOIN videos v ON v.community_id = cm.community_id
+        WHERE v.id = ?
+          AND cm.status = 'active'
+          AND cm.user_id != ?
+          AND cm.user_id != ?
+        ORDER BY (
+          SELECT COUNT(*) FROM reviews rr
+           WHERE rr.reviewer_id = cm.user_id AND rr.status IN ('assigned', 'in_progress')
+        ) ASC
+        LIMIT 1`,
+      [review.video_id, review.reviewer_id, review.submitter_id],
+    );
+    if (!candidate?.user_id) continue;
+
+    await db.execute(
+      `UPDATE reviews
+          SET reviewer_id = ?, status = 'assigned', assigned_at = ?, started_at = NULL,
+              overdue_notified = 0, updated_at = ?
+        WHERE id = ? AND status = 'overdue'`,
+      [candidate.user_id, now, now, review.id],
+    );
+    await db.execute(
+      "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'REVIEW_ASSIGNED', 'New review assigned', 'A review was reassigned to you after the previous reviewer missed the deadline.', ?)",
+      [crypto.randomUUID(), candidate.user_id, now],
+    );
+    await notifyUserPush(
+      env,
+      candidate.user_id,
+      "New review assigned",
+      "A review was reassigned to you — please complete it within 48 hours.",
+    );
+    processed++;
+  }
+
+  return processed;
 }

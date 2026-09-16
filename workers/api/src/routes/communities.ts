@@ -6,6 +6,7 @@ import { generateInviteCode, generateSlug } from "../lib/utils";
 import { sanitize } from "../lib/sanitize";
 import { z } from "zod";
 import { createLogger } from "../lib/logger";
+import { upsertMembership } from "./community-management";
 
 function getPagination(request: Request): { limit: number; offset: number } {
   const { searchParams } = new URL(request.url);
@@ -45,7 +46,7 @@ export const communityRoutes: RouteDefinition[] = [
         const totalResult = await db.query(
           `SELECT COUNT(*) as count FROM communities c
            JOIN community_members cm ON c.id = cm.community_id
-           WHERE cm.user_id = ? AND cm.status = 'active'`,
+           WHERE cm.user_id = ? AND cm.status = 'active' AND c.status = 'active'`,
           [userId],
         );
 
@@ -53,7 +54,7 @@ export const communityRoutes: RouteDefinition[] = [
           `
           SELECT c.* FROM communities c
           JOIN community_members cm ON c.id = cm.community_id
-          WHERE cm.user_id = ? AND cm.status = 'active'
+          WHERE cm.user_id = ? AND cm.status = 'active' AND c.status = 'active'
           ORDER BY cm.joined_at DESC
           LIMIT ? OFFSET ?
         `,
@@ -90,9 +91,10 @@ export const communityRoutes: RouteDefinition[] = [
 
         const db = new Database(env);
         const userId = await requireAuth(request, env);
-        const community = await db.querySingle("SELECT * FROM communities WHERE id = ?", [
-          communityId,
-        ]);
+        const community = await db.querySingle(
+          "SELECT * FROM communities WHERE id = ? AND status = 'active'",
+          [communityId],
+        );
 
         if (!community) {
           return createErrorResponse("NOT_FOUND", "Community not found", 404);
@@ -222,11 +224,11 @@ export const communityRoutes: RouteDefinition[] = [
         }
 
         const db = new Database(env);
-        const now = new Date().toISOString();
 
-        const community = await db.querySingle("SELECT * FROM communities WHERE invite_code = ?", [
-          validation.data.inviteCode.toUpperCase(),
-        ]);
+        const community = await db.querySingle(
+          "SELECT * FROM communities WHERE invite_code = ? AND status = 'active'",
+          [validation.data.inviteCode.toUpperCase()],
+        );
 
         if (!community) {
           return createErrorResponse("NOT_FOUND", "Community not found with this invite code", 404);
@@ -250,10 +252,10 @@ export const communityRoutes: RouteDefinition[] = [
           return createErrorResponse("FORBIDDEN", "Community is full", 403);
         }
 
-        await db.execute(
-          "INSERT INTO community_members (id, community_id, user_id, role, joined_at, status) VALUES (?, ?, ?, ?, ?, ?)",
-          [db.uuid(), community.id, userId, "member", now, "active"],
-        );
+        // Upsert, not insert: a member who left (or was removed) and rejoins
+        // already has a row, and a second INSERT would hit the UNIQUE
+        // constraint and 500.
+        await upsertMembership(db, community.id, userId);
 
         return createResponse({
           message: "Joined community successfully",
@@ -287,7 +289,7 @@ export const communityRoutes: RouteDefinition[] = [
           `SELECT c.is_public,
                   EXISTS (SELECT 1 FROM community_members m
                            WHERE m.community_id = c.id AND m.user_id = ? AND m.status = 'active') AS is_member
-             FROM communities c WHERE c.id = ?`,
+             FROM communities c WHERE c.id = ? AND c.status = 'active'`,
           [userId, communityId],
         );
         if (!access) {
@@ -332,7 +334,7 @@ export const communityRoutes: RouteDefinition[] = [
         }
         const db = new Database(env);
         const community = await db.querySingle(
-          "SELECT id FROM communities WHERE id = ? AND owner_id = ?",
+          "SELECT id FROM communities WHERE id = ? AND owner_id = ? AND status = 'active'",
           [communityId, userId],
         );
         if (!community) {

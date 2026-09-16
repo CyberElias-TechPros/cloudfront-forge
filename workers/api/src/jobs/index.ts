@@ -1,7 +1,12 @@
 import { Database } from "../lib/database";
 import type { Env } from "../types";
 import { createLogger } from "../lib/logger";
-import { sweepOverdueMissions, sweepOverdueReviews, sweepStreakReset } from "./sweeps";
+import {
+  sweepOverdueMissions,
+  sweepOverdueReviews,
+  sweepStreakReset,
+  recoverOverdueReviews,
+} from "./sweeps";
 import { sendWeeklyDigests } from "./digest";
 import { sweepAnomalyScoring } from "./anomaly";
 import { sweepBadgeAwards } from "./badges";
@@ -58,6 +63,12 @@ export async function runAllJobs(env: Env): Promise<void> {
   for (const r of results) {
     logger.info(`sweep ${r.job}: ${r.ok ? "ok" : "FAIL"} (${r.processed} rows)`);
   }
+
+  // Runs after overdue-reviews marking above: notifies once, then reassigns.
+  const recovered = await logRun(db, "overdue-review-recovery", () => recoverOverdueReviews(env));
+  logger.info(
+    `sweep overdue-review-recovery: ${recovered.ok ? "ok" : "FAIL"} (${recovered.processed} rows)`,
+  );
 
   // Weekly digest every Sunday
   const dow = new Date().getUTCDay();

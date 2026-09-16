@@ -26,7 +26,8 @@ export const searchRoutes: RouteDefinition[] = [
         const communitiesResult = await db.query(
           `SELECT id, name, description, slug, is_public, created_at
            FROM communities
-           WHERE (name LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\') AND is_public = 1
+           WHERE (name LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')
+             AND is_public = 1 AND status = 'active'
            ORDER BY created_at DESC
            LIMIT 20`,
           [searchTerm, searchTerm],

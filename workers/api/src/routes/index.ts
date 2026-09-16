@@ -1,7 +1,10 @@
 import type { RouteDefinition } from "../types";
 import { authRoutes } from "./auth";
 import { userRoutes } from "./users";
+import { accountRoutes } from "./account";
 import { communityRoutes } from "./communities";
+import { communityManagementRoutes } from "./community-management";
+import { supportRoutes } from "./support";
 import { videoRoutes, reviewRoutes } from "./videos";
 import { missionRoutes } from "./missions";
 import { gamificationRoutes } from "./gamification";
@@ -27,7 +30,10 @@ import { discoverRoutes } from "./discover";
 export const routes: RouteDefinition[] = [
   ...authRoutes,
   ...userRoutes,
+  ...accountRoutes,
   ...communityRoutes,
+  ...communityManagementRoutes,
+  ...supportRoutes,
   ...videoRoutes,
   ...reviewRoutes,
   ...missionRoutes,

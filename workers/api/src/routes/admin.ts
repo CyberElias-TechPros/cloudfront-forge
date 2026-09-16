@@ -2,6 +2,26 @@ import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAdmin } from "../middleware/auth";
 import { Database } from "../lib/database";
+import { recordAudit } from "../lib/audit";
+import { z } from "zod";
+
+const suspendSchema = z.object({
+  reason: z.string().max(500).optional(),
+});
+
+const roleChangeSchema = z.object({
+  role: z.enum(["moderator", "admin"]).nullable(),
+});
+
+function adminCatch(error: any, what: string): Response {
+  if (error.message === "AUTH_REQUIRED" || error.message === "AUTH_TOKEN_INVALID") {
+    return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+  }
+  if (error.message === "FORBIDDEN") {
+    return createErrorResponse("FORBIDDEN", "Admin access required", 403);
+  }
+  return createErrorResponse("INTERNAL_ERROR", what, 500);
+}
 
 export const adminRoutes: RouteDefinition[] = [
   // Analytics funnel: submit → watch → claim conversion rates
@@ -68,11 +88,19 @@ export const adminRoutes: RouteDefinition[] = [
         const offset = parseInt(searchParams.get("offset") ?? "0", 10);
 
         const db = new Database(env);
+        // status=active (default) / suspended / deleted
+        const where =
+          status === "deleted"
+            ? "u.deleted_at IS NOT NULL"
+            : status === "suspended"
+              ? "u.deleted_at IS NULL AND u.status = 'suspended'"
+              : "u.deleted_at IS NULL AND COALESCE(u.status, 'active') = 'active'";
         const result = await db.query(
-          `SELECT u.*, COALESCE(r.score, 100) as trust_score
+          `SELECT u.*, COALESCE(r.score, 100) as trust_score, au.role as platform_role
            FROM users u
            LEFT JOIN reputation_accounts r ON u.id = r.user_id
-           WHERE ${status === "deleted" ? "u.deleted_at IS NOT NULL" : "u.deleted_at IS NULL"}
+           LEFT JOIN admin_users au ON au.user_id = u.id
+           WHERE ${where}
            ORDER BY u.created_at DESC LIMIT ? OFFSET ?`,
           [limit, offset],
         );
@@ -89,6 +117,8 @@ export const adminRoutes: RouteDefinition[] = [
           deletedAt: u.deleted_at,
           lastActive: u.last_active,
           trustScore: u.trust_score ?? 100,
+          status: u.status ?? "active",
+          platformRole: u.platform_role ?? null,
         }));
 
         return createResponse(users);
@@ -293,6 +323,271 @@ export const adminRoutes: RouteDefinition[] = [
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch retention", 500);
+      }
+    },
+  },
+
+  // Appeals queue for the admin console.
+  {
+    method: "GET",
+    path: "/api/v1/admin/appeals",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        await requireAdmin(request, env);
+        const { searchParams } = new URL(request.url);
+        const status = searchParams.get("status") ?? "pending";
+        if (!["pending", "accepted", "rejected"].includes(status)) {
+          return createErrorResponse("VALIDATION_ERROR", "Invalid status", 400);
+        }
+        const db = new Database(env);
+        const result = await db.query(
+          `SELECT a.id, a.reason, a.status, a.created_at as createdAt, a.reviewed_at as reviewedAt, a.note,
+                  r.id as reportId, r.reason as reportReason, r.resource_type as resourceType,
+                  r.resource_id as resourceId, r.status as reportStatus,
+                  reported.display_name as reportedName, reporter.display_name as reporterName
+           FROM appeals a
+           JOIN reports r ON a.report_id = r.id
+           LEFT JOIN users reported ON r.reported_user_id = reported.id
+           LEFT JOIN users reporter ON r.reporter_id = reporter.id
+           WHERE a.status = ?
+           ORDER BY a.created_at ASC`,
+          [status],
+        );
+        return createResponse({ items: result.results });
+      } catch (error: any) {
+        return adminCatch(error, "Failed to fetch appeals");
+      }
+    },
+  },
+
+  // Suspend a member: they keep their data but lose access until reinstated.
+  {
+    method: "POST",
+    pattern: "^\\/api\\/v1/admin/users/([^/]+)/suspend$",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const adminId = await requireAdmin(request, env);
+        const targetId = new URL(request.url).pathname.split("/")[4];
+        if (!targetId) return createErrorResponse("VALIDATION_ERROR", "User ID is required", 400);
+
+        const parsed = suspendSchema.safeParse(await request.json().catch(() => ({})));
+        if (!parsed.success) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            parsed.error.errors.map((e) => e.message).join(", "),
+            400,
+          );
+        }
+
+        const db = new Database(env);
+        if (targetId === adminId) {
+          return createErrorResponse("BAD_REQUEST", "You cannot suspend yourself", 400);
+        }
+        const target = await db.querySingle("SELECT id, status, deleted_at FROM users WHERE id = ?", [
+          targetId,
+        ]);
+        if (!target || target.deleted_at) {
+          return createErrorResponse("NOT_FOUND", "User not found", 404);
+        }
+        const targetRole = await db.querySingle("SELECT role FROM admin_users WHERE user_id = ?", [
+          targetId,
+        ]);
+        if (targetRole?.role === "super_admin") {
+          return createErrorResponse("FORBIDDEN", "Super admins cannot be suspended", 403);
+        }
+
+        const now = db.now();
+        const result = await db.execute(
+          "UPDATE users SET status = 'suspended', updated_at = ? WHERE id = ? AND deleted_at IS NULL",
+          [now, targetId],
+        );
+        if ((result.meta?.changes ?? 0) === 0) {
+          return createErrorResponse("CONFLICT", "User can no longer be suspended", 409);
+        }
+
+        await db.execute(
+          "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'ACCOUNT_SUSPENDED', 'Account suspended', ?, ?)",
+          [
+            db.uuid(),
+            targetId,
+            parsed.data.reason
+              ? `Your account was suspended: ${parsed.data.reason}`
+              : "Your account was suspended by a moderator",
+            now,
+          ],
+        );
+        await recordAudit(
+          db,
+          {
+            actorId: adminId,
+            action: "user.suspend",
+            resourceType: "user",
+            resourceId: targetId,
+            metadata: parsed.data.reason ? { reason: parsed.data.reason } : null,
+            request,
+          },
+          env,
+        );
+        return createResponse({ message: "User suspended" });
+      } catch (error: any) {
+        return adminCatch(error, "Failed to suspend user");
+      }
+    },
+  },
+
+  // Reinstate a suspended member.
+  {
+    method: "POST",
+    pattern: "^\\/api\\/v1/admin/users/([^/]+)/reinstate$",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const adminId = await requireAdmin(request, env);
+        const targetId = new URL(request.url).pathname.split("/")[4];
+        if (!targetId) return createErrorResponse("VALIDATION_ERROR", "User ID is required", 400);
+
+        const db = new Database(env);
+        const now = db.now();
+        const result = await db.execute(
+          "UPDATE users SET status = 'active', updated_at = ? WHERE id = ? AND status = 'suspended' AND deleted_at IS NULL",
+          [now, targetId],
+        );
+        if ((result.meta?.changes ?? 0) === 0) {
+          return createErrorResponse("CONFLICT", "User is not suspended", 409);
+        }
+
+        await db.execute(
+          "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'ACCOUNT_REINSTATED', 'Account reinstated', 'Your account has been reinstated. Welcome back.', ?)",
+          [db.uuid(), targetId, now],
+        );
+        await recordAudit(
+          db,
+          { actorId: adminId, action: "user.reinstate", resourceType: "user", resourceId: targetId, request },
+          env,
+        );
+        return createResponse({ message: "User reinstated" });
+      } catch (error: any) {
+        return adminCatch(error, "Failed to reinstate user");
+      }
+    },
+  },
+
+  // Grant or revoke platform roles (moderator/admin). Super admins are managed
+  // out-of-band and cannot be changed through the API.
+  {
+    method: "POST",
+    pattern: "^\\/api\\/v1/admin/users/([^/]+)/role$",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const adminId = await requireAdmin(request, env);
+        const targetId = new URL(request.url).pathname.split("/")[4];
+        if (!targetId) return createErrorResponse("VALIDATION_ERROR", "User ID is required", 400);
+
+        const parsed = roleChangeSchema.safeParse(await request.json().catch(() => ({})));
+        if (!parsed.success) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            parsed.error.errors.map((e) => e.message).join(", "),
+            400,
+          );
+        }
+
+        const db = new Database(env);
+        if (targetId === adminId) {
+          return createErrorResponse("BAD_REQUEST", "You cannot change your own role", 400);
+        }
+        const target = await db.querySingle(
+          "SELECT id FROM users WHERE id = ? AND deleted_at IS NULL",
+          [targetId],
+        );
+        if (!target) return createErrorResponse("NOT_FOUND", "User not found", 404);
+
+        const actorRole = await db.querySingle("SELECT role FROM admin_users WHERE user_id = ?", [
+          adminId,
+        ]);
+        const targetRole = await db.querySingle("SELECT role FROM admin_users WHERE user_id = ?", [
+          targetId,
+        ]);
+
+        if (targetRole?.role === "super_admin") {
+          return createErrorResponse("FORBIDDEN", "Super admin roles cannot be changed", 403);
+        }
+        // Only super admins may manage the admin tier itself.
+        const touchesAdminTier = parsed.data.role === "admin" || targetRole?.role === "admin";
+        if (touchesAdminTier && actorRole?.role !== "super_admin") {
+          return createErrorResponse("FORBIDDEN", "Only super admins can manage admin roles", 403);
+        }
+
+        const now = db.now();
+        if (parsed.data.role === null) {
+          await db.execute("DELETE FROM admin_users WHERE user_id = ? AND role != 'super_admin'", [
+            targetId,
+          ]);
+        } else {
+          await db.execute(
+            `INSERT INTO admin_users (id, user_id, role, created_at) VALUES (?, ?, ?, ?)
+             ON CONFLICT(user_id) DO UPDATE SET role = excluded.role`,
+            [db.uuid(), targetId, parsed.data.role, now],
+          );
+        }
+
+        await recordAudit(
+          db,
+          {
+            actorId: adminId,
+            action: "user.role",
+            resourceType: "user",
+            resourceId: targetId,
+            metadata: { role: parsed.data.role },
+            request,
+          },
+          env,
+        );
+        return createResponse({
+          message: parsed.data.role ? `Role set to ${parsed.data.role}` : "Platform role removed",
+        });
+      } catch (error: any) {
+        return adminCatch(error, "Failed to update role");
+      }
+    },
+  },
+
+  // Restore a removed/archived video (used after successful moderation appeals).
+  {
+    method: "POST",
+    pattern: "^\\/api\\/v1/admin/videos/([^/]+)/restore$",
+    handler: async (request: Request, env: Env): Promise<Response> => {
+      try {
+        const adminId = await requireAdmin(request, env);
+        const videoId = new URL(request.url).pathname.split("/")[4];
+        if (!videoId) return createErrorResponse("VALIDATION_ERROR", "Video ID is required", 400);
+
+        const db = new Database(env);
+        const video = await db.querySingle("SELECT id, status FROM videos WHERE id = ?", [videoId]);
+        if (!video) return createErrorResponse("NOT_FOUND", "Video not found", 404);
+        if (video.status === "active") {
+          return createErrorResponse("CONFLICT", "Video is already active", 409);
+        }
+
+        const now = db.now();
+        await db.execute(
+          "UPDATE videos SET status = 'active', updated_at = ? WHERE id = ? AND status IN ('removed', 'archived')",
+          [now, videoId],
+        );
+        await recordAudit(
+          db,
+          {
+            actorId: adminId,
+            action: "video.restore",
+            resourceType: "video",
+            resourceId: videoId,
+            metadata: { previousStatus: video.status },
+            request,
+          },
+          env,
+        );
+        return createResponse({ message: "Video restored to the queue" });
+      } catch (error: any) {
+        return adminCatch(error, "Failed to restore video");
       }
     },
   },

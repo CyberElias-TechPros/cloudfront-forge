@@ -214,12 +214,16 @@ export const reportRoutes: RouteDefinition[] = [
           );
         }
 
-        const appeal = await db.querySingle("SELECT id, report_id FROM appeals WHERE id = ?", [appealId]);
+        const appeal = await db.querySingle(
+          "SELECT id, report_id, user_id FROM appeals WHERE id = ?",
+          [appealId],
+        );
         if (!appeal) return createErrorResponse("NOT_FOUND", "Appeal not found", 404);
 
+        // Status-locked update: an appeal can only be reviewed once.
         const now = new Date().toISOString();
-        await db.execute(
-          "UPDATE appeals SET status = ?, reviewed_by = ?, reviewed_at = ?, note = ? WHERE id = ?",
+        const claimed = await db.execute(
+          "UPDATE appeals SET status = ?, reviewed_by = ?, reviewed_at = ?, note = ? WHERE id = ? AND status = 'pending'",
           [
             parsed.data.status,
             adminId,
@@ -228,13 +232,75 @@ export const reportRoutes: RouteDefinition[] = [
             appealId,
           ],
         );
+        if ((claimed.meta?.changes ?? 0) === 0) {
+          return createErrorResponse("CONFLICT", "Appeal was already reviewed", 409);
+        }
 
-        // If accepted, dismiss the original report
+        // Accepting an appeal must make the member whole: dismiss the report,
+        // restore the trust-score penalty the report applied, and put an
+        // auto-removed video back into rotation.
         if (parsed.data.status === "accepted") {
+          const report = await db.querySingle(
+            "SELECT id, reported_user_id, resource_type, resource_id FROM reports WHERE id = ?",
+            [(appeal as any).report_id],
+          );
+
           await db.execute("UPDATE reports SET status = 'dismissed', updated_at = ? WHERE id = ?", [
             now,
             (appeal as any).report_id,
           ]);
+
+          if (report?.reported_user_id) {
+            const acct = await db.querySingle(
+              "SELECT score FROM reputation_accounts WHERE user_id = ?",
+              [report.reported_user_id],
+            );
+            if (acct) {
+              await db.execute(
+                "INSERT INTO reputation_events (id, user_id, event_type, points_change, description, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                [crypto.randomUUID(), report.reported_user_id, "appeal_accepted", 10, "Appeal accepted — penalty restored", now],
+              );
+              await db.execute(
+                "UPDATE reputation_accounts SET score = MIN(100, score + 10), updated_at = ? WHERE user_id = ?",
+                [now, report.reported_user_id],
+              );
+            }
+          }
+
+          if (report?.resource_type === "video" && report.resource_id) {
+            await db.execute(
+              "UPDATE videos SET status = 'active', updated_at = ? WHERE id = ? AND status = 'removed'",
+              [now, report.resource_id],
+            );
+          }
+
+          await db.execute(
+            "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'APPEAL_ACCEPTED', 'Appeal accepted', ?, ?)",
+            [
+              crypto.randomUUID(),
+              (appeal as any).user_id,
+              "Your appeal was accepted. Any penalty from the report has been reversed.",
+              now,
+            ],
+          );
+          await notifyUserPush(
+            env,
+            (appeal as any).user_id,
+            "Appeal accepted",
+            "Your appeal was accepted and the penalty reversed.",
+          );
+        } else {
+          await db.execute(
+            "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'APPEAL_REJECTED', 'Appeal declined', ?, ?)",
+            [
+              crypto.randomUUID(),
+              (appeal as any).user_id,
+              parsed.data.note
+                ? `Your appeal was declined: ${sanitize(parsed.data.note)}`
+                : "Your appeal was declined",
+              now,
+            ],
+          );
         }
 
         return createResponse({ message: `Appeal ${parsed.data.status}` });
