@@ -37,6 +37,13 @@ let configError: string | null = null;
 let authReadyPromise: Promise<void> | null = null;
 let authReadyResolve: (() => void) | null = null;
 
+// These bindings must stay live. Firebase is initialized during module startup,
+// and exporting a snapshot of `authInstance` here would permanently export null
+// before the async persistence setup finished. That made Google sign-in appear
+// configured while every request silently fell back to dev/no-auth behavior.
+export let auth: Auth | null = null;
+export let googleProvider: GoogleAuthProvider | null = null;
+
 function validateFirebaseConfig(): string | null {
   const missing = REQUIRED_FIREBASE_ENV_VARS.filter((key) => {
     const value = import.meta.env[key];
@@ -64,6 +71,10 @@ async function initFirebase(): Promise<void> {
   try {
     app = initializeApp(firebaseConfig);
     authInstance = getAuth(app);
+    // Publish the initialized instances before the first await so React auth
+    // effects and API token reads observe the real Firebase client.
+    auth = authInstance;
+    googleProvider = new GoogleAuthProvider();
     // Full persistence fallback chain: IndexedDB → LocalStorage → In-Memory
     if (authInstance) {
       await setPersistence(authInstance, indexedDBLocalPersistence).catch(() => {
@@ -115,11 +126,6 @@ async function initFirebase(): Promise<void> {
 initFirebase().catch((err) => {
   console.error("[Firebase] Initialization failed:", err);
 });
-
-export const auth: Auth | null = authInstance;
-export const googleProvider: GoogleAuthProvider | null = authInstance
-  ? new GoogleAuthProvider()
-  : null;
 
 // Wait for auth state to be initially loaded (resolves once on first auth state change)
 export const waitForAuthReady = (): Promise<void> => {

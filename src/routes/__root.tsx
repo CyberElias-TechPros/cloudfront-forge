@@ -145,6 +145,7 @@ function RootComponent() {
     pathname === "/resources" ||
     pathname === "/privacy" ||
     pathname === "/terms" ||
+    pathname === "/shell" ||
     pathname.startsWith("/auth/");
 
   // Register service worker for Web Push

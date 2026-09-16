@@ -368,22 +368,22 @@ function Admin() {
                 {topups.map((t) => (
                   <li key={t.id} className="rounded-lg bg-secondary/60 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-medium">{t.display_name ?? t.email ?? "Member"}</p>
+                      <p className="font-medium">{t.displayName ?? t.email ?? "Member"}</p>
                       <span className="text-sm font-semibold tabular-nums">
-                        ₦{t.ngn_amount.toLocaleString()} → {t.credits_amount} credits
+                        ₦{t.ngnAmount.toLocaleString()} → {t.creditsAmount} credits
                       </span>
                     </div>
-                    {t.proof_image_path ? (
+                    {t.proofImagePath ? (
                       <div className="mt-2">
-                        <ProofThumb id={t.id} name={t.proof_image_name} />
+                        <ProofThumb id={t.id} name={t.proofImageName} />
                       </div>
                     ) : (
                       <p className="mt-1 font-mono text-xs text-muted-foreground">
-                        Ref: {t.transfer_reference}
+                        Ref: {t.transferReference}
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      {new Date(t.created_at).toLocaleString()}
+                      {new Date(t.createdAt).toLocaleString()}
                     </p>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <button

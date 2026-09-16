@@ -1,9 +1,8 @@
-import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
-import { ArrowLeft, Zap, AlertCircle } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { AlertCircle, ArrowLeft, CheckCircle2, Zap } from "lucide-react";
+import { useState } from "react";
 import { auth } from "@/lib/firebase";
-import { useState, useEffect } from "react";
-import { attemptGoogleSignIn, watchAuthState } from "@/lib/auth-diagnostics";
+import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/auth/signin")({
   head: () => ({
@@ -11,17 +10,13 @@ export const Route = createFileRoute("/auth/signin")({
       { title: "Sign in — LoopSquad" },
       {
         name: "description",
-        content: "Sign in with Google to join your LoopSquad creator group.",
+        content: "Sign in with Google to join your LoopSquad creator feedback community.",
       },
-      // A sign-in form has no search-engine audience; keep it out of the index.
       { name: "robots", content: "noindex,follow" },
     ],
   }),
   beforeLoad: async () => {
-    const user = auth?.currentUser;
-    if (user) {
-      throw redirect({ to: "/dashboard" });
-    }
+    if (auth?.currentUser) throw redirect({ to: "/dashboard" });
   },
   component: SignIn,
 });
@@ -29,141 +24,124 @@ export const Route = createFileRoute("/auth/signin")({
 interface SignInError {
   code: string;
   message: string;
-  details?: string;
 }
 
 function SignIn() {
   const navigate = useNavigate();
+  const { signIn } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<SignInError | null>(null);
 
-  useEffect(() => {
-    const unsubscribe = watchAuthState(
-      (_user) => {
-        console.debug("Authentication successful, redirecting to dashboard");
-        navigate({ to: "/dashboard" });
-      },
-      (err) => {
-        console.error("Auth flow error:", err);
-        setError({
-          code: "AUTH_ERROR",
-          message: err.message || "An authentication error occurred",
-        });
-        setLoading(false);
-      },
-    );
-
-    return () => unsubscribe();
-  }, [navigate]);
-
-  const handleGoogleSignIn = async () => {
+  const handleSignIn = async () => {
     setError(null);
     setLoading(true);
     try {
-      const result = await attemptGoogleSignIn();
-      if (!result.success && result.error) {
-        setError(result.error);
-        setLoading(false);
-      }
-      // Success case: auth state change watcher will handle redirect
+      // AuthProvider owns both the Firebase and local development paths. This
+      // keeps the sign-in screen and the header on one consistent happy path.
+      await signIn();
+      navigate({ to: "/dashboard" });
     } catch (err: unknown) {
-      const error = err as Error;
-      console.error("Unexpected sign-in error:", error);
+      const authError = err as Error & { code?: string };
       setError({
-        code: "UNEXPECTED_ERROR",
-        message: error.message || "An unexpected error occurred",
+        code: authError.code || "UNEXPECTED_ERROR",
+        message: authError.message || "We could not complete sign-in. Please try again.",
       });
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-8">
+    <main className="relative flex min-h-[calc(100svh-4rem)] items-center overflow-hidden px-4 py-12">
+      <div className="hero-aurora hero-aurora-one" aria-hidden="true" />
+      <div className="hero-aurora hero-aurora-two" aria-hidden="true" />
+      <div className="hero-grid" aria-hidden="true" />
+
+      <div className="relative z-10 mx-auto w-full max-w-lg">
         <Link
           to="/"
-          className="flex items-center gap-2 mb-8 text-sm text-muted-foreground hover:text-foreground"
+          className="mb-7 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground"
         >
-          <ArrowLeft className="size-4" />
-          Back to home
+          <ArrowLeft className="size-4" /> Back to home
         </Link>
 
-        <div className="max-w-md mx-auto">
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-4">
-              <span className="grid size-12 place-items-center rounded-lg bg-primary text-primary-foreground">
+        <section className="surface overflow-hidden p-7 sm:p-10">
+          <div className="flex items-start justify-between gap-6">
+            <div>
+              <div className="grid size-12 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-glow">
                 <Zap className="size-6" />
-              </span>
+              </div>
+              <p className="mt-8 text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+                Your next chapter starts here
+              </p>
+              <h1 className="mt-3 text-5xl leading-none sm:text-6xl">Enter the loop.</h1>
+              <p className="mt-4 max-w-sm text-sm leading-6 text-muted-foreground">
+                Join a creator community where attention is intentional, feedback is useful, and
+                progress is something you can see.
+              </p>
             </div>
-            <h1 className="text-3xl font-bold mb-2">Welcome to CreatorLoop</h1>
-            <p className="text-muted-foreground">
-              Sign in to access your creator community dashboard
-            </p>
+            <span className="hidden font-display text-5xl text-muted-foreground/20 sm:block">
+              01
+            </span>
           </div>
 
-          {error && (
-            <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-              <div className="flex gap-3">
-                <AlertCircle className="size-5 flex-shrink-0 text-destructive mt-0.5" />
-                <div className="flex-1">
-                  <h3 className="font-semibold text-destructive mb-1">{error.message}</h3>
-                  {error.details && <p className="text-sm text-destructive/80">{error.details}</p>}
-                </div>
+          {error ? (
+            <div
+              role="alert"
+              className="mt-8 flex gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4"
+            >
+              <AlertCircle className="mt-0.5 size-5 shrink-0 text-destructive" />
+              <div>
+                <p className="text-sm font-semibold text-destructive">Sign-in needs attention</p>
+                <p className="mt-1 text-xs leading-5 text-destructive/80">{error.message}</p>
+                <span className="sr-only">Error code: {error.code}</span>
               </div>
             </div>
-          )}
+          ) : null}
 
           <button
-            onClick={handleGoogleSignIn}
+            type="button"
+            onClick={handleSignIn}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 rounded-lg bg-primary px-6 py-4 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:opacity-50"
+            className="button-primary mt-8 w-full disabled:cursor-wait disabled:opacity-60"
           >
             {loading ? (
-              "Signing in..."
+              <>
+                <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                Opening your workspace…
+              </>
             ) : (
               <>
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"
-                    fill="currentColor"
-                  />
-                </svg>
-                Sign in with Google
+                <span className="grid size-5 place-items-center rounded-full bg-white/15 text-xs font-bold">
+                  G
+                </span>
+                Continue with Google
               </>
             )}
           </button>
 
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border"></span>
-            </div>
-            <span className="absolute inset-x-0 top-1/2 -translate-y-1/2 bg-background px-2 text-xs text-muted-foreground uppercase">
-              Or
-            </span>
-          </div>
-
-          <p className="text-center text-xs text-muted-foreground">
-            By signing in, you agree to our Terms of Service and Privacy Policy. CreatorLoop helps
-            creators support each other legitimately — no artificial engagement.
-          </p>
-
-          <div className="mt-8 p-4 rounded-lg bg-blue-50 border border-blue-200">
-            <p className="text-xs text-blue-900">
-              <strong>Having trouble signing in?</strong> Check the browser console for detailed
-              error messages, or see{" "}
-              <code className="bg-white px-1 rounded">FIREBASE_SETUP.md</code> and{" "}
-              <code className="bg-white px-1 rounded">ENV_CONFIGURATION.md</code> for setup
-              instructions.
+          <div className="mt-7 grid gap-3 border-t border-border/70 pt-6 text-xs text-muted-foreground">
+            <p className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
+              Server-verified actions and one-time rewards.
+            </p>
+            <p className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
+              No artificial engagement or paid subscribes.
+            </p>
+            <p className="pt-2 leading-5">
+              By continuing, you agree to our{" "}
+              <Link className="text-foreground underline" to="/terms">
+                Terms
+              </Link>{" "}
+              and{" "}
+              <Link className="text-foreground underline" to="/privacy">
+                Privacy Policy
+              </Link>
+              .
             </p>
           </div>
-        </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }

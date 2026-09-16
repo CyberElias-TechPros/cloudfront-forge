@@ -323,23 +323,23 @@ export interface NgnBankDetails {
 
 export interface TopupRequest {
   id: string;
-  user_id: string;
-  tier_id: string;
-  ngn_amount: number;
-  credits_amount: number;
-  transfer_reference: string;
-  proof_image_path: string | null;
-  proof_image_name: string | null;
-  proof_image_type: string | null;
+  userId: string;
+  tierId: string;
+  ngnAmount: number;
+  creditsAmount: number;
+  transferReference: string;
+  proofImagePath: string | null;
+  proofImageName: string | null;
+  proofImageType: string | null;
   status: "pending" | "approved" | "rejected";
-  reject_reason: string | null;
-  reviewed_by: string | null;
-  reviewed_at: string | null;
-  created_at: string;
+  rejectReason: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
 }
 
 export interface TopupAdminItem extends TopupRequest {
-  display_name: string | null;
+  displayName: string | null;
   email: string | null;
 }
 
@@ -548,11 +548,11 @@ export const apiClientService = {
       getData<{
         items: Array<{
           id: string;
-          quest_type: string;
-          target_count: number;
+          questType: string;
+          targetCount: number;
           progress: number;
-          reward_xp: number;
-          reward_credits: number;
+          rewardXp: number;
+          rewardCredits: number;
           status: string;
         }>;
         date: string;
@@ -648,8 +648,8 @@ export const apiClientService = {
       getData<{
         period: string;
         totals: { submits: number; claims: number; reviews: number; claimRate: number };
-        events: Array<{ event_type: string; count: number }>;
-        dailyTrend: Array<{ day: string; event_type: string; count: number }>;
+        events: Array<{ eventType: string; count: number }>;
+        dailyTrend: Array<{ day: string; eventType: string; count: number }>;
       }>(`/api/v1/admin/analytics?days=${days}`),
     retention: () =>
       getData<{

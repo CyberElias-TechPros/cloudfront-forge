@@ -30,10 +30,14 @@ export function getDevSession(): DevSession | null {
 
 export function setDevSession(session: DevSession): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  // Query hooks use this marker to avoid firing authenticated requests on the
+  // public shell. Keep it in sync with the dev token that api.ts will attach.
+  localStorage.setItem("authToken", mintDevToken(session));
 }
 
 export function clearDevSession(): void {
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem("authToken");
 }
 
 export function defaultDevSession(): DevSession {

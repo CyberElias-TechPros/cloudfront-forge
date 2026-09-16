@@ -29,7 +29,7 @@ interface CommunitySearchResult {
 interface VideoSearchResult {
   id: string;
   title: string;
-  creator_name?: string | null;
+  creatorName?: string | null;
 }
 
 function SearchPage() {
@@ -125,7 +125,7 @@ function SearchPage() {
                     </CardHeader>
                     <CardContent>
                       <p className="text-sm text-muted-foreground">
-                        by {v.creator_name || "Unknown"}
+                        by {v.creatorName || "Unknown"}
                       </p>
                     </CardContent>
                   </Card>
