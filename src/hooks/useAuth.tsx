@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { auth, signInWithGoogle, signOutUser } from "@/lib/firebase";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { api } from "@/lib/api";
@@ -52,8 +60,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [accountError, setAccountError] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
+  // Invalidates an in-flight bootstrap when the Firebase user changes or signs
+  // out, so a slower response for account A can never overwrite account B.
+  const authSequence = useRef(0);
 
-  const fetchProfile = useCallback(async (user: User): Promise<void> => {
+  const fetchProfile = useCallback(async (user: User, sequence: number): Promise<void> => {
+    if (authSequence.current !== sequence) return;
     setProfileError(null);
     try {
       // Identity comes from the bearer token. The body fields are profile seed
@@ -64,9 +76,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         displayName: user.displayName,
         photoUrl: user.photoURL,
       });
+      if (authSequence.current !== sequence) return;
       setProfile(response.user);
       setAccountError(null);
     } catch (error: unknown) {
+      if (authSequence.current !== sequence) return;
       const message = error instanceof Error ? error.message : "We could not prepare your account.";
       setProfile(null);
       if (isAccountBlock(message)) {
@@ -88,9 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    let generation = 0;
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      const currentGeneration = ++generation;
+      const sequence = ++authSequence.current;
       setLoading(true);
       setFirebaseUser(user);
       setProfile(null);
@@ -106,13 +119,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // exists. In particular, signing in after the initial anonymous callback
       // used to mount the dashboard before /auth/register completed, producing
       // a burst of 401s followed by retries against a failed registration.
-      void fetchProfile(user).finally(() => {
-        if (generation === currentGeneration) setLoading(false);
+      void fetchProfile(user, sequence).finally(() => {
+        if (authSequence.current === sequence) setLoading(false);
       });
     });
 
     return () => {
-      generation += 1;
+      authSequence.current += 1;
       unsubscribe();
     };
   }, [fetchProfile]);
@@ -128,9 +141,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setDevSession(session);
     }
     const devUser = session as unknown as User;
+    const sequence = ++authSequence.current;
     setFirebaseUser(devUser);
     setLoading(true);
-    void fetchProfile(devUser).finally(() => setLoading(false));
+    void fetchProfile(devUser, sequence).finally(() => {
+      if (authSequence.current === sequence) setLoading(false);
+    });
   }, [firebaseUser, fetchProfile]);
 
   const signIn = async () => {
@@ -141,12 +157,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setDevSession(session);
       }
       const devUser = session as unknown as User;
+      const sequence = ++authSequence.current;
       setFirebaseUser(devUser);
       setLoading(true);
       try {
-        await fetchProfile(devUser);
+        await fetchProfile(devUser, sequence);
       } finally {
-        setLoading(false);
+        if (authSequence.current === sequence) setLoading(false);
       }
       return;
     }
@@ -161,6 +178,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Invalidate bootstrap immediately; Firebase's null callback may arrive
+    // after the network response that signs the user out.
+    authSequence.current += 1;
     if (devEnabled()) {
       clearDevSession();
       setFirebaseUser(null);
@@ -183,11 +203,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = async () => {
     if (!firebaseUser) return;
+    const sequence = ++authSequence.current;
     setLoading(true);
     try {
-      await fetchProfile(firebaseUser);
+      await fetchProfile(firebaseUser, sequence);
     } finally {
-      setLoading(false);
+      if (authSequence.current === sequence) setLoading(false);
     }
   };
 
