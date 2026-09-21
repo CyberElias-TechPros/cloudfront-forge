@@ -138,9 +138,9 @@ npm run lint
 npm run typecheck
 npm test
 
-npm run deploy                      # migrate production D1, then deploy
+npm run release                     # migrate production D1, then deploy
 # or
-npm run deploy:staging              # migrate staging D1, then deploy
+npm run release:staging             # migrate staging D1, then deploy
 ```
 
 Never use a code-only `wrangler deploy` for production. Additive D1 migrations
@@ -165,9 +165,11 @@ promotion must gate on `/ready`.
 > **One deployment owner:** disable Cloudflare Workers Builds' direct Git
 > auto-deploy for this service when GitHub Actions owns production. A code-only
 > Cloudflare Git build bypasses the migration gate and can recreate schema drift.
-> If Workers Builds remains the owner instead, its deploy command must be
-> `npm run deploy` from `workers/api` and the duplicate GitHub backend deploy
-> must be disabled.
+> If Workers Builds remains the owner instead, use separate production and
+> preview configurations: production must run `npm run release` from
+> `workers/api`, while previews use the code-only `npm run deploy`. Never run a
+> remote production migration from a pull-request preview. Disable the duplicate
+> GitHub backend deploy when Workers Builds owns production.
 
 Tail logs with `npm run tail` (`wrangler tail`).
 

@@ -66,7 +66,8 @@ vercel.json              Static SPA deployment + caching + security headers
 | root          | `npm run lint`                                         | ESLint (frontend + worker)                         |
 | root          | `npm test`                                             | Frontend unit tests (Vitest)                       |
 | `workers/api` | `npm run dev`                                          | `wrangler dev`                                     |
-| `workers/api` | `npm run deploy` / `deploy:staging`                    | Migrate D1, then deploy production / staging       |
+| `workers/api` | `npm run release` / `release:staging`                  | Migrate D1, then deploy production / staging       |
+| `workers/api` | `npm run deploy` / `deploy:staging`                    | Code-only deploy (preview/rollback automation)     |
 | `workers/api` | `npm run db:migrate:local` / `:staging` / `db:migrate` | Apply D1 migrations                                |
 | `workers/api` | `npm test`                                             | Worker tests (Vitest + in-memory SQLite)           |
 | `workers/api` | `npm run typecheck`                                    | `tsc --noEmit`                                     |

@@ -45,6 +45,7 @@ shared in plaintext.
 
 Use one production owner. If GitHub Actions owns deployment, disable direct Git
 auto-deploy in Cloudflare Workers Builds. If Workers Builds owns deployment,
-configure its command to run `npm run deploy` in `workers/api` (which migrates
-D1 before `wrangler deploy`) and disable the duplicate GitHub backend deploy.
+configure its production command to run `npm run release` in `workers/api`
+(which migrates D1 before deploy), keep pull-request previews on the code-only
+`npm run deploy`, and disable the duplicate GitHub backend deploy.
 See `docs/DEPLOYMENT.md` for the full runbook.
