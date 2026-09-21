@@ -58,23 +58,26 @@ gain.
 ```
 src/index.ts        entry: CORS, security headers, rate-limit tiers, routing, cron
 src/lib/router.ts   regex route matching (patterns compiled once, cached)
-src/routes/index.ts the single `routes` table (90 entries) — the only routing source
+src/routes/index.ts the single `routes` table (110 entries) — the only routing source
 src/middleware/     auth (Firebase token + admin roles), rate limiting, error envelope
 src/lib/            database (D1 wrapper that throws), xp, scoring, audit, sanitize,
                     push (Web Push), quests, rewards, analytics, logger
 src/jobs/           cron entry points
-migrations/         001…030, applied in filename order
+migrations/         001…036, applied in filename order
 ```
 
 ### Request lifecycle
 
 1. `/health` short-circuits before any environment validation.
 2. `OPTIONS` preflight is answered with the resolved CORS origin.
-3. Required bindings are validated (`MISSING_ENV` → `503`).
+3. Required bindings are validated (`MISSING_ENV` → `503`); `/ready` also
+   exercises the current D1 schema and is the deployment gate.
 4. Rate limiting per IP + tier (`auth`, `expensive`, `write`, `read`); auth,
    expensive and admin routes fail closed.
 5. `findRoute()` matches method + path; unknown → `404`.
-6. The handler runs with `requireAuth` / `requireAdmin` where needed.
+6. Firebase authentication is verified once and attached to the in-process
+   request; handlers resolve that verified uid through `requireAuth` and apply
+   admin/moderator authorization where needed.
 
 ### Data integrity rules the schema enforces
 

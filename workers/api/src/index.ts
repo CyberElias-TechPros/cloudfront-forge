@@ -12,6 +12,7 @@ import { routes } from "./routes";
 import { findRoute } from "./lib/router";
 import { runAllJobs } from "./jobs";
 import { Database } from "./lib/database";
+import { createLogger } from "./lib/logger";
 
 /**
  * Resolve the CORS response for an incoming origin.
@@ -36,7 +37,10 @@ function resolveCorsOrigin(origin: string, env: Env): string | null {
 
   // Local development: the Vite dev server proxies /api/*, but `wrangler dev`
   // is also reachable directly from the browser during debugging.
-  if (env.ENVIRONMENT !== "production" && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+  if (
+    env.ENVIRONMENT !== "production" &&
+    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+  ) {
     return origin;
   }
 
@@ -47,13 +51,30 @@ let envValidated = false;
 
 function validateEnv(env: Env): void {
   if (envValidated) return;
-  envValidated = true;
 
   const required = ["FIREBASE_PROJECT_ID", "ENVIRONMENT"] as const;
   const missing = required.filter((key) => !env[key]);
   if (missing.length > 0) {
     throw new Error(`MISSING_ENV: ${missing.join(", ")}`);
   }
+  envValidated = true;
+}
+
+/**
+ * Exercise columns/tables introduced by the newest production migrations.
+ * Preparing this query fails even when the tables are empty, making /ready a
+ * deployment gate for the exact schema drift that would otherwise turn every
+ * authenticated request into a 500.
+ */
+async function assertSchemaReady(env: Env): Promise<void> {
+  await new Database(env).querySingle(
+    `SELECT
+       (SELECT status FROM users LIMIT 1) AS user_status,
+       (SELECT status FROM communities LIMIT 1) AS community_status,
+       (SELECT overdue_notified FROM reviews LIMIT 1) AS review_overdue_flag,
+       (SELECT id FROM join_requests LIMIT 1) AS join_request_id,
+       (SELECT id FROM support_requests LIMIT 1) AS support_request_id`,
+  );
 }
 
 export default {
@@ -100,6 +121,30 @@ export default {
     try {
       validateEnv(env);
 
+      if (path === "/ready" || path === "/ready/") {
+        try {
+          await assertSchemaReady(env);
+          return createResponse(
+            {
+              status: "ready",
+              environment: env.ENVIRONMENT,
+              schemaVersion: "036",
+              timestamp: new Date().toISOString(),
+            },
+            200,
+            corsHeaders,
+          );
+        } catch (error) {
+          createLogger(env).error("Readiness check failed", error);
+          return createErrorResponse(
+            "NOT_READY",
+            "Service dependencies are not ready",
+            503,
+            corsHeaders,
+          );
+        }
+      }
+
       const isAuthEndpoint = path.startsWith("/api/v1/auth/");
       const isExpensiveEndpoint =
         path.startsWith("/api/v1/ai/") ||
@@ -141,7 +186,7 @@ export default {
       }
 
       const auth = await authMiddleware(request, env);
-      (request as unknown as { __auth: unknown }).__auth = auth;
+      (request as unknown as { __auth: typeof auth }).__auth = auth;
 
       // Moderated or deleted accounts may not use any route. Enforced once at
       // the entry point (not per handler) so every endpoint rejects with the

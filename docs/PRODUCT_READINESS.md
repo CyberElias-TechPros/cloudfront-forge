@@ -123,8 +123,8 @@ trust, links, competition, and search-engine decisions.
 1. Create/verify Firebase project and authorized domains.
 2. Create production D1, KV, and R2 resources; set binding IDs in Wrangler.
 3. Add Worker secrets with `wrangler secret put`.
-4. Apply all D1 migrations remotely.
-5. Deploy the Worker and confirm `/health` plus an authenticated profile request.
+4. Apply all D1 migrations remotely (the deployment workflow does this before code).
+5. Deploy the Worker and require both `/health` and `/ready` to pass before an authenticated profile request.
 6. Set Vercel public variables (`VITE_API_URL`, Firebase config, VAPID public key,
    `SITE_URL`) and deploy the SPA.
 7. Run the smoke flow: sign in → create/join community → submit video → queue →
@@ -134,18 +134,21 @@ trust, links, competition, and search-engine decisions.
 
 ## Verification status
 
-The repository's automated suites were run on 2026-09-16:
+The repository's automated suites were run on 2026-09-21:
 
-- Frontend: `npm run typecheck`, `npm test`, and `npm run build` — passed.
+- Frontend: `npm run typecheck`, `npm test` (21 tests / 3 files), and
+  `npm run build` — passed.
 - Worker: `npm --prefix workers/api run typecheck`,
-  `npm --prefix workers/api test` — 282 tests passed (36 files), including the
-  lifecycle/moderation suites added with the completeness work.
+  `npm --prefix workers/api test` — 284 tests passed (36 files), including
+  readiness/schema-drift coverage and the lifecycle/moderation suites.
 - Lint: `npm run lint` — passed with existing non-blocking warnings in generated/UI
   component exports and a few test fixtures.
-- Worker bundle: `npx wrangler deploy --dry-run` — passed.
-- Local smoke: D1 migrations applied, `/health`, auth, profile, community,
-  mission, video submission, queue, and watch claim paths exercised with the
-  development token.
+- Worker bundle: Wrangler 4.135.0 `deploy --dry-run --env=""` — passed.
+- Dependency audit: root and Worker, production-only and full trees — zero known vulnerabilities.
+- Local smoke: all 37 migration filenames applied; `/health` and `/ready` 200;
+  auth registration plus member, permissions, notifications, XP, streaks,
+  activity, queue, submissions, daily quests, and communities all returned 200
+  with a development token.
 
 Real Google OAuth, YouTube OAuth, AI provider calls, Web Push delivery, R2
 production storage, and remote Cloudflare resources remain environment-dependent

@@ -193,18 +193,20 @@ export const getCurrentUser = (): Promise<User | null> => {
   });
 };
 
-export const getIdToken = async (): Promise<string | null> => {
+export const getIdToken = async (forceRefresh = false): Promise<string | null> => {
   try {
-    // Wait for auth state to be initially loaded
+    // Wait for Firebase to restore its persisted user before deciding a request
+    // is anonymous. API callers ask the live Firebase user for a token rather
+    // than reading a stale localStorage snapshot.
     await waitForAuthReady();
 
     const user = authInstance?.currentUser;
     if (user) {
-      // Force token refresh if token is stale (>5 min old)
-      return await user.getIdToken(/* forceRefresh */ false);
+      return await user.getIdToken(forceRefresh);
     }
   } catch {
-    // fall through to dev token
+    // Fall through to the development-only token below. Production callers
+    // return null and receive the API's normal 401 response.
   }
   if (devEnabled() && typeof window !== "undefined") {
     const session = getDevSession();

@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "deploy:staging": "wrangler deploy --env staging",
+    "deploy": "npm run db:migrate && wrangler deploy --env=\"\"",
+    "deploy:staging": "npm run db:migrate:staging && wrangler deploy --env staging",
     "db:migrate": "wrangler d1 migrations apply creatorloop-db --remote",
     "db:migrate:staging": "wrangler d1 migrations apply creatorloop-db-staging --env staging --remote",
     "db:migrate:local": "wrangler d1 migrations apply creatorloop-db --local",
@@ -18,14 +18,14 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.2024001",
+    "@cloudflare/workers-types": "^5.20260918.1",
     "@eslint/js": "^9.32.0",
     "@types/node": "^26.2.0",
     "node-sqlite3-wasm": "^0.8.60",
     "typescript": "^5.6.0",
     "typescript-eslint": "^8.67.0",
-    "vitest": "^2.1.0",
-    "wrangler": "^3.99.0"
+    "vitest": "^4.1.11",
+    "wrangler": "^4.135.0"
   },
   "dependencies": {
     "zod": "^3.23.8"
