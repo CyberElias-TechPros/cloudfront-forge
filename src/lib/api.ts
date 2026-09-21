@@ -1,4 +1,5 @@
-import axios from "axios";
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { getIdToken } from "./firebase";
 
 // In dev the Vite server proxies same-origin /api/* requests to the worker (see
 // vite.config.ts), so no CORS and no hard-coded localhost URL is needed. In
@@ -13,49 +14,68 @@ if (!configuredApiUrl && !import.meta.env.DEV) {
 }
 const apiUrl = configuredApiUrl ?? "";
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+    readonly code?: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+type RetryableRequest = InternalAxiosRequestConfig & { _authRetried?: boolean };
+
 const apiClient = axios.create({
   baseURL: apiUrl,
   timeout: 30000,
 });
 
 apiClient.interceptors.request.use(async (config) => {
-  const token = await getToken();
+  const token = await getIdToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-  } else {
-    console.debug("[API] No authentication token available");
   }
   return config;
 });
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error: AxiosError<{ error?: { code?: string; message?: string } }>) => {
     const status = error.response?.status;
+    const code = error.response?.data?.error?.code;
     const message =
       error.response?.data?.error?.message || error.message || "An unexpected error occurred";
+    const config = error.config as RetryableRequest | undefined;
 
-    if (status === 401) {
-      console.warn("[API] Authentication required - user may not be logged in or token is invalid");
-    } else if (status === 403) {
-      console.warn("[API] Permission denied");
-    } else if (status >= 500) {
-      console.error("[API] Server error:", status, message);
+    // Firebase refreshes ID tokens automatically, but a token can expire between
+    // request construction and verification. Refresh and replay exactly once;
+    // React Query must not multiply an authentication race into a request storm.
+    if (status === 401 && config && !config._authRetried) {
+      config._authRetried = true;
+      const freshToken = await getIdToken(true);
+      if (freshToken) {
+        config.headers.set("Authorization", `Bearer ${freshToken}`);
+        return apiClient.request(config);
+      }
     }
 
-    return Promise.reject(new Error(message));
+    if (status === 401) {
+      console.warn("[API] Authentication required - sign in again if this persists");
+    } else if (status === 403) {
+      console.warn("[API] Permission denied");
+    } else if (status !== undefined && status >= 500) {
+      console.error("[API] Server error:", status, code ?? "UNKNOWN", message);
+    }
+
+    return Promise.reject(new ApiError(message, status, code));
   },
 );
 
-import { getIdToken } from "./firebase";
-
-const getToken = async (): Promise<string | null> => {
-  return await getIdToken();
-};
-
 export function apiResponse<T>(response: { data: { success: boolean; data?: T } }): T {
-  if (!response.data.success || !response.data.data) {
-    throw new Error("Invalid API response structure");
+  if (!response.data.success || response.data.data === undefined) {
+    throw new ApiError("Invalid API response structure");
   }
   return response.data.data;
 }

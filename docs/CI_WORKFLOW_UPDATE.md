@@ -1,115 +1,51 @@
-# CI workflow update (optional improvement; no longer blocking)
+# CI/CD workflow status
 
-> **Update 2026-09-03:** the worker test suite no longer requires Node 22. It
-> uses `node:sqlite` when the runtime provides it (Node >= 22.5) and otherwise
-> falls back to `node-sqlite3-wasm`, a WebAssembly build of SQLite, so the
-> existing Node 20 workflow passes. The changes below are still recommended —
-> they make CI match the version the project is developed against, switch to
-> reproducible installs, and run the frontend tests — but nothing is broken
-> without them.
+The workflow hardening described in earlier revisions is now implemented in
+`.github/workflows/ci.yml` and `.github/workflows/deploy.yml`.
 
-The sandbox/agent GitHub App is **not allowed to create or update files under
-`.github/workflows/`** (GitHub rejects the push with
-`refusing to allow a GitHub App to create or update workflow ... without
-'workflows' permission`). The two workflow files in this repository are
-therefore kept as-is in Git, and the recommended changes are recorded here so
-they can be applied by someone with `workflows` permission (or by granting the
-App that permission and re-running the change).
+## CI guarantees
 
-## Why the change is recommended
+- Node 22 for the frontend and Worker.
+- Reproducible `npm ci` installs from both lockfiles.
+- Frontend lint, typecheck, tests, and production build.
+- Worker lint/typecheck and the behavioural suite over a real SQLite database
+  with every migration applied.
+- Per-ref concurrency so an obsolete CI run is cancelled.
 
-1. **Node 20 is behind the project.** Development and deployment target Node 22
-   (`node:sqlite` in the test harness, current LTS tooling). CI pinning Node 20
-   means it verifies a runtime nothing else uses. The suite runs on both today
-   thanks to the wasm fallback.
-2. **Frontend tests still never run in CI.** `npm test` (root Vitest: api-client,
-   hooks, repo hygiene) is only executed locally, so a regression in the SPA can
-   ship green.
-3. **`npm i` is not reproducible.** `npm ci` installs exactly what
-   `package-lock.json` pins, which is what CI should verify.
+## Production deployment order
 
-## `.github/workflows/ci.yml` (replace the file)
+The production workflow is serialized and deploys in this order:
 
-```yaml
-name: CI
+1. install, typecheck, and test the Worker;
+2. apply production D1 migrations with Wrangler;
+3. deploy the Worker;
+4. gate on `GET /ready` (bindings + current schema);
+5. test/build the SPA;
+6. deploy Vercel with `--prod`.
 
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
+That order is a correctness requirement. Deploying Worker code before D1 is the
+failure mode that causes a new column referenced at the API entry point to turn
+every authenticated endpoint into a 500.
 
-# The worker test suite drives a real SQLite database through `node:sqlite`,
-# which only exists from Node 22.5 onwards — CI must run the same major
-# version the project is developed against.
-env:
-  NODE_VERSION: "22"
+## Required GitHub secrets
 
-jobs:
-  lint-and-typecheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - run: npm ci
-      - run: npm run lint
-      - run: npx tsc --noEmit
-      - run: npm ci
-        working-directory: workers/api
-      - run: npm run lint
-        working-directory: workers/api
-      - run: npx tsc --noEmit
-        working-directory: workers/api
+Configure these as repository secrets or in the `Production` environment:
 
-  test-frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - run: npm ci
-      - run: npm test
+- `CLOUDFLARE_API_TOKEN` — scoped to this account, with Workers Scripts and D1
+  edit permissions;
+- `CLOUDFLARE_ACCOUNT_ID`;
+- `VERCEL_TOKEN`;
+- `VERCEL_ORG_ID`;
+- `VERCEL_PROJECT_ID`.
 
-  test-worker:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - run: npm ci
-        working-directory: workers/api
-      - run: npm test
-        working-directory: workers/api
+Do not use a Cloudflare Global API key in CI. Rotate any key that has been
+shared in plaintext.
 
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - run: npm ci
-      - run: npm run build
-```
+## Avoid competing deploy systems
 
-## `.github/workflows/deploy.yml` (same edits)
-
-- add the `NODE_VERSION: "22"` env block next to the `on:` block,
-- replace every `node-version: 20` with `node-version: ${{ env.NODE_VERSION }}`,
-- replace `npm i` / `cd workers/api && npm i` with `npm ci` (plus
-  `working-directory: workers/api` for the worker steps),
-- keep the `wrangler-action` and `vercel-action` steps unchanged.
-
-## What still works without this change
-
-Nothing in the runtime depends on CI: Vercel and Cloudflare builds are driven
-by their own pipelines, and every check above can be run locally with:
-
-```bash
-npm ci && npm run lint && npx tsc --noEmit && npm test && npm run build
-cd workers/api && npm ci && npm run lint && npx tsc --noEmit && npm test
-```
+Use one production owner. If GitHub Actions owns deployment, disable direct Git
+auto-deploy in Cloudflare Workers Builds. If Workers Builds owns deployment,
+configure its production command to run `npm run release` in `workers/api`
+(which migrates D1 before deploy), keep pull-request previews on the code-only
+`npm run deploy`, and disable the duplicate GitHub backend deploy.
+See `docs/DEPLOYMENT.md` for the full runbook.

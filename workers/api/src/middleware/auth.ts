@@ -3,11 +3,18 @@ import { Database } from "../lib/database";
 import { verifyFirebaseToken } from "../services/firebase";
 import { createLogger } from "../lib/logger";
 
-interface AuthResult {
+export interface AuthResult {
+  /** Verified Firebase uid. Resolve to users.id before using it as a data key. */
   userId: string;
   email: string | null;
   emailVerified: boolean;
   isAuthenticated: boolean;
+}
+
+type RequestWithAuth = Request & { __auth?: AuthResult };
+
+function requestAuth(request: Request): AuthResult | undefined {
+  return (request as RequestWithAuth).__auth;
 }
 
 export async function authMiddleware(request: Request, env: Env): Promise<AuthResult> {
@@ -35,7 +42,11 @@ export async function authMiddleware(request: Request, env: Env): Promise<AuthRe
 }
 
 export async function requireAuth(request: Request, env: Env): Promise<string> {
-  const auth = await authMiddleware(request, env);
+  // The Worker entry point has already verified the bearer token. Reuse that
+  // result so every protected handler does not repeat JWT parsing, certificate
+  // lookup and WebCrypto verification. Direct handler tests still fall back to
+  // normal middleware verification because they bypass the entry point.
+  const auth = requestAuth(request) ?? (await authMiddleware(request, env));
 
   if (!auth.isAuthenticated) {
     throw new Error("AUTH_required");
@@ -80,7 +91,7 @@ export async function requireAuth(request: Request, env: Env): Promise<string> {
 }
 
 export async function optionalAuth(request: Request, env: Env): Promise<string | null> {
-  const auth = await authMiddleware(request, env);
+  const auth = requestAuth(request) ?? (await authMiddleware(request, env));
   return auth.isAuthenticated ? auth.userId : null;
 }
 

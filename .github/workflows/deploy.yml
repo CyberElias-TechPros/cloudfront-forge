@@ -3,38 +3,84 @@ name: Deploy
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A second main push must not race D1 migrations or promote an older frontend.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
 
 jobs:
   deploy-backend:
+    name: Migrate and deploy Worker
     runs-on: ubuntu-latest
+    environment: Production
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - run: cd workers/api && npm i
-      - run: cd workers/api && npx tsc --noEmit
-      - run: cd workers/api && npm test
-      - uses: cloudflare/wrangler-action@v3
+          node-version: 22
+          cache: npm
+          cache-dependency-path: workers/api/package-lock.json
+      - name: Install Worker dependencies
+        working-directory: workers/api
+        run: npm ci
+      - name: Typecheck Worker
+        working-directory: workers/api
+        run: npm run typecheck
+      - name: Test Worker and migrations
+        working-directory: workers/api
+        run: npm test
+
+      # Migrations are deliberately before code deployment. The Worker may rely
+      # on additive schema, while an additive schema may safely precede code.
+      - name: Apply production D1 migrations
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: "workers/api"
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: workers/api
+          command: d1 migrations apply creatorloop-db --remote
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: workers/api
+          command: deploy --env=""
+
+      - name: Verify Worker readiness
+        run: |
+          curl --fail --show-error --silent \
+            --retry 5 --retry-all-errors --retry-delay 3 \
+            https://creatorloop-api.autumn-surf-21ec.workers.dev/ready
 
   deploy-frontend:
+    name: Build and deploy Vercel frontend
+    needs: deploy-backend
     runs-on: ubuntu-latest
+    environment: Production
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - run: npm i
-      - run: npm run build
-      - uses: amondnet/vercel-action@v25
+          node-version: 22
+          cache: npm
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Test frontend
+        run: npm test
+      - name: Build static frontend
+        run: npm run build
+      - name: Deploy production frontend
+        uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: --prod
           working-directory: ./

@@ -50,7 +50,7 @@ workers/api/             Cloudflare Worker
   src/lib/               database, xp, scoring, audit, sanitize, push, quests…
   src/middleware/        auth + RBAC (admin & moderator tiers), rate limiting, error envelope
   migrations/            001…036, applied in filename order
-  tests/                 282 behavioural tests over a real SQLite database
+  tests/                 284 behavioural tests over a real SQLite database
 vercel.json              Static SPA deployment + caching + security headers
 ```
 
@@ -66,7 +66,8 @@ vercel.json              Static SPA deployment + caching + security headers
 | root          | `npm run lint`                                         | ESLint (frontend + worker)                         |
 | root          | `npm test`                                             | Frontend unit tests (Vitest)                       |
 | `workers/api` | `npm run dev`                                          | `wrangler dev`                                     |
-| `workers/api` | `npm run deploy` / `deploy:staging`                    | Deploy production / staging                        |
+| `workers/api` | `npm run release` / `release:staging`                  | Migrate D1, then deploy production / staging       |
+| `workers/api` | `npm run deploy` / `deploy:staging`                    | Code-only deploy (preview/rollback automation)     |
 | `workers/api` | `npm run db:migrate:local` / `:staging` / `db:migrate` | Apply D1 migrations                                |
 | `workers/api` | `npm test`                                             | Worker tests (Vitest + in-memory SQLite)           |
 | `workers/api` | `npm run typecheck`                                    | `tsc --noEmit`                                     |
@@ -82,7 +83,7 @@ otherwise, so CI on Node 20 stays green.
 
 ```sh
 npm test                 # frontend: api client, hooks, repo hygiene
-cd workers/api && npm test   # 282 tests across 36 files
+cd workers/api && npm test   # 284 tests across 36 files
 ```
 
 The worker tests are behavioural, not mock theatre: `tests/helpers/test-env.ts`

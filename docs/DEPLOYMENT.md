@@ -116,13 +116,16 @@ npx wrangler d1 migrations apply creatorloop-db --remote
 ```
 
 Migration files are the source of truth and are applied in filename order
-(`migrations/001_*.sql` … `030_*.sql`). `wrangler.toml` intentionally has **no**
+(`migrations/001_*.sql` … `036_*.sql`). `wrangler.toml` intentionally has **no**
 `[[migrations]]` tags — a hand-maintained tag list drifted out of sync with the
-directory and silently skipped files.
+directory and silently skipped files. Cloudflare tracks the full filename, so
+the two historical `004_*.sql` files are distinct and must not be renamed.
 
 `030_seed_missions.sql` seeds the starter mission catalogue with
 `INSERT OR IGNORE`, so it is safe on an existing database and gives a fresh
-install a populated Missions screen.
+install a populated Missions screen. Migrations 031–036 add account/community
+lifecycle, join/support flows and review recovery state; current Worker code
+must not be deployed against a database that stops at 030.
 
 ---
 
@@ -132,20 +135,41 @@ install a populated Missions screen.
 cd workers/api
 npm ci
 npm run lint
-npx tsc --noEmit
+npm run typecheck
 npm test
 
-npx wrangler deploy                 # production
+npm run release                     # migrate production D1, then deploy
 # or
-npm run deploy:staging              # wrangler deploy --env staging
+npm run release:staging             # migrate staging D1, then deploy
 ```
 
-Verify:
+Never use a code-only `wrangler deploy` for production. Additive D1 migrations
+must land first; otherwise code that reads a new column can make every
+authenticated request fail. The GitHub deployment workflow enforces the same
+order and serializes production runs.
+
+Verify liveness **and** dependency/schema readiness:
 
 ```sh
 curl https://<worker-host>/health
 # {"status":"ok","environment":"production","timestamp":"..."}
+
+curl --fail https://<worker-host>/ready
+# {"success":true,"data":{"status":"ready","schemaVersion":"036",...}}
 ```
+
+`/health` deliberately stays healthy during a bad configuration so uptime
+monitoring can distinguish a live process from a ready service. Deployment
+promotion must gate on `/ready`.
+
+> **One deployment owner:** disable Cloudflare Workers Builds' direct Git
+> auto-deploy for this service when GitHub Actions owns production. A code-only
+> Cloudflare Git build bypasses the migration gate and can recreate schema drift.
+> If Workers Builds remains the owner instead, use separate production and
+> preview configurations: production must run `npm run release` from
+> `workers/api`, while previews use the code-only `npm run deploy`. Never run a
+> remote production migration from a pull-request preview. Disable the duplicate
+> GitHub backend deploy when Workers Builds owns production.
 
 Tail logs with `npm run tail` (`wrangler tail`).
 
@@ -249,10 +273,20 @@ tokens are rejected (the frontend dev-auth flow 401s on every call) and
 
 ---
 
-## 9. CI
+## 9. CI/CD
 
-GitHub Actions (`.github/workflows/ci.yml`) lint, typecheck, test and build both
-packages. See [`CI_WORKFLOW_UPDATE.md`](./CI_WORKFLOW_UPDATE.md): the workflow
-files still need a one-time manual update to Node 22 and to run the frontend
-test job — the App used for automation is not permitted to change files under
-`.github/workflows/`.
+GitHub Actions (`.github/workflows/ci.yml`) use Node 22 and reproducible
+`npm ci` installs to lint, typecheck, test and build both packages. The
+production workflow:
+
+1. runs Worker typechecking and the behavioural/migration suite,
+2. applies D1 migrations,
+3. deploys the Worker,
+4. requires `/ready` to return 200,
+5. tests/builds the frontend, then promotes it to Vercel production.
+
+Configure repository or `Production` environment secrets
+`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `VERCEL_TOKEN`,
+`VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`. The Cloudflare credential must be a
+scoped API token (Workers Scripts + D1 edit for this account), never a Global
+API key.

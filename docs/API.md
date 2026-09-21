@@ -12,8 +12,9 @@ Two non-versioned endpoints live outside this table:
 | Method | Path | Purpose |
 | ------ | ---- | ------- |
 | `GET` | `/health` | Liveness probe. Answers even when required secrets are missing, so a misconfigured deploy is distinguishable from a dead one. |
+| `GET` | `/ready` | Deployment/readiness probe. Returns 200 only when required environment and the current D1 schema (through migration 036) are available. |
 
-Every route is authenticated unless it is `/health` — including
+Every route is authenticated unless it is `/health` or `/ready` — including
 `/auth/register`, which creates or syncs the *caller's* row from the verified
 Firebase ID token and ignores any client-supplied `firebaseUid`. Admin routes
 additionally require an `admin` or `super_admin` row in `admin_users`. All

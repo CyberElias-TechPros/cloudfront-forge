@@ -50,10 +50,14 @@ export function SiteHeader() {
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { user, loading, signIn, signOut } = useAuth();
-  const { data: member } = useCurrentMember();
-  const { data: permissionsData } = useUserPermissions();
-  const { data: unreadCount = 0 } = useUnreadNotificationCount();
+  const { user, profile, loading, signIn, signOut } = useAuth();
+  // Header data is private. Keep all three queries disabled until Firebase and
+  // the API member bootstrap have both completed; mounting the public header
+  // used to fire anonymous requests before sign-in had settled.
+  const memberReady = !loading && !!user && !!profile;
+  const { data: member } = useCurrentMember(memberReady);
+  const { data: permissionsData } = useUserPermissions(memberReady);
+  const { data: unreadCount = 0 } = useUnreadNotificationCount(memberReady);
   const isAdmin = permissionsData?.role === "admin" || permissionsData?.role === "super_admin";
   const visibleGroups = navGroups
     .map((g) => ({ ...g, links: g.links.filter((l) => l.to !== "/admin" || isAdmin) }))

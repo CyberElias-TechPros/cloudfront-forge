@@ -644,14 +644,16 @@ export function useNotifications() {
   });
 }
 
-export function useUnreadNotificationCount() {
+export function useUnreadNotificationCount(enabled = true) {
   return useQuery({
     queryKey: [...queryKeys.notifications, "unread-count"],
     queryFn: async () => {
       const data = await apiClientService.notifications.unreadCount();
       return data.total ?? 0;
     },
-    refetchInterval: 60_000,
+    enabled,
+    retry: shouldRetryAuth,
+    refetchInterval: enabled ? 60_000 : false,
   });
 }
 
@@ -767,7 +769,7 @@ function currentMemberFromApi(m: CurrentMember): Member {
   };
 }
 
-export function useCurrentMember() {
+export function useCurrentMember(enabled = true) {
   return useQuery({
     queryKey: ["users", "me", "member"],
     queryFn: async (): Promise<Member> => {
@@ -775,7 +777,7 @@ export function useCurrentMember() {
       return currentMemberFromApi(data);
     },
     retry: shouldRetryAuth,
-    enabled: typeof window !== "undefined" && !!localStorage.getItem("authToken"),
+    enabled,
   });
 }
 
@@ -802,14 +804,14 @@ export function useCollaborators(intent: string) {
   });
 }
 
-export function useUserPermissions() {
+export function useUserPermissions(enabled = true) {
   return useQuery({
     queryKey: queryKeys.userPermissions,
     queryFn: async (): Promise<UserPermissions> => {
       return await apiClientService.auth.permissions();
     },
     retry: shouldRetryAuth,
-    enabled: typeof window !== "undefined" && !!localStorage.getItem("authToken"),
+    enabled,
   });
 }
 

@@ -3,8 +3,8 @@
 Updated 2026-09-16. This document records the audit question "what is missing
 so the app completely works for every user story?", the gaps found, and what
 was implemented to close each one. Everything listed as *implemented* is
-covered by the automated suites (frontend 3 files / 19 tests; worker 36 files /
-282 tests).
+covered by the automated suites (frontend 3 files / 21 tests; worker 36 files /
+284 tests).
 
 ---
 

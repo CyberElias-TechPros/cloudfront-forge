@@ -58,6 +58,13 @@ describe("api client", () => {
     expect(result).toEqual({ deleted: true });
   });
 
+  it("accepts valid falsy response data", async () => {
+    mockApiClient.get.mockResolvedValue({ data: { success: true, data: false } });
+
+    const { api } = await import("@/lib/api");
+    await expect(api.get<boolean>("/feature-flag")).resolves.toBe(false);
+  });
+
   it("throws on unsuccessful response", async () => {
     const mockData = { success: false, data: null };
     mockApiClient.get.mockResolvedValue({ data: mockData });

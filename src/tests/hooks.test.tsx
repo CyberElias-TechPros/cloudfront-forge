@@ -2,7 +2,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { useCommunities, useMissions, useMyProfile } from "@/hooks/use-api";
+import {
+  useCommunities,
+  useCurrentMember,
+  useMissions,
+  useMyProfile,
+  useUnreadNotificationCount,
+  useUserPermissions,
+} from "@/hooks/use-api";
 import { apiClientService } from "@/lib/api-client";
 
 // Only the transport is stubbed: the hooks, React Query and the mapping helpers
@@ -15,7 +22,9 @@ vi.mock("@/lib/api-client", async (importOriginal) => {
   const stub = {
     communities: { list: vi.fn() },
     missions: { list: vi.fn() },
-    users: { profile: vi.fn() },
+    users: { profile: vi.fn(), member: vi.fn() },
+    auth: { permissions: vi.fn() },
+    notifications: { unreadCount: vi.fn() },
   };
   return { ...actual, apiClientService: stub, default: stub };
 });
@@ -23,7 +32,9 @@ vi.mock("@/lib/api-client", async (importOriginal) => {
 const service = apiClientService as unknown as {
   communities: { list: ReturnType<typeof vi.fn> };
   missions: { list: ReturnType<typeof vi.fn> };
-  users: { profile: ReturnType<typeof vi.fn> };
+  users: { profile: ReturnType<typeof vi.fn>; member: ReturnType<typeof vi.fn> };
+  auth: { permissions: ReturnType<typeof vi.fn> };
+  notifications: { unreadCount: ReturnType<typeof vi.fn> };
 };
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -68,5 +79,18 @@ describe("data hooks", () => {
     const { result } = renderHook(() => useMyProfile(), { wrapper });
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error).toBeInstanceOf(Error);
+  });
+
+  it("keeps header queries dormant until member bootstrap is complete", () => {
+    const member = renderHook(() => useCurrentMember(false), { wrapper });
+    const permissions = renderHook(() => useUserPermissions(false), { wrapper });
+    const notifications = renderHook(() => useUnreadNotificationCount(false), { wrapper });
+
+    expect(member.result.current.fetchStatus).toBe("idle");
+    expect(permissions.result.current.fetchStatus).toBe("idle");
+    expect(notifications.result.current.fetchStatus).toBe("idle");
+    expect(service.users.member).not.toHaveBeenCalled();
+    expect(service.auth.permissions).not.toHaveBeenCalled();
+    expect(service.notifications.unreadCount).not.toHaveBeenCalled();
   });
 });

@@ -39,7 +39,7 @@ describe("worker entry point", () => {
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
   });
 
-  it("reports a missing secret as a 500 instead of silently misbehaving", async () => {
+  it("reports a missing secret as a 503 instead of silently misbehaving", async () => {
     vi.resetModules();
     const fresh = (await import("../src/index")).default;
     const bare = createTestEnv();
@@ -48,6 +48,22 @@ describe("worker entry point", () => {
     expect(response.status).toBe(503);
     const body = await json(response);
     expect(body.error?.code).toBe("MISSING_ENV");
+  });
+
+  it("reports ready only after the current D1 schema is present", async () => {
+    const response = await call(env, "/ready");
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: { status: string; schemaVersion: string };
+    };
+    expect(body.data).toMatchObject({ status: "ready", schemaVersion: "036" });
+  });
+
+  it("fails readiness when a required migration object is missing", async () => {
+    env.sqlite.exec("DROP TABLE support_requests");
+    const response = await call(env, "/ready");
+    expect(response.status).toBe(503);
+    expect((await json(response)).error?.code).toBe("NOT_READY");
   });
 
   it("answers preflight requests", async () => {
