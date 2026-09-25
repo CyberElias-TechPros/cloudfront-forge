@@ -3,6 +3,7 @@ import { createResponse, createErrorResponse } from "../middleware/errorHandler"
 import { requireAuth, requireModerator } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { notifyUserPush } from "../lib/push";
+import { notify } from "../lib/notify";
 import { z } from "zod";
 import { sanitize } from "../lib/sanitize";
 
@@ -303,33 +304,23 @@ export const reportRoutes: RouteDefinition[] = [
             );
           }
 
-          await db.execute(
-            "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'APPEAL_ACCEPTED', 'Appeal accepted', ?, ?)",
-            [
-              crypto.randomUUID(),
-              (appeal as any).user_id,
-              "Your appeal was accepted. Any penalty from the report has been reversed.",
-              now,
-            ],
-          );
-          await notifyUserPush(
-            env,
-            (appeal as any).user_id,
-            "Appeal accepted",
-            "Your appeal was accepted and the penalty reversed.",
-          );
+          await notify(env, (appeal as any).user_id, {
+            type: "APPEAL_ACCEPTED",
+            title: "Appeal accepted",
+            message: "Your appeal was accepted. Any penalty from the report has been reversed.",
+            category: "moderation",
+            url: "/profile",
+          });
         } else {
-          await db.execute(
-            "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'APPEAL_REJECTED', 'Appeal declined', ?, ?)",
-            [
-              crypto.randomUUID(),
-              (appeal as any).user_id,
-              parsed.data.note
-                ? `Your appeal was declined: ${sanitize(parsed.data.note)}`
-                : "Your appeal was declined",
-              now,
-            ],
-          );
+          await notify(env, (appeal as any).user_id, {
+            type: "APPEAL_REJECTED",
+            title: "Appeal declined",
+            message: parsed.data.note
+              ? `Your appeal was declined: ${sanitize(parsed.data.note)}`
+              : "Your appeal was declined",
+            category: "moderation",
+            url: "/profile",
+          });
         }
 
         return createResponse({ message: `Appeal ${parsed.data.status}` });

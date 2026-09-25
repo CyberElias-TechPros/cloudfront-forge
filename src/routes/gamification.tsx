@@ -34,6 +34,7 @@ import {
   useMyTopups,
   useRequestTopup,
   useUploadTopupProof,
+  useReputation,
 } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -72,6 +73,7 @@ function Gamification() {
   const { data: streaks, isLoading: streaksLoading, isError: streaksError } = useStreaks();
   const { data: leaderboard = [], isLoading: lbLoading, isError: lbError } = useLeaderboard();
   const { data: badges = [], isLoading: badgesLoading, isError: badgesError } = useBadges();
+  const { data: reputation, isError: reputationError } = useReputation();
   const { data: member, isLoading: memberLoading, isError: memberError } = useCurrentMember();
   const { data: activity = [], isLoading: activityLoading, isError: activityError } = useActivity();
 
@@ -230,6 +232,61 @@ function Gamification() {
                   </span>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Trust &amp; reputation</CardTitle>
+              <CardDescription>
+                {reputationError
+                  ? "Reputation history is unavailable right now."
+                  : `Trust score ${reputation?.score ?? currentUser.trustScore}% — built by completing reviews, watching honestly, and keeping reports clean.`}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {(reputation?.events?.length ?? 0) === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No reputation events yet. Complete reviews and watch squad videos to start
+                  building trust.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {(reputation?.events ?? []).slice(0, 8).map((event, index) => {
+                    const change = Number(event.pointsChange ?? event.points_change ?? 0);
+                    const when = event.createdAt ?? event.created_at;
+                    return (
+                      <li
+                        key={(event.id ?? event.eventType ?? event.event_type ?? "event") + index}
+                        className="flex items-start justify-between gap-3 rounded-lg border border-border bg-secondary/40 px-3 py-2"
+                      >
+                        <div>
+                          <p className="text-sm">
+                            {event.description ??
+                              String(event.eventType ?? event.event_type ?? "Reputation event")}
+                          </p>
+                          {when ? (
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {new Date(when).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </p>
+                          ) : null}
+                        </div>
+                        <span
+                          className={cn(
+                            "shrink-0 text-sm font-semibold tabular-nums",
+                            change >= 0 ? "text-success" : "text-destructive",
+                          )}
+                        >
+                          {change >= 0 ? `+${change}` : change}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </CardContent>
           </Card>
 

@@ -261,7 +261,8 @@ export const notificationRoutes: RouteDefinition[] = [
              (id, user_id, email_enabled, push_enabled, whatsapp_enabled, in_app_enabled, 
               mission_reminders, review_requests, community_updates, quiet_hours_start, quiet_hours_end,
               created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(user_id) DO NOTHING`,
             [
               crypto.randomUUID(),
               userId,

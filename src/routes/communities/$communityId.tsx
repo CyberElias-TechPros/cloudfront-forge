@@ -14,6 +14,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader, Shell } from "@/components/page-parts";
+import { MemberProfileDialog } from "@/components/member-profile-dialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -61,6 +62,8 @@ function CommunityDetail() {
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
+  const [profileTarget, setProfileTarget] = useState<{ id: string; name: string } | null>(null);
+  const [rulesDraft, setRulesDraft] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -90,6 +93,8 @@ function CommunityDetail() {
   }
 
   const community = detail.community;
+  const activeRules = rulesDraft ?? community.rules ?? "";
+
   const settings = community.settings ?? {
     allowPeerReview: true,
     allowCollaboration: true,
@@ -199,6 +204,25 @@ function CommunityDetail() {
       />
 
       <div className="mt-6 space-y-6">
+        <section className="surface p-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-3xl">Squad rules</h2>
+            <Link to="/rules" className="text-xs font-medium text-accent hover:underline">
+              Platform rules
+            </Link>
+          </div>
+          {community.rules ? (
+            <div className="mt-3 space-y-1.5 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+              {community.rules}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-muted-foreground">
+              This squad follows the platform defaults. The owner can add squad-specific rules in
+              settings.
+            </p>
+          )}
+        </section>
+
         {isManager && (requests?.length ?? 0) > 0 && (
           <section className="surface p-6">
             <div className="mb-4 flex items-center justify-between">
@@ -294,7 +318,14 @@ function CommunityDetail() {
                       <span className="grid size-8 place-items-center rounded-full bg-secondary text-xs font-semibold">
                         {m.avatar}
                       </span>
-                      <p className="font-medium">{m.name}</p>
+                      <button
+                        type="button"
+                        onClick={() => setProfileTarget({ id: m.id, name: m.name })}
+                        className="font-medium hover:text-accent hover:underline"
+                        title={`View ${m.name}'s profile`}
+                      >
+                        {m.name}
+                      </button>
                     </div>
                   </td>
                   <td className="p-4">
@@ -389,6 +420,51 @@ function CommunityDetail() {
                   <Switch
                     checked={settings.requireApproval}
                     onCheckedChange={(v) => handleSetting("requireApproval", v)}
+                  />
+                </div>
+
+                <div className="rounded-lg border border-border bg-secondary/40 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">Squad rules</p>
+                      <p className="text-xs text-muted-foreground">
+                        Shown at the top of this page for every member. Leave empty to fall back to
+                        the platform rules.
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      disabled={
+                        updateSettings.isPending ||
+                        (rulesDraft ?? community.rules ?? "") === (community.rules ?? "")
+                      }
+                      onClick={() =>
+                        updateSettings.mutate(
+                          { communityId, settings: { rules: rulesDraft ?? "" } },
+                          {
+                            onSuccess: () => toast.success("Squad rules saved"),
+                            onError: (error) =>
+                              toast.error(
+                                error instanceof Error
+                                  ? error.message
+                                  : "Could not save squad rules",
+                              ),
+                          },
+                        )
+                      }
+                    >
+                      {updateSettings.isPending ? "Saving..." : "Save rules"}
+                    </Button>
+                  </div>
+                  <textarea
+                    value={activeRules}
+                    onChange={(e) => setRulesDraft(e.target.value)}
+                    rows={6}
+                    maxLength={5000}
+                    placeholder={
+                      "1. Watch before you comment\n2. Feedback over self-promo\n3. No sub4sub"
+                    }
+                    className="mt-3 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   />
                 </div>
               </div>
@@ -557,6 +633,14 @@ function CommunityDetail() {
             </div>
           </div>
         </div>
+      )}
+
+      {profileTarget && (
+        <MemberProfileDialog
+          userId={profileTarget.id}
+          displayName={profileTarget.name}
+          onClose={() => setProfileTarget(null)}
+        />
       )}
     </Shell>
   );

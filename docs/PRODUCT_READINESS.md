@@ -1,6 +1,6 @@
 # LoopSquad product readiness
 
-Updated 2026-09-16. This document describes the product as it exists in the
+Updated 2026-09-25. This document describes the product as it exists in the
 repository, the end-to-end happy paths, and the operational work that must be
 completed before a real launch.
 
@@ -134,12 +134,12 @@ trust, links, competition, and search-engine decisions.
 
 ## Verification status
 
-The repository's automated suites were run on 2026-09-21:
+The repository's automated suites were run on 2026-09-25:
 
-- Frontend: `npm run typecheck`, `npm test` (21 tests / 3 files), and
+- Frontend: `npm run typecheck`, `npm test` (26 tests / 4 files), and
   `npm run build` — passed.
 - Worker: `npm --prefix workers/api run typecheck`,
-  `npm --prefix workers/api test` — 284 tests passed (36 files), including
+  `npm --prefix workers/api test` — 299 tests passed (37 files), including
   readiness/schema-drift coverage and the lifecycle/moderation suites.
 - Lint: `npm run lint` — passed with existing non-blocking warnings in generated/UI
   component exports and a few test fixtures.

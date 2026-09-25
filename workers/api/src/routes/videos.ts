@@ -2,7 +2,7 @@ import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
 import { Database } from "../lib/database";
-import { notifyUserPush } from "../lib/push";
+import { notify } from "../lib/notify";
 import { progressQuest } from "../lib/quests";
 import { trackEvent } from "../lib/analytics";
 import { awardXp, getXpState, type XpAccountState } from "../lib/xp";
@@ -74,14 +74,6 @@ async function notifyCommunityMembers(db: Database, communityId: string, type: s
   if (statements.length > 0) {
     await db.batch(statements);
   }
-}
-
-async function notifyUser(db: Database, userId: string, type: string, title: string, message: string): Promise<void> {
-  const now = new Date().toISOString();
-  await db.execute(
-    "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-    [db.uuid(), userId, type, title, message, now],
-  );
 }
 
 export const videoRoutes: RouteDefinition[] = [
@@ -310,17 +302,13 @@ export const videoRoutes: RouteDefinition[] = [
              VALUES (?, ?, ?, ?, 'assigned', ?, ?)`,
             [crypto.randomUUID(), videoId, (reviewer as any).id, userId, nowISO, nowISO],
           );
-          await db.execute(
-            `INSERT INTO notifications (id, user_id, type, title, message, created_at)
-             VALUES (?, ?, 'REVIEW_ASSIGNED', 'New Review Assigned', ?, ?)`,
-            [
-              crypto.randomUUID(),
-              (reviewer as any).id,
-              `A new video "${finalTitle}" needs your review.`,
-              nowISO,
-            ],
-          );
-          await notifyUserPush(env, (reviewer as any).id, "New Review Assigned", `A new video "${finalTitle}" needs your review.`);
+          await notify(env, (reviewer as any).id, {
+            type: "REVIEW_ASSIGNED",
+            title: "New Review Assigned",
+            message: `A new video "${finalTitle}" needs your review.`,
+            category: "review",
+            url: "/reviews",
+          });
         }
 
         return createResponse({
@@ -615,13 +603,13 @@ export const reviewRoutes: RouteDefinition[] = [
         );
 
         if (review) {
-          await notifyUser(
-            db,
-            review.submitter_id,
-            "REVIEW_STARTED",
-            "Review Started",
-            "A review of your video has been started.",
-          );
+          await notify(env, review.submitter_id, {
+            type: "REVIEW_STARTED",
+            title: "Review Started",
+            message: "A review of your video has been started.",
+            category: "social",
+            url: `/reviews/${reviewId}`,
+          });
         }
 
         return createResponse({ message: "Review started" });
@@ -745,21 +733,13 @@ export const reviewRoutes: RouteDefinition[] = [
             );
 
             // Notify the video owner
-            await db.execute(
-              "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'REVIEW_COMPLETED', 'Review Completed', ?, ?)",
-              [
-                crypto.randomUUID(),
-                submitterId,
-                `Your video received a completed review${computedScore ? ` with a score of ${computedScore}/5` : ""}.`,
-                now,
-              ],
-            );
-            await notifyUserPush(
-              env,
-              submitterId,
-              "Review Completed",
-              `Your video received a completed review${computedScore ? ` with a score of ${computedScore}/5` : ""}.`,
-            );
+            await notify(env, submitterId, {
+              type: "REVIEW_COMPLETED",
+              title: "Review Completed",
+              message: `Your video received a completed review${computedScore ? ` with a score of ${computedScore}/5` : ""}.`,
+              category: "social",
+              url: `/reviews/${reviewId}`,
+            });
           }
         }
 

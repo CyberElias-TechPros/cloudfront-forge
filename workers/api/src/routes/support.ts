@@ -3,7 +3,7 @@ import { createResponse, createErrorResponse } from "../middleware/errorHandler"
 import { requireAuth, requireModerator } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { recordAudit } from "../lib/audit";
-import { notifyUserPush } from "../lib/push";
+import { notify } from "../lib/notify";
 import { sendEmail } from "../lib/email";
 import { z } from "zod";
 import { sanitize } from "../lib/sanitize";
@@ -53,23 +53,18 @@ export const supportRoutes: RouteDefinition[] = [
         const admins = await db.query(
           "SELECT user_id FROM admin_users WHERE role IN ('super_admin', 'admin')",
         );
+        const adminTitle = "Support request";
+        const adminMessage = `New ${parsed.data.topic} support request from ${requester?.display_name ?? "a member"}`;
         for (const admin of admins.results as Array<{ user_id: string }>) {
-          await db.execute(
-            "INSERT INTO notifications (id, user_id, type, title, message, data, created_at) VALUES (?, ?, 'SUPPORT_REQUEST', 'Support request', ?, ?, ?)",
-            [
-              db.uuid(),
-              admin.user_id,
-              `New ${parsed.data.topic} support request from ${requester?.display_name ?? "a member"}`,
-              JSON.stringify({ supportId: id }),
-              now,
-            ],
-          );
-          await notifyUserPush(
-            env,
-            admin.user_id,
-            "Support request",
-            `New ${parsed.data.topic} request from ${requester?.display_name ?? "a member"}`,
-          );
+          await notify(env, admin.user_id, {
+            type: "SUPPORT_REQUEST",
+            title: adminTitle,
+            message: adminMessage,
+            category: "support",
+            data: { supportId: id },
+            url: "/admin",
+            emailSubject: `New support request: ${parsed.data.topic}`,
+          });
         }
 
         if (requester?.email) {
@@ -147,16 +142,14 @@ export const supportRoutes: RouteDefinition[] = [
           supportId,
         ]);
         if (req?.user_id) {
-          await db.execute(
-            "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'SUPPORT_RESOLVED', 'Support request resolved', 'Your support request has been resolved. Reply by submitting a new request if you still need help.', ?)",
-            [db.uuid(), req.user_id, now],
-          );
-          await notifyUserPush(
-            env,
-            req.user_id,
-            "Support request resolved",
-            "Your support request has been resolved.",
-          );
+          await notify(env, req.user_id, {
+            type: "SUPPORT_RESOLVED",
+            title: "Support request resolved",
+            message:
+              "Your support request has been resolved. Reply by submitting a new request if you still need help.",
+            category: "support",
+            url: "/support",
+          });
         }
 
         await recordAudit(

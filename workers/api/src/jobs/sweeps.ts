@@ -1,6 +1,6 @@
 import { Database } from "../lib/database";
 import type { Env } from "../types";
-import { notifyUserPush } from "../lib/push";
+import { notify } from "../lib/notify";
 
 /**
  * Mark mission assignments expired after 7 days still in assigned/in_progress.
@@ -110,14 +110,21 @@ export async function recoverOverdueReviews(env: Env): Promise<number> {
     overdue_notified: number | null;
   }>) {
     if (!review.overdue_notified) {
-      await db.execute(
-        "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'REVIEW_OVERDUE', 'Review overdue', 'A review assigned to you is more than 48 hours overdue and will be reassigned.', ?)",
-        [crypto.randomUUID(), review.reviewer_id, now],
-      );
-      await db.execute(
-        "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'REVIEW_OVERDUE', 'Review overdue', 'The review of your video is overdue — we are finding a new reviewer.', ?)",
-        [crypto.randomUUID(), review.submitter_id, now],
-      );
+      await notify(env, review.reviewer_id, {
+        type: "REVIEW_OVERDUE",
+        title: "Review overdue",
+        message:
+          "A review assigned to you is more than 48 hours overdue and will be reassigned.",
+        category: "review",
+        url: "/reviews",
+      });
+      await notify(env, review.submitter_id, {
+        type: "REVIEW_OVERDUE",
+        title: "Review overdue",
+        message: "The review of your video is overdue — we are finding a new reviewer.",
+        category: "social",
+        url: "/reviews",
+      });
       await db.execute("UPDATE reviews SET overdue_notified = 1, updated_at = ? WHERE id = ?", [
         now,
         review.id,
@@ -150,16 +157,14 @@ export async function recoverOverdueReviews(env: Env): Promise<number> {
         WHERE id = ? AND status = 'overdue'`,
       [candidate.user_id, now, now, review.id],
     );
-    await db.execute(
-      "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'REVIEW_ASSIGNED', 'New review assigned', 'A review was reassigned to you after the previous reviewer missed the deadline.', ?)",
-      [crypto.randomUUID(), candidate.user_id, now],
-    );
-    await notifyUserPush(
-      env,
-      candidate.user_id,
-      "New review assigned",
-      "A review was reassigned to you — please complete it within 48 hours.",
-    );
+    await notify(env, candidate.user_id, {
+      type: "REVIEW_ASSIGNED",
+      title: "New review assigned",
+      message:
+        "A review was reassigned to you after the previous reviewer missed the deadline.",
+      category: "review",
+      url: "/reviews",
+    });
     processed++;
   }
 

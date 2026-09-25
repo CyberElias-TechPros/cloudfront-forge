@@ -62,7 +62,7 @@ const sections = [
   {
     icon: ScrollText,
     title: "Disputes",
-    body: "Any member can dispute a flag once per week. Two admins plus one random high-trust member review it and the decision is posted publicly in the activity feed.",
+    body: "Anyone flagged can appeal from their profile. A moderator or admin reviews it: accepting the appeal dismisses the report, reverses the trust penalty, restores a removed video, and notifies you.",
   },
 ];
 
@@ -72,7 +72,7 @@ function Rules() {
       <PageHeader
         eyebrow="Squad constitution · Platform-wide"
         title="Fairness rules"
-        description="These platform rules apply to all squads. Per-community custom rules are coming soon — for now every community uses these defaults."
+        description="These platform rules always apply. Each squad can also publish its own rules on its community page — open a community to read them, or edit them if you own it."
       />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">

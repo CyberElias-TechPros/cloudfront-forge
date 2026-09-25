@@ -24,6 +24,9 @@ import {
   useSuspendUser,
   useReinstateUser,
   useSetUserRole,
+  useAdminCommunities,
+  useCreateMission,
+  useCreateMissionChain,
 } from "@/hooks/use-api";
 import { ErrorNotice } from "@/components/common/query-state";
 
@@ -730,7 +733,467 @@ function Admin() {
           </div>
         </section>
       )}
+
+      {/* Communities overview (admin tier only) */}
+      {isAdmin && <AdminCommunitiesPanel />}
+
+      {/* Mission authoring (admin tier only) */}
+      {isAdmin && <AdminMissionsPanel />}
     </Shell>
+  );
+}
+
+function AdminCommunitiesPanel() {
+  const [filter, setFilter] = useState<"all" | "active" | "archived">("all");
+  const communitiesQuery = useAdminCommunities(filter === "all" ? undefined : filter);
+  const rows = communitiesQuery.data?.items ?? [];
+
+  return (
+    <section className="surface mt-6 p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-3xl">Communities</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {communitiesQuery.data
+              ? `${communitiesQuery.data.total} communit${communitiesQuery.data.total === 1 ? "y" : "ies"} on the platform`
+              : "Every squad, its owner and size at a glance."}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {(["all", "active", "archived"] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFilter(f)}
+              className={cn(
+                "rounded-md border px-3 py-1.5 text-xs font-semibold capitalize",
+                filter === f
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-muted-foreground",
+              )}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {communitiesQuery.isError ? (
+        <ErrorNotice
+          error={communitiesQuery.error}
+          onRetry={() => void communitiesQuery.refetch()}
+          className="mt-4"
+        >
+          Could not load communities
+        </ErrorNotice>
+      ) : communitiesQuery.isLoading ? (
+        <p className="mt-4 text-sm text-muted-foreground">Loading communities…</p>
+      ) : rows.length === 0 ? (
+        <p className="mt-4 text-sm text-muted-foreground">No communities match this filter.</p>
+      ) : (
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
+                <th className="p-3">Community</th>
+                <th className="p-3">Owner</th>
+                <th className="p-3 text-right">Members</th>
+                <th className="p-3">Visibility</th>
+                <th className="p-3">Status</th>
+                <th className="p-3">Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((c) => (
+                <tr key={c.id} className="border-b border-border/60 last:border-0">
+                  <td className="p-3">
+                    <p className="font-medium">{c.name}</p>
+                    {c.description ? (
+                      <p className="mt-0.5 max-w-xs truncate text-xs text-muted-foreground">
+                        {c.description}
+                      </p>
+                    ) : null}
+                  </td>
+                  <td className="p-3 text-muted-foreground">{c.ownerName ?? "—"}</td>
+                  <td className="p-3 text-right tabular-nums">{c.memberCount}</td>
+                  <td className="p-3 text-xs text-muted-foreground">
+                    {c.isPublic ? "Public" : "Invite only"}
+                  </td>
+                  <td className="p-3">
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-xs font-semibold",
+                        c.status === "active"
+                          ? "bg-success/15 text-success"
+                          : "bg-secondary text-muted-foreground",
+                      )}
+                    >
+                      {c.status}
+                    </span>
+                  </td>
+                  <td className="p-3 text-xs text-muted-foreground">
+                    {new Date(c.createdAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+const DIFFICULTIES = ["easy", "medium", "hard"] as const;
+type Difficulty = (typeof DIFFICULTIES)[number];
+
+function AdminMissionsPanel() {
+  const createMission = useCreateMission();
+  const createChain = useCreateMissionChain();
+
+  const [mission, setMission] = useState({
+    title: "",
+    description: "",
+    difficulty: "medium" as Difficulty,
+    xpReward: 25,
+    creditReward: 10,
+    timeEstimateMinutes: 15,
+  });
+  const [chain, setChain] = useState({
+    niche: "",
+    steps: [
+      {
+        title: "",
+        description: "",
+        difficulty: "easy" as Difficulty,
+        xpReward: 15,
+        creditReward: 5,
+      },
+      {
+        title: "",
+        description: "",
+        difficulty: "medium" as Difficulty,
+        xpReward: 25,
+        creditReward: 10,
+      },
+    ],
+  });
+
+  const inputClass =
+    "mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
+  const submitMission = () => {
+    if (mission.title.trim().length < 5) {
+      toast.error("Mission title needs at least 5 characters");
+      return;
+    }
+    createMission.mutate(
+      { ...mission, title: mission.title.trim(), description: mission.description.trim() },
+      {
+        onSuccess: () => {
+          toast.success("Mission created — it is live in the mission catalogue");
+          setMission((prev) => ({ ...prev, title: "", description: "" }));
+        },
+        onError: (e: unknown) => toast.error(e instanceof Error ? e.message : String(e)),
+      },
+    );
+  };
+
+  const submitChain = () => {
+    if (chain.niche.trim().length < 2) {
+      toast.error("Give the chain a niche (e.g. Tech reviews)");
+      return;
+    }
+    if (chain.steps.some((step) => step.title.trim().length < 5)) {
+      toast.error("Every step needs a title of at least 5 characters");
+      return;
+    }
+    createChain.mutate(
+      {
+        niche: chain.niche.trim(),
+        steps: chain.steps.map((step) => ({ ...step, title: step.title.trim() })),
+      },
+      {
+        onSuccess: (data) => {
+          toast.success(`Chain created with ${data.steps} steps`);
+          setChain((prev) => ({
+            niche: "",
+            steps: prev.steps.map((step) => ({ ...step, title: "", description: "" })),
+          }));
+        },
+        onError: (e: unknown) => toast.error(e instanceof Error ? e.message : String(e)),
+      },
+    );
+  };
+
+  const stepFields = (step: (typeof chain.steps)[number], index: number) => (
+    <div key={index} className="rounded-lg border border-border bg-secondary/40 p-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Step {index + 1}
+        </p>
+        {chain.steps.length > 2 ? (
+          <button
+            type="button"
+            className="text-xs font-medium text-destructive hover:underline"
+            onClick={() =>
+              setChain((prev) => ({ ...prev, steps: prev.steps.filter((_, i) => i !== index) }))
+            }
+          >
+            Remove
+          </button>
+        ) : null}
+      </div>
+      <input
+        value={step.title}
+        placeholder={`Step ${index + 1} title (min 5 chars)`}
+        maxLength={200}
+        onChange={(e) =>
+          setChain((prev) => ({
+            ...prev,
+            steps: prev.steps.map((s, i) => (i === index ? { ...s, title: e.target.value } : s)),
+          }))
+        }
+        className={inputClass}
+      />
+      <textarea
+        value={step.description}
+        placeholder="What the member should do"
+        rows={2}
+        maxLength={1000}
+        onChange={(e) =>
+          setChain((prev) => ({
+            ...prev,
+            steps: prev.steps.map((s, i) =>
+              i === index ? { ...s, description: e.target.value } : s,
+            ),
+          }))
+        }
+        className={inputClass}
+      />
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        <label className="text-xs text-muted-foreground">
+          Difficulty
+          <select
+            value={step.difficulty}
+            onChange={(e) =>
+              setChain((prev) => ({
+                ...prev,
+                steps: prev.steps.map((s, i) =>
+                  i === index ? { ...s, difficulty: e.target.value as Difficulty } : s,
+                ),
+              }))
+            }
+            className={inputClass}
+          >
+            {DIFFICULTIES.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-xs text-muted-foreground">
+          XP
+          <input
+            type="number"
+            min={0}
+            value={step.xpReward}
+            onChange={(e) =>
+              setChain((prev) => ({
+                ...prev,
+                steps: prev.steps.map((s, i) =>
+                  i === index ? { ...s, xpReward: Math.max(0, Number(e.target.value) || 0) } : s,
+                ),
+              }))
+            }
+            className={inputClass}
+          />
+        </label>
+        <label className="text-xs text-muted-foreground">
+          Credits
+          <input
+            type="number"
+            min={0}
+            value={step.creditReward}
+            onChange={(e) =>
+              setChain((prev) => ({
+                ...prev,
+                steps: prev.steps.map((s, i) =>
+                  i === index
+                    ? { ...s, creditReward: Math.max(0, Number(e.target.value) || 0) }
+                    : s,
+                ),
+              }))
+            }
+            className={inputClass}
+          />
+        </label>
+      </div>
+    </div>
+  );
+
+  return (
+    <section className="surface mt-6 p-6">
+      <h2 className="text-3xl">Mission authoring</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Publish one-off missions or a 2–5 step chain. Both go live in the catalogue immediately and
+        are recorded in the audit log.
+      </p>
+
+      <div className="mt-5 grid gap-6 lg:grid-cols-2">
+        <div className="rounded-lg border border-border bg-card p-4">
+          <h3 className="text-lg font-semibold">Single mission</h3>
+          <div className="mt-3 space-y-3">
+            <label className="block text-xs font-medium text-muted-foreground">
+              Title
+              <input
+                value={mission.title}
+                maxLength={200}
+                placeholder="Comment on 3 squad videos"
+                onChange={(e) => setMission((prev) => ({ ...prev, title: e.target.value }))}
+                className={inputClass}
+              />
+            </label>
+            <label className="block text-xs font-medium text-muted-foreground">
+              Description
+              <textarea
+                value={mission.description}
+                rows={3}
+                maxLength={1000}
+                placeholder="Leave a thoughtful comment on three videos from your community."
+                onChange={(e) => setMission((prev) => ({ ...prev, description: e.target.value }))}
+                className={inputClass}
+              />
+            </label>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <label className="text-xs text-muted-foreground">
+                Difficulty
+                <select
+                  value={mission.difficulty}
+                  onChange={(e) =>
+                    setMission((prev) => ({ ...prev, difficulty: e.target.value as Difficulty }))
+                  }
+                  className={inputClass}
+                >
+                  {DIFFICULTIES.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs text-muted-foreground">
+                XP
+                <input
+                  type="number"
+                  min={0}
+                  value={mission.xpReward}
+                  onChange={(e) =>
+                    setMission((prev) => ({
+                      ...prev,
+                      xpReward: Math.max(0, Number(e.target.value) || 0),
+                    }))
+                  }
+                  className={inputClass}
+                />
+              </label>
+              <label className="text-xs text-muted-foreground">
+                Credits
+                <input
+                  type="number"
+                  min={0}
+                  value={mission.creditReward}
+                  onChange={(e) =>
+                    setMission((prev) => ({
+                      ...prev,
+                      creditReward: Math.max(0, Number(e.target.value) || 0),
+                    }))
+                  }
+                  className={inputClass}
+                />
+              </label>
+              <label className="text-xs text-muted-foreground">
+                Minutes
+                <input
+                  type="number"
+                  min={1}
+                  max={300}
+                  value={mission.timeEstimateMinutes}
+                  onChange={(e) =>
+                    setMission((prev) => ({
+                      ...prev,
+                      timeEstimateMinutes: Math.min(300, Math.max(1, Number(e.target.value) || 15)),
+                    }))
+                  }
+                  className={inputClass}
+                />
+              </label>
+            </div>
+            <button
+              type="button"
+              onClick={submitMission}
+              disabled={createMission.isPending}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              {createMission.isPending ? "Publishing…" : "Publish mission"}
+            </button>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-card p-4">
+          <h3 className="text-lg font-semibold">Mission chain</h3>
+          <label className="mt-3 block text-xs font-medium text-muted-foreground">
+            Niche prefix
+            <input
+              value={chain.niche}
+              maxLength={50}
+              placeholder="Tech reviews"
+              onChange={(e) => setChain((prev) => ({ ...prev, niche: e.target.value }))}
+              className={inputClass}
+            />
+          </label>
+          <div className="mt-3 space-y-3">
+            {chain.steps.map(stepFields)}
+            {chain.steps.length < 5 ? (
+              <button
+                type="button"
+                className="w-full rounded-lg border border-dashed border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:border-primary hover:text-foreground"
+                onClick={() =>
+                  setChain((prev) => ({
+                    ...prev,
+                    steps: [
+                      ...prev.steps,
+                      {
+                        title: "",
+                        description: "",
+                        difficulty: "medium" as Difficulty,
+                        xpReward: 25,
+                        creditReward: 10,
+                      },
+                    ],
+                  }))
+                }
+              >
+                + Add step (2–5 steps)
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={submitChain}
+              disabled={createChain.isPending}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              {createChain.isPending ? "Creating…" : "Create chain"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

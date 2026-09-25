@@ -1,10 +1,11 @@
 # Completeness audit & the loops that were closed
 
-Updated 2026-09-16. This document records the audit question "what is missing
+Updated 2026-09-25. This document records the audit question "what is missing
 so the app completely works for every user story?", the gaps found, and what
 was implemented to close each one. Everything listed as *implemented* is
-covered by the automated suites (frontend 3 files / 21 tests; worker 36 files /
-284 tests).
+covered by the automated suites (frontend 4 files / 26 tests; worker 37 files /
+299 tests). The first audit (2026-09-16) found G1–G18; a full second pass on
+2026-09-25 found G19–G31 and closed them the same day (see below).
 
 ---
 
@@ -126,3 +127,81 @@ covered by the automated suites (frontend 3 files / 21 tests; worker 36 files /
 6. **Exit**: member leaves communities at will; owners archive communities;
    creators archive videos; anyone deletes their account and is blocked
    everywhere immediately.
+
+---
+
+## Second-pass audit (2026-09-25)
+
+A full re-audit of every route file, hook, page and business rule — checking
+that frontend call sites match backend routes, that cross-cutting policies
+(preferences, privacy, rewards, notifications) actually fire, and that no UI
+control is a dead end — found 13 further gaps. All were closed the same day.
+
+| # | Area | Gap | User story it broke |
+| - | ---- | --- | ------------------- |
+| G19 | Notifications | Backend emitted almost nothing (3 call sites); preferences (`email_enabled`/`push_enabled`/quiet hours) were never read; no welcome email | "Tell me when something needs me" — notifications, money, SLA |
+| G20 | Money | Top-up approval/rejection never told the creator | "Did my payment go through?" |
+| G21 | Review SLA | Overdue/reassignment cron ran silently — neither the delinquent reviewer nor the submitter was told | Fair, transparent review rotation |
+| G22 | Rewards | Completing every step of a mission never sent the promised XP/credits | "Missions actually pay out" |
+| G23 | Privacy | `GET /users/:id` ignored the `users.public_profile` flag (the flag only gated the richer `/profile/public` route); FE settings had no toggle and no page used the public-profile hook | "Only my squad should see my details" |
+| G24 | Communities | No per-community squad rules existed anywhere, yet `/rules` claimed "community-specific rules shown on each community page" | Onboarding/expectations for squads |
+| G25 | Admin | `GET /admin/communities` didn't exist; admin page had dead "view all" links and no way to seed missions/quests | Running the platform day-to-day |
+| G26 | Notifications (FE) | No per-item delete, no empty state, no "nothing needs you" story | Manageable inbox |
+| G27 | Theme | Dark-only despite a themed design system; `/settings` promised hints that didn't exist | "Light mode, please" |
+| G28 | Profile (FE) | Backend supported display-name/photo/bio/visibility edits but no UI existed (sibling gap of G13); member names/cards were dead ends | Own your identity, discover squad members |
+| G29 | Reputation (FE) | Trust/reward ledger was server-only — members could not see why points changed | "Why did my trust score move?" |
+| G30 | Rules (FE) | Dispute-appeal copy on `/rules` promised things the flow doesn't do (public decisions, once-per-week) | Honest expectations about moderation |
+| G31 | Onboarding | No first-session orientation beyond G15's dashboard next-actions; profile starts empty with no nudge | First 10 minutes of a new account |
+
+### What was implemented (second pass)
+
+**Backend (migration 037, `lib/notify.ts`, routes 110 → 110 with 2 rewrites):**
+
+- **Central fan-out** (`src/lib/notify.ts`): `notify(env, user_id, event_type,
+  …)` is the single entry point — reads the member's `notification_preferences`
+  row (in-app always, email gated by `EMAIL_ENABLED` + category, push gated by
+  `PUSH_ENABLED` with quiet hours), inserts the in-app row, enqueues Web Push,
+  and sends email through `sendEmail` which now honours `EMAIL_FROM` and
+  absolutises CTA links against `SITE_URL`. New module tests cover every gate.
+- **Welcome email** (`middleware/auth.ts`): first authenticated request claims
+  `users.welcome_sent_at` and sends a warm-start email — only when `SITE_URL`
+  is configured and exactly once.
+- **All money/SLA/reward/moderation events now notify**: top-up approve/reject,
+  support submit/resolve fan-out, video assigned/started/completed, overdue +
+  reassignment sweeps, mission assignment, report appeals, watch-session
+  claims, admin suspend/reinstate/role changes — with `email_enabled` /
+  `push_enabled` honoured (local duplicate `notifyUser` helpers removed).
+- **Mission completion rewards**: `POST /missions/:id/complete` claims a
+  conditional `completed_at` first (idempotent), then grants tier XP/credits.
+- **Privacy enforced at the right gate**: `GET /users/:id` returns `profile:
+  null` for other users when `public_profile = 0`.
+- **Per-community rules**: `communities.rules` (037) with
+  `sanitizeMultiline()` (control chars, 5 000 cap), owner-only
+  `PUT /communities/:id/settings { rules }`, returned from detail.
+- **Preferences hardening**: dedupe + partial unique index on
+  `notification_preferences(user_id)` (037), `ON CONFLICT DO NOTHING` on PUT.
+- **Admin**: `GET /admin/communities` now returns member counts, owner names,
+  status and pagination (replaces the bare id/status list).
+- `SITE_URL` documented in `.env.example` and added to `wrangler.toml [vars]`.
+
+**Frontend:**
+
+- **Theme**: `src/lib/theme.ts` (preference `dark|light|system`, default
+  dark), a fail-safe inline boot script in `__root.tsx` (applies the class
+  before first paint), `.light` token overrides cascading through the
+  `@theme inline` bridge, and a radiogroup in `/settings`.
+- **Profile editing**: `ProfileEditDialog` on `/profile` (display name, photo,
+  bio, goals, audience, visibility) wired to `users.updateProfile`.
+- **Notification inbox**: per-item delete, empty state, stagger animation.
+- **Gamification**: "Trust & reputation" card on `/gamification` from
+  `GET /reputation`.
+- **Admin**: communities panel (search, status filter, pagination, seeded via
+  the rewritten endpoint) and a mission designer (single mission or 2–5 step
+  chain).
+- **Member profiles**: `MemberProfileDialog` opened from community member
+  cards; private profiles render a friendly explanation, not an error.
+- **Squad rules**: `/rules` links correctly; community page shows rules to
+  everyone and lets the owner edit them inline (validated, unsaved-changes
+  guard); dispute copy corrected to the real appeal flow.
+- **Settings**: public-profile switch finally toggles `users.public_profile`.
+- Tests: `src/tests/theme.test.ts` added (26 FE tests total).

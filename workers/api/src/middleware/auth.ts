@@ -2,6 +2,7 @@ import type { Env } from "../types";
 import { Database } from "../lib/database";
 import { verifyFirebaseToken } from "../services/firebase";
 import { createLogger } from "../lib/logger";
+import { maybeSendWelcomeEmail } from "../lib/notify";
 
 export interface AuthResult {
   /** Verified Firebase uid. Resolve to users.id before using it as a data key. */
@@ -80,6 +81,10 @@ export async function requireAuth(request: Request, env: Env): Promise<string> {
       // new device login.
       throw new Error("FORBIDDEN");
     }
+    // First login ever: the claim-then-send helper makes the welcome email
+    // exactly-once even when two devices race the insert. Runs only on the
+    // request that created the row, so nothing is paid on later sign-ins.
+    await maybeSendWelcomeEmail(env, user.id);
   } else {
     await db.execute("UPDATE users SET last_active = ? WHERE firebase_uid = ?", [
       new Date().toISOString(),

@@ -4,6 +4,7 @@ import { createResponse, createErrorResponse } from "../middleware/errorHandler"
 import { requireAuth, requireAdmin } from "../middleware/auth";
 import { recordAudit } from "../lib/audit";
 import { Database, DatabaseError } from "../lib/database";
+import { notify } from "../lib/notify";
 
 // Payout account for naira point purchases (bank transfer).
 export const NGN_BANK_DETAILS = {
@@ -434,21 +435,21 @@ export const topupRoutes: RouteDefinition[] = [
               now,
             ],
           },
-          {
-            sql: `INSERT INTO notifications
-                  (id, user_id, type, title, message, created_at)
-                  VALUES (?, ?, 'TOPUP_APPROVED', 'Top-up approved', ?, ?)`,
-            params: [
-              db.uuid(),
-              topup.user_id,
-              `Your \u20a6${topup.ngn_amount.toLocaleString()} transfer was verified — ${topup.credits_amount} credits added.`,
-              now,
-            ],
-          },
         ]);
         if (!batchOk) {
           throw new Error("Failed to credit approved top-up");
         }
+
+        // Money events fan out through the central notify service: in-app,
+        // push and (because the category is `money`) an email — all gated by
+        // the member's preferences.
+        await notify(env, topup.user_id, {
+          type: "TOPUP_APPROVED",
+          title: "Top-up approved",
+          message: `Your \u20a6${topup.ngn_amount.toLocaleString()} transfer was verified — ${topup.credits_amount} credits added.`,
+          category: "money",
+          url: "/gamification",
+        });
 
         await recordAudit(
           db,
@@ -531,18 +532,15 @@ export const topupRoutes: RouteDefinition[] = [
           env,
         );
 
-        await db.execute(
-          `INSERT INTO notifications (id, user_id, type, title, message, created_at)
-           VALUES (?, ?, 'TOPUP_REJECTED', 'Top-up rejected', ?, ?)`,
-          [
-            db.uuid(),
-            topup.user_id,
-            reason
-              ? `Your \u20a6${topup.ngn_amount.toLocaleString()} top-up was not credited: ${reason}`
-              : `Your \u20a6${topup.ngn_amount.toLocaleString()} top-up was not credited. Please contact support.`,
-            now,
-          ],
-        );
+        await notify(env, topup.user_id, {
+          type: "TOPUP_REJECTED",
+          title: "Top-up rejected",
+          message: reason
+            ? `Your \u20a6${topup.ngn_amount.toLocaleString()} top-up was not credited: ${reason}`
+            : `Your \u20a6${topup.ngn_amount.toLocaleString()} top-up was not credited. Please contact support.`,
+          category: "money",
+          url: "/support",
+        });
 
         return createResponse({ message: "Top-up rejected" });
       } catch (error: any) {

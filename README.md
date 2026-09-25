@@ -49,8 +49,8 @@ workers/api/             Cloudflare Worker
   src/routes/index.ts    The single routing table (110 routes)
   src/lib/               database, xp, scoring, audit, sanitize, push, quests…
   src/middleware/        auth + RBAC (admin & moderator tiers), rate limiting, error envelope
-  migrations/            001…036, applied in filename order
-  tests/                 284 behavioural tests over a real SQLite database
+  migrations/            001…037, applied in filename order
+  tests/                 299 behavioural tests over a real SQLite database
 vercel.json              Static SPA deployment + caching + security headers
 ```
 
@@ -82,8 +82,8 @@ otherwise, so CI on Node 20 stays green.
 ## Testing
 
 ```sh
-npm test                 # frontend: api client, hooks, repo hygiene
-cd workers/api && npm test   # 284 tests across 36 files
+npm test                 # frontend: api client, hooks, theme, repo hygiene
+cd workers/api && npm test   # 299 tests across 37 files
 ```
 
 The worker tests are behavioural, not mock theatre: `tests/helpers/test-env.ts`

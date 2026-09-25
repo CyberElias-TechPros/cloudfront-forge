@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CheckCheck } from "lucide-react";
+import { CheckCheck, X } from "lucide-react";
 import { PageHeader, Shell } from "@/components/page-parts";
 import {
   useNotifications,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
+  useDeleteNotification,
 } from "@/hooks/use-api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ function Notifications() {
   const { data: notifications = [], isLoading, isError, error, refetch } = useNotifications();
   const markAll = useMarkAllNotificationsRead();
   const markOne = useMarkNotificationRead();
+  const removeOne = useDeleteNotification();
 
   const unread = notifications.filter((n) => !n.isRead);
 
@@ -63,36 +65,53 @@ function Notifications() {
           </div>
         )}
         {notifications.map((n) => (
-          <button
+          <div
             key={n.id}
-            type="button"
-            onClick={() => {
-              if (!n.isRead) markOne.mutate(n.id);
-            }}
             className={cn(
-              "w-full rounded-lg border p-4 text-left transition-colors",
+              "group relative rounded-lg border p-4 transition-colors",
               n.isRead
                 ? "border-border bg-card opacity-70 hover:bg-secondary/40"
                 : "border-accent/40 bg-accent/5 hover:bg-accent/10",
             )}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className={cn("text-sm", n.isRead ? "font-normal" : "font-semibold")}>
-                  {n.title}
-                </p>
-                <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>
+            <button
+              type="button"
+              onClick={() => {
+                if (!n.isRead) markOne.mutate(n.id);
+              }}
+              className="block w-full pr-8 text-left"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className={cn("text-sm", n.isRead ? "font-normal" : "font-semibold")}>
+                    {n.title}
+                  </p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>
+                </div>
+                {!n.isRead && (
+                  <span
+                    className="mt-1 size-2 shrink-0 rounded-full bg-accent"
+                    aria-label="unread"
+                  />
+                )}
               </div>
-              {!n.isRead && (
-                <span className="mt-1 size-2 shrink-0 rounded-full bg-accent" aria-label="unread" />
+              {n.createdAt && (
+                <p className="mt-1 text-xs text-muted-foreground/70">
+                  {new Date(n.createdAt).toLocaleString()}
+                </p>
               )}
-            </div>
-            {n.createdAt && (
-              <p className="mt-1 text-xs text-muted-foreground/70">
-                {new Date(n.createdAt).toLocaleString()}
-              </p>
-            )}
-          </button>
+            </button>
+            <button
+              type="button"
+              aria-label="Delete notification"
+              title="Delete notification"
+              onClick={() => removeOne.mutate(n.id)}
+              disabled={removeOne.isPending}
+              className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-secondary hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-50"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
         ))}
       </div>
     </Shell>
