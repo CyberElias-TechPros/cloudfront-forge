@@ -313,3 +313,20 @@ Configure repository or `Production` environment secrets
 `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`. The Cloudflare credential must be a
 scoped API token (Workers Scripts + D1 edit for this account), never a Global
 API key.
+
+### Cloudflare Workers Builds and `bun.lock`
+
+Workers Builds detects the root `bun.lock` and installs with
+`bun install --frozen-lockfile` (bun 1.2.15). If dependencies change through
+npm, `bun.lock` goes stale and **every Worker build fails before deploying**
+("lockfile had changes, but lockfile is frozen"). After any dependency change:
+
+```sh
+npm install <pkg>          # updates package-lock.json
+npm run lockfile:bun       # regenerates bun.lock from it (bun 1.2.15 format)
+```
+
+CI's `bun-lockfile` job fails a pull request whose `bun.lock` is out of sync.
+Recommended Workers Builds settings: **Root directory** `workers/api` (so the
+build installs only the Worker's dependencies) and **Deploy command**
+`npm run release` (migrate D1, then deploy).
