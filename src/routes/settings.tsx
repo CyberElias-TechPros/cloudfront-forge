@@ -13,10 +13,13 @@ import {
   useNotificationPreferences,
   useUpdateNotificationPreferences,
   useDeleteAccount,
+  useMyProfile,
+  useUpdateProfile,
 } from "@/hooks/use-api";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { usePushSubscription } from "@/hooks/use-push";
+import { getThemePreference, setThemePreference, type ThemePreference } from "@/lib/theme";
 
 export const Route = createFileRoute("/settings")({
   validateSearch: (search: Record<string, unknown>): { youtube?: string; reason?: string } => {
@@ -53,6 +56,9 @@ function Settings() {
   const updatePreferences = useUpdateNotificationPreferences();
   const deleteAccount = useDeleteAccount();
   const { signOut } = useAuth();
+  const { data: myProfile } = useMyProfile();
+  const updateProfile = useUpdateProfile();
+  const [themePref, setThemePref] = useState<ThemePreference>(() => getThemePreference());
 
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -333,25 +339,68 @@ function Settings() {
             </CardTitle>
             <CardDescription>Account and display preferences.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
+          <CardContent className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-medium">Dark mode</p>
-                <p className="text-xs text-muted-foreground">Use dark theme across the app</p>
+                <p className="text-sm font-medium">Appearance</p>
+                <p className="text-xs text-muted-foreground">
+                  Dark, light, or follow your device setting
+                </p>
               </div>
-              <Switch
-                checked={true}
-                onCheckedChange={() => toast.info("Dark mode setting coming soon")}
-              />
+              <div
+                className="inline-flex rounded-lg border border-border bg-muted/40 p-1"
+                role="radiogroup"
+                aria-label="Theme"
+              >
+                {(["system", "dark", "light"] as const).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    role="radio"
+                    aria-checked={themePref === option}
+                    onClick={() => {
+                      setThemePref(option);
+                      setThemePreference(option);
+                    }}
+                    className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                      themePref === option
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">Public profile</p>
-                <p className="text-xs text-muted-foreground">Allow others to see your profile</p>
+                <p className="text-xs text-muted-foreground">
+                  Let other members see your bio, niche and goals on your profile card. When off,
+                  only your name and photo stay visible.
+                </p>
               </div>
               <Switch
-                checked={true}
-                onCheckedChange={() => toast.info("Public profile setting coming soon")}
+                checked={myProfile?.profile ? myProfile.profile.publicProfile !== 0 : true}
+                disabled={updateProfile.isPending}
+                onCheckedChange={(checked) => {
+                  updateProfile.mutate(
+                    { publicProfile: checked },
+                    {
+                      onSuccess: () =>
+                        toast.success(
+                          checked
+                            ? "Your profile is visible to other members"
+                            : "Your profile is now hidden — only your name and photo show",
+                        ),
+                      onError: (error) =>
+                        toast.error(
+                          error instanceof Error ? error.message : "Could not update your profile",
+                        ),
+                    },
+                  );
+                }}
               />
             </div>
           </CardContent>

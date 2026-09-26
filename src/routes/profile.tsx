@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Award, Flame, Lock, Settings2, ShieldAlert, Youtube } from "lucide-react";
+import { Award, Flame, Lock, Pencil, Settings2, ShieldAlert, Youtube } from "lucide-react";
 import { useState, useEffect } from "react";
 import { PageHeader, Shell, StatCard } from "@/components/page-parts";
 import {
@@ -15,9 +15,179 @@ import {
   useDisconnectYouTube,
   useMyReports,
   useAppealReport,
+  useUpdateProfile,
 } from "@/hooks/use-api";
+import type { CreatorProfile, ProfileUpdateInput } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+function ProfileEditDialog({
+  displayName,
+  profile,
+  onClose,
+}: {
+  displayName: string;
+  profile: CreatorProfile | null | undefined;
+  onClose: () => void;
+}) {
+  const updateProfile = useUpdateProfile();
+  const [form, setForm] = useState({
+    displayName,
+    bio: profile?.bio ?? "",
+    niche: profile?.niche ?? "",
+    country: profile?.country ?? "",
+    experienceLevel: (profile?.experienceLevel ?? "") as
+      "" | "beginner" | "intermediate" | "advanced",
+    goals: profile?.goals ?? "",
+    lookingFor: (profile?.lookingFor ?? "") as
+      "" | "collaboration" | "feedback" | "support" | "mentorship",
+  });
+
+  const set = (key: keyof typeof form, value: string) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  const handleSubmit = () => {
+    if (!form.displayName.trim()) {
+      toast.error("Display name is required");
+      return;
+    }
+    const payload: ProfileUpdateInput = {
+      displayName: form.displayName.trim(),
+      bio: form.bio,
+      niche: form.niche,
+      country: form.country,
+      goals: form.goals,
+    };
+    if (form.experienceLevel) payload.experienceLevel = form.experienceLevel;
+    if (form.lookingFor) payload.lookingFor = form.lookingFor;
+
+    updateProfile.mutate(payload, {
+      onSuccess: () => {
+        toast.success("Profile updated");
+        onClose();
+      },
+      onError: (error) => {
+        toast.error(error instanceof Error ? error.message : "Could not save your profile");
+      },
+    });
+  };
+
+  const fieldClass =
+    "mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="surface max-h-[85vh] w-full max-w-lg overflow-y-auto p-6">
+        <h3 className="text-xl font-semibold">Edit profile</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          This is what other members see when they open your card. Visibility is controlled in
+          Settings → General.
+        </p>
+
+        <div className="mt-4 space-y-3">
+          <label className="block text-xs font-medium text-muted-foreground">
+            Display name
+            <input
+              value={form.displayName}
+              onChange={(e) => set("displayName", e.target.value)}
+              maxLength={50}
+              className={fieldClass}
+            />
+          </label>
+          <label className="block text-xs font-medium text-muted-foreground">
+            Bio
+            <textarea
+              value={form.bio}
+              onChange={(e) => set("bio", e.target.value)}
+              maxLength={500}
+              rows={3}
+              placeholder="What do you create, and what are you improving?"
+              className={fieldClass}
+            />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-xs font-medium text-muted-foreground">
+              Niche
+              <input
+                value={form.niche}
+                onChange={(e) => set("niche", e.target.value)}
+                maxLength={100}
+                placeholder="Tech, fitness, vlogs…"
+                className={fieldClass}
+              />
+            </label>
+            <label className="block text-xs font-medium text-muted-foreground">
+              Country
+              <input
+                value={form.country}
+                onChange={(e) => set("country", e.target.value)}
+                maxLength={100}
+                placeholder="Where you create"
+                className={fieldClass}
+              />
+            </label>
+            <label className="block text-xs font-medium text-muted-foreground">
+              Experience
+              <select
+                value={form.experienceLevel}
+                onChange={(e) => set("experienceLevel", e.target.value)}
+                className={fieldClass}
+              >
+                <option value="">Prefer not to say</option>
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+              </select>
+            </label>
+            <label className="block text-xs font-medium text-muted-foreground">
+              Looking for
+              <select
+                value={form.lookingFor}
+                onChange={(e) => set("lookingFor", e.target.value)}
+                className={fieldClass}
+              >
+                <option value="">Nothing in particular</option>
+                <option value="collaboration">Collaboration</option>
+                <option value="feedback">Feedback</option>
+                <option value="support">Support</option>
+                <option value="mentorship">Mentorship</option>
+              </select>
+            </label>
+          </div>
+          <label className="block text-xs font-medium text-muted-foreground">
+            Goals
+            <textarea
+              value={form.goals}
+              onChange={(e) => set("goals", e.target.value)}
+              maxLength={500}
+              rows={2}
+              placeholder="What are you working towards this quarter?"
+              className={fieldClass}
+            />
+          </label>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-border px-4 py-2 text-sm font-medium"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={updateProfile.isPending}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {updateProfile.isPending ? "Saving…" : "Save profile"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -51,6 +221,7 @@ function Profile() {
   const disconnectYouTube = useDisconnectYouTube();
 
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   useEffect(() => {
     if (connectYouTube.isSuccess) {
@@ -159,12 +330,21 @@ function Profile() {
         title="Your profile"
         description="Your trust score decides how much of the squad's attention you can receive each week."
         action={
-          <Link
-            to="/settings"
-            className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium"
-          >
-            <Settings2 className="size-4" /> Settings
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowEditDialog(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              <Pencil className="size-4" /> Edit profile
+            </button>
+            <Link
+              to="/settings"
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium"
+            >
+              <Settings2 className="size-4" /> Settings
+            </Link>
+          </div>
         }
       />
 
@@ -204,7 +384,7 @@ function Profile() {
           <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">
             {[
               ["Rank", `#${currentUser.rank}`],
-              ["Niche", currentUser.niche],
+              ["Niche", profile?.profile?.niche || currentUser.niche],
               ["Subs given", String(currentUser.subsGiven)],
               ["Subs received", String(currentUser.subsReceived)],
               ["Watch minutes", String(currentUser.watchMinutes)],
@@ -216,6 +396,39 @@ function Profile() {
               </div>
             ))}
           </dl>
+
+          <div className="mt-6 rounded-lg border border-border bg-secondary/40 p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">About</h3>
+              <button
+                type="button"
+                onClick={() => setShowEditDialog(true)}
+                className="text-xs font-medium text-accent hover:underline"
+              >
+                {profile?.profile?.bio ? "Edit" : "Add bio"}
+              </button>
+            </div>
+            {profile?.profile?.bio ? (
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                {profile.profile.bio}
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-muted-foreground">
+                No bio yet — members connect faster when they know what you create.
+              </p>
+            )}
+            {profile?.profile?.goals ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Goals:</span> {profile.profile.goals}
+              </p>
+            ) : null}
+            {profile?.profile?.lookingFor ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Looking for:</span>{" "}
+                {profile.profile.lookingFor}
+              </p>
+            ) : null}
+          </div>
         </section>
 
         <div className="space-y-6">
@@ -340,6 +553,14 @@ function Profile() {
             </div>
           </div>
         </div>
+      )}
+
+      {showEditDialog && (
+        <ProfileEditDialog
+          displayName={displayName}
+          profile={profile?.profile ?? null}
+          onClose={() => setShowEditDialog(false)}
+        />
       )}
     </Shell>
   );

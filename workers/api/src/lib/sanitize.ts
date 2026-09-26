@@ -16,3 +16,20 @@ export function sanitize(input: string): string {
       .trim()
   );
 }
+
+/**
+ * Same stripping rules as `sanitize`, but line breaks survive — for text that
+ * is written and read as a list (community rules, formatted guidance).
+ * Carriage returns are normalised first so stored text is always separated
+ * by `\n`.
+ */
+export function sanitizeMultiline(input: string): string {
+  return (
+    input
+      .replace(/\r\n?/g, "\n")
+      .replace(/<[^>]*>/g, "")
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\u0000-\u0009\u000B-\u001F\u007F]/g, "")
+      .trim()
+  );
+}

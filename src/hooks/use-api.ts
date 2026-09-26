@@ -29,6 +29,10 @@ import apiClientService, {
   type SupportRequest,
   type CommunitySettingsInput,
   type ReportAgainstMe,
+  type ProfileUpdateInput,
+  type MemberProfileView,
+  type ReputationSummary,
+  type AdminCommunityRow,
 } from "@/lib/api-client";
 
 const queryKeys = {
@@ -1170,6 +1174,90 @@ export function useSetUserRole() {
       apiClientService.admin.setUserRole(userId, role),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+  });
+}
+
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: ProfileUpdateInput) => apiClientService.users.updateProfile(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile });
+    },
+  });
+}
+
+/** Another member's profile (identity + public creator fields). */
+export function useMemberProfile(userId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ["users", userId] as const,
+    queryFn: async (): Promise<MemberProfileView> => {
+      if (!userId) throw new Error("userId is required");
+      return await apiClientService.users.byId(userId);
+    },
+    enabled: enabled && Boolean(userId),
+  });
+}
+
+export function useDeleteNotification() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClientService.notifications.remove(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
+      void queryClient.invalidateQueries({ queryKey: ["notifications", "unread"] });
+    },
+  });
+}
+
+export function useReputation() {
+  return useQuery({
+    queryKey: ["gamification", "reputation"] as const,
+    queryFn: async (): Promise<ReputationSummary> => apiClientService.reputation.get(),
+  });
+}
+
+export function useAdminCommunities(status?: "active" | "archived") {
+  return useQuery({
+    queryKey: ["admin", "communities", status ?? "all"] as const,
+    queryFn: async (): Promise<PaginatedResponse<AdminCommunityRow>> =>
+      apiClientService.admin.communities(status),
+  });
+}
+
+export function useCreateMission() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      title: string;
+      description?: string;
+      difficulty: "easy" | "medium" | "hard";
+      xpReward: number;
+      creditReward: number;
+      timeEstimateMinutes: number;
+    }) => apiClientService.missions.create(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.missions });
+    },
+  });
+}
+
+export function useCreateMissionChain() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      niche: string;
+      steps: Array<{
+        title: string;
+        description: string;
+        difficulty: "easy" | "medium" | "hard";
+        xpReward: number;
+        creditReward: number;
+      }>;
+    }) => apiClientService.missions.createChain(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.missions });
     },
   });
 }

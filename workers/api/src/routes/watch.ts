@@ -10,6 +10,7 @@ import { trackEvent } from "../lib/analytics";
 import { getRewardSplit } from "../lib/rewards";
 import { resolveRequiredWatchSeconds } from "../lib/utils";
 import { awardXp, getXpState, type XpAccountState } from "../lib/xp";
+import { notify } from "../lib/notify";
 
 async function sha256Hex(input: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
@@ -80,14 +81,6 @@ async function verifyYouTubeSubscription(
     logger.error("YouTube subscription verification error", error);
     return { connected: true, subscribed: null, watchVerified, watchSeconds, reason: "YouTube verification failed" };
   }
-}
-
-async function notifyUser(db: Database, userId: string, type: string, title: string, message: string): Promise<void> {
-  const now = new Date().toISOString();
-  await db.execute(
-    "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-    [db.uuid(), userId, type, title, message, now],
-  );
 }
 
 const watchSchema = z.object({
@@ -617,13 +610,13 @@ export const watchRoutes: RouteDefinition[] = [
             await trackEvent(env, "watch_claimed", watcherId, "video", videoId);
 
             if (video.user_id && video.user_id !== watcherId) {
-              await notifyUser(
-                db,
-                video.user_id,
-                "WATCH_SESSION_CLAIMED",
-                "Your video was watched",
-                "Someone completed watching your video and earned rewards.",
-              );
+              await notify(env, video.user_id, {
+                type: "WATCH_SESSION_CLAIMED",
+                title: "Your video was watched",
+                message: "Someone completed watching your video and earned rewards.",
+                category: "social",
+                url: "/reviews",
+              });
             }
           }
         }

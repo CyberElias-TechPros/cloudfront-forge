@@ -1,5 +1,32 @@
 import apiClient from "./api";
 
+export interface CreatorProfile {
+  userId?: string;
+  bio: string | null;
+  country: string | null;
+  language: string | null;
+  experienceLevel: "beginner" | "intermediate" | "advanced" | null;
+  niche: string | null;
+  contentCategories: string | null;
+  goals: string | null;
+  lookingFor: "collaboration" | "feedback" | "support" | "mentorship" | null;
+  /** SQLite boolean: 1/0 (or real booleans after JSON mapping). */
+  publicProfile: boolean | number;
+}
+
+export interface ProfileUpdateInput {
+  displayName?: string;
+  bio?: string;
+  country?: string;
+  language?: string;
+  experienceLevel?: "beginner" | "intermediate" | "advanced";
+  niche?: string;
+  contentCategories?: string;
+  goals?: string;
+  lookingFor?: "collaboration" | "feedback" | "support" | "mentorship";
+  publicProfile?: boolean;
+}
+
 export interface UserProfile {
   id: string;
   firebaseUid: string;
@@ -12,10 +39,47 @@ export interface UserProfile {
   deletedAt: string | null;
   lastActive: string;
   trustScore?: number;
+  /** Present on `GET /users/me/profile`: the editable creator profile. */
+  profile?: CreatorProfile | null;
   /** Only present on admin user listings. */
   status?: "active" | "suspended" | "banned";
   /** Only present on admin user listings. */
   platformRole?: "super_admin" | "admin" | "moderator" | null;
+}
+
+/** `GET /users/:id` — identity always, creator profile only when public. */
+export interface MemberProfileView {
+  id: string;
+  displayName: string | null;
+  photoUrl: string | null;
+  profile: CreatorProfile | null;
+}
+
+export interface ReputationSummary {
+  score: number;
+  events: Array<{
+    id?: string;
+    event_type?: string;
+    eventType?: string;
+    points_change?: number;
+    pointsChange?: number;
+    description?: string | null;
+    created_at?: string;
+    createdAt?: string;
+  }>;
+}
+
+export interface AdminCommunityRow {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  status: "active" | "archived" | string;
+  isPublic: number | boolean;
+  maxMembers: number;
+  createdAt: string;
+  ownerName: string | null;
+  memberCount: number;
 }
 
 export interface Member {
@@ -61,6 +125,8 @@ export interface Community {
     requireApproval: boolean;
     defaultLanguage: string | null;
   };
+  /** Present on the detail endpoint: squad rules, or null for platform defaults. */
+  rules?: string | null;
 }
 
 export interface CommunityMember {
@@ -461,6 +527,8 @@ export interface CommunitySettingsInput {
   allowCollaboration?: boolean;
   requireApproval?: boolean;
   defaultLanguage?: string | null;
+  /** Squad rules (multiline). Empty string clears back to platform defaults. */
+  rules?: string | null;
 }
 
 export const apiClientService = {
@@ -534,6 +602,30 @@ export const apiClientService = {
       ),
     skip: (assignmentId: string) =>
       postData<{ message: string }>(`/api/v1/missions/assignments/${assignmentId}/skip`),
+    create: (data: {
+      title: string;
+      description?: string;
+      difficulty: "easy" | "medium" | "hard";
+      xpReward: number;
+      creditReward: number;
+      timeEstimateMinutes: number;
+      chainId?: string;
+      chainStep?: number;
+    }) => postData<{ message: string; missionId: string }>("/api/v1/missions", data),
+    createChain: (data: {
+      niche: string;
+      steps: Array<{
+        title: string;
+        description: string;
+        difficulty: "easy" | "medium" | "hard";
+        xpReward: number;
+        creditReward: number;
+      }>;
+    }) =>
+      postData<{ message: string; chainId: string; missions: string[]; steps: number }>(
+        "/api/v1/missions/chain",
+        data,
+      ),
   },
 
   videos: {
@@ -599,6 +691,7 @@ export const apiClientService = {
       putData<{ message: string }>("/api/v1/notifications/preferences", data),
     markRead: (id: string) => postData<{ message: string }>(`/api/v1/notifications/${id}/read`),
     markAllRead: () => postData<{ message: string }>("/api/v1/notifications/read-all"),
+    remove: (id: string) => deleteData<{ message: string }>(`/api/v1/notifications/${id}`),
   },
 
   watch: {
@@ -729,8 +822,13 @@ export const apiClientService = {
     profile: () => getData<UserProfile>("/api/v1/users/me/profile"),
     member: () => getData<CurrentMember>("/api/v1/users/me/member"),
     insights: () => getData<CreatorInsights>("/api/v1/users/me/insights"),
-    updateProfile: (data: { displayName?: string; bio?: string; niche?: string }) =>
+    updateProfile: (data: ProfileUpdateInput) =>
       putData<UserProfile>("/api/v1/users/me/profile", data),
+    byId: (userId: string) => getData<MemberProfileView>(`/api/v1/users/${userId}`),
+  },
+
+  reputation: {
+    get: () => getData<ReputationSummary>("/api/v1/reputation"),
   },
 
   discover: {
@@ -756,6 +854,10 @@ export const apiClientService = {
   admin: {
     metrics: () => getData<AdminMetrics>("/api/v1/admin/metrics"),
     users: (status = "active") => getData<UserProfile[]>(`/api/v1/admin/users?status=${status}`),
+    communities: (status?: "active" | "archived") =>
+      getData<PaginatedResponse<AdminCommunityRow>>(
+        `/api/v1/admin/communities${status ? `?status=${status}` : ""}`,
+      ),
     reports: (status = "pending") =>
       getData<AdminReport[]>(`/api/v1/admin/reports?status=${status}`),
     resolveReport: (

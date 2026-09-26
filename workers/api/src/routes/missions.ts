@@ -4,6 +4,7 @@ import { requireAuth, requireAdmin } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { awardXp } from "../lib/xp";
 import { recordAudit } from "../lib/audit";
+import { notify } from "../lib/notify";
 import { z } from "zod";
 
 function getPagination(request: Request): { limit: number; offset: number } {
@@ -183,13 +184,13 @@ export const missionRoutes: RouteDefinition[] = [
         );
 
         if (mission) {
-          await notifyUser(
-            db,
-            userId,
-            "MISSION_ASSIGNED",
-            "New Mission Assigned",
-            `You have been assigned the mission "${mission.title}".`,
-          );
+          await notify(env, userId, {
+            type: "MISSION_ASSIGNED",
+            title: "New Mission Assigned",
+            message: `You have been assigned the mission "${mission.title}".`,
+            category: "mission",
+            url: "/missions",
+          });
         }
 
         return createResponse({ message: "Mission assigned" });
@@ -493,11 +494,3 @@ export const missionRoutes: RouteDefinition[] = [
     },
   },
 ];
-
-async function notifyUser(db: Database, userId: string, type: string, title: string, message: string): Promise<void> {
-  const now = new Date().toISOString();
-  await db.execute(
-    "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-    [db.uuid(), userId, type, title, message, now],
-  );
-}

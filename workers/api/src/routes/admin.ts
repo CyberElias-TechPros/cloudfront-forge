@@ -3,6 +3,7 @@ import { createResponse, createErrorResponse } from "../middleware/errorHandler"
 import { requireAdmin, requireModerator } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { recordAudit } from "../lib/audit";
+import { notify } from "../lib/notify";
 import { z } from "zod";
 
 const suspendSchema = z.object({
@@ -141,16 +142,39 @@ export const adminRoutes: RouteDefinition[] = [
       try {
         await requireAdmin(request, env);
         const db = new Database(env);
+        const { searchParams } = new URL(request.url);
+        const status = searchParams.get("status"); // active | archived | (anything else = all)
+        const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "50", 10)));
+        const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10));
 
+        const where =
+          status === "active" || status === "archived" ? "WHERE c.status = ?" : "";
+        const whereParams = where ? [status] : [];
+
+        const totalRow = await db.querySingle(
+          `SELECT COUNT(*) as count FROM communities c ${where}`,
+          whereParams,
+        );
         const result = await db.query(
-          `SELECT c.*, u.display_name as owner_name 
-           FROM communities c 
-           LEFT JOIN users u ON c.owner_id = u.id 
-           WHERE c.created_at >= datetime('now', '-30 days')
-           ORDER BY c.created_at DESC`,
+          `SELECT c.id, c.name, c.slug, c.description, c.status, c.is_public,
+                  c.max_members, c.created_at,
+                  u.display_name as owner_name,
+                  (SELECT COUNT(*) FROM community_members m
+                    WHERE m.community_id = c.id AND m.status = 'active') as member_count
+             FROM communities c
+             LEFT JOIN users u ON c.owner_id = u.id
+             ${where}
+             ORDER BY c.created_at DESC
+             LIMIT ? OFFSET ?`,
+          [...whereParams, limit, offset],
         );
 
-        return createResponse(result.results);
+        return createResponse({
+          items: result.results,
+          total: totalRow?.count ?? 0,
+          limit,
+          offset,
+        });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
@@ -405,17 +429,15 @@ export const adminRoutes: RouteDefinition[] = [
           return createErrorResponse("CONFLICT", "User can no longer be suspended", 409);
         }
 
-        await db.execute(
-          "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'ACCOUNT_SUSPENDED', 'Account suspended', ?, ?)",
-          [
-            db.uuid(),
-            targetId,
-            parsed.data.reason
-              ? `Your account was suspended: ${parsed.data.reason}`
-              : "Your account was suspended by a moderator",
-            now,
-          ],
-        );
+        await notify(env, targetId, {
+          type: "ACCOUNT_SUSPENDED",
+          title: "Account suspended",
+          message: parsed.data.reason
+            ? `Your account was suspended: ${parsed.data.reason}`
+            : "Your account was suspended by a moderator",
+          category: "moderation",
+          url: "/support",
+        });
         await recordAudit(
           db,
           {
@@ -455,10 +477,13 @@ export const adminRoutes: RouteDefinition[] = [
           return createErrorResponse("CONFLICT", "User is not suspended", 409);
         }
 
-        await db.execute(
-          "INSERT INTO notifications (id, user_id, type, title, message, created_at) VALUES (?, ?, 'ACCOUNT_REINSTATED', 'Account reinstated', 'Your account has been reinstated. Welcome back.', ?)",
-          [db.uuid(), targetId, now],
-        );
+        await notify(env, targetId, {
+          type: "ACCOUNT_REINSTATED",
+          title: "Account reinstated",
+          message: "Your account has been reinstated. Welcome back.",
+          category: "moderation",
+          url: "/dashboard",
+        });
         await recordAudit(
           db,
           { actorId: adminId, action: "user.reinstate", resourceType: "user", resourceId: targetId, request },
@@ -542,6 +567,17 @@ export const adminRoutes: RouteDefinition[] = [
           },
           env,
         );
+
+        await notify(env, targetId, {
+          type: "ROLE_CHANGED",
+          title: parsed.data.role ? "Platform role updated" : "Platform role removed",
+          message: parsed.data.role
+            ? `Your platform role is now ${parsed.data.role}. You will find the new tools in the admin console.`
+            : "Your platform moderator/admin role has been removed.",
+          category: "account",
+          url: parsed.data.role ? "/admin" : "/dashboard",
+        });
+
         return createResponse({
           message: parsed.data.role ? `Role set to ${parsed.data.role}` : "Platform role removed",
         });

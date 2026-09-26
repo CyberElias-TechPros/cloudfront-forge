@@ -55,11 +55,17 @@ export const userRoutes: RouteDefinition[] = [
           userIdParam,
         ]);
 
+        // `public_profile = 0` means "not for other members": the bio, niche,
+        // goals and looking-for fields stay private and only the identity
+        // (name/photo) is shared. No profile row yet is a fresh member whose
+        // profile defaults to public — there is simply nothing to show.
+        const isPrivate = Boolean(profile) && profile.public_profile === 0;
+
         return createResponse({
           id: user.id,
           displayName: user.display_name,
           photoUrl: user.photo_url,
-          profile: profile,
+          profile: isPrivate ? null : profile,
         });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {

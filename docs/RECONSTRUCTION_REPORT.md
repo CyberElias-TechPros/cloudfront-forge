@@ -564,8 +564,15 @@ the suite runs unchanged on Node 20 and Node 22. **Both paths were executed:
 5. **No load testing or end-to-end browser testing** was performed — only the
    unit/integration suites in §13. The behaviour under concurrency beyond two
    parallel requests is argued from the SQL guards, not measured.
+   *Update 2026-09-25: end-to-end browser testing now exists —
+   `npm run test:e2e` (Playwright, 6 smoke flows over sign-in, dashboard,
+   notifications, profile editing, theme). Load/concurrency testing is still
+   not performed.*
 6. **No D1 point-in-time restore procedure is documented.** Cloudflare's
    time-travel restore exists but is not scripted here.
+   *Update 2026-09-25: closed — `docs/D1_RESTORE.md` documents the full
+   runbook (bookmark resolution, restore, schema reconciliation, undo,
+   post-restore checklist, quarterly drill).*
 7. **Moderator access to `/api/v1/admin/metrics`** is exercised by the
    authorization tests but not asserted per-route; the role matrix should be
    pinned down once the product decides what moderators may see.

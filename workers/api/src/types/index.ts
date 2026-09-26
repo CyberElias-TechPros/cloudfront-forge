@@ -38,6 +38,10 @@ export interface Env {
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   RESEND_API_KEY?: string;
+  /** Verified Resend sender ("Name <onboarding@resend.dev>"). Optional. */
+  EMAIL_FROM?: string;
+  /** Deployed SPA origin (https://…) used to absolutise email links. Optional. */
+  SITE_URL?: string;
 }
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";

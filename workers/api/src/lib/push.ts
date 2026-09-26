@@ -131,13 +131,16 @@ export async function notifyUserPush(env: Env, userId: string, title: string, bo
     const db = new Database(env);
     const logger = createLogger(env);
 
-    // Quiet hours: check user preference (UTC hours 0-23)
+    // Preferences first: the "push notifications" toggle in Settings must
+    // actually stop delivery, and quiet hours must hold it until office hours
+    // are irrelevant — a suppressed push is simply not sent.
     const prefs = await db.query(
-      "SELECT quiet_hours_start, quiet_hours_end FROM notification_preferences WHERE user_id = ?",
+      "SELECT push_enabled, quiet_hours_start, quiet_hours_end FROM notification_preferences WHERE user_id = ?",
       [userId],
     );
     if (prefs.results.length > 0) {
       const pref = prefs.results[0] as Record<string, unknown>;
+      if (pref.push_enabled === 0 || pref.push_enabled === false) return;
       const start = pref.quiet_hours_start;
       const end = pref.quiet_hours_end;
       if (start !== null && end !== null && typeof start === "number" && typeof end === "number") {

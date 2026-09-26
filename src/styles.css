@@ -97,6 +97,84 @@
   --sidebar-ring: oklch(0.62 0.24 25);
 }
 
+/* --------------------------------------------------------------------------
+   Light theme — selected from Settings (or the OS when the preference is
+   "system"). The `:root` block above stays the dark default; `.light` on
+   <html> overrides the palette. Keep every token in sync with :root.
+   -------------------------------------------------------------------------- */
+.light {
+  --background: oklch(0.975 0.006 275);
+  --foreground: oklch(0.24 0.03 275);
+  --card: oklch(0.995 0.003 275);
+  --card-foreground: oklch(0.24 0.03 275);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.24 0.03 275);
+  --primary: oklch(0.55 0.22 25);
+  --primary-foreground: oklch(0.99 0.01 90);
+  --secondary: oklch(0.93 0.01 275);
+  --secondary-foreground: oklch(0.28 0.03 275);
+  --muted: oklch(0.94 0.008 275);
+  --muted-foreground: oklch(0.48 0.02 275);
+  --accent: oklch(0.8 0.15 85);
+  --accent-foreground: oklch(0.2 0.04 60);
+  --destructive: oklch(0.55 0.21 22);
+  --destructive-foreground: oklch(0.98 0.01 90);
+  --success: oklch(0.58 0.15 155);
+  --success-foreground: oklch(0.98 0.01 90);
+  --warning: oklch(0.75 0.15 75);
+  --warning-foreground: oklch(0.2 0.04 60);
+  --border: oklch(0.9 0.012 275);
+  --input: oklch(0.89 0.012 275);
+  --ring: oklch(0.55 0.22 25);
+  --ring-soft: oklch(0.55 0.22 25 / 0.4);
+  --glow: oklch(0.55 0.22 25 / 0.3);
+  --edge-hi: oklch(1 0 0 / 0.8);
+  --sidebar: oklch(0.96 0.006 275);
+  --sidebar-foreground: oklch(0.3 0.03 275);
+  --sidebar-primary: oklch(0.55 0.22 25);
+  --sidebar-primary-foreground: oklch(0.99 0.01 90);
+  --sidebar-accent: oklch(0.92 0.01 275);
+  --sidebar-accent-foreground: oklch(0.28 0.03 275);
+  --sidebar-border: oklch(0.89 0.012 275);
+  --sidebar-ring: oklch(0.55 0.22 25);
+}
+
+/* Landing surfaces hard-code the dark night sky; mirror it in daylight. */
+.light .hero-stage {
+  background:
+    linear-gradient(180deg, oklch(0.97 0.01 278 / 0.96), oklch(0.955 0.012 275) 78%),
+    var(--background);
+}
+
+.light .hero-visual {
+  border-color: oklch(0 0 0 / 0.1);
+  background:
+    radial-gradient(circle at 50% 45%, oklch(0.62 0.24 25 / 0.12), transparent 22%),
+    linear-gradient(145deg, oklch(1 0 0 / 0.8), transparent 38%),
+    oklch(0.93 0.02 278 / 0.9);
+  box-shadow:
+    0 30px 80px -52px oklch(0 0 0 / 0.5),
+    0 0 0 1px oklch(0 0 0 / 0.04) inset;
+}
+
+.light .signal-card {
+  border-color: oklch(0 0 0 / 0.12);
+  background: oklch(0.99 0.003 278 / 0.92);
+  box-shadow: 0 1rem 2rem -1.4rem oklch(0 0 0 / 0.4);
+}
+
+.light .cta-stage {
+  background:
+    radial-gradient(circle at 80% 10%, oklch(0.82 0.17 85 / 0.28), transparent 24%),
+    linear-gradient(135deg, oklch(0.95 0.03 278), oklch(0.93 0.02 275));
+}
+
+.light body {
+  background-image:
+    radial-gradient(60rem 40rem at 12% -10%, oklch(0.62 0.24 25 / 0.1), transparent 60%),
+    radial-gradient(50rem 34rem at 92% 4%, oklch(0.82 0.17 85 / 0.16), transparent 60%);
+}
+
 @layer base {
   * {
     border-color: var(--color-border);

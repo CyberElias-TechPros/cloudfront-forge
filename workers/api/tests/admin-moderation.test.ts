@@ -419,3 +419,67 @@ describe("admin user listing exposes moderation state", () => {
     expect(suspendedBody.data.map((u: any) => u.id)).toContain(bad);
   });
 });
+
+describe("admin communities", () => {
+  const listCommunities = findAdmin("GET", "/admin/communities");
+
+  it("lists every community with owners, member counts and status filters", async () => {
+    const env = createTestEnv();
+    const admin = env.seedUser("admin-c");
+    env.makeAdmin(admin);
+    const ownerA = env.seedUser("owner-a");
+    const ownerB = env.seedUser("owner-b");
+    const now = new Date().toISOString();
+
+    const seed = (id: string, ownerId: string, status: string) => {
+      env.sqlite
+        .prepare(
+          `INSERT INTO communities (id, name, description, slug, invite_code, is_public, owner_id, status, created_at, updated_at)
+           VALUES (?, ?, 'desc', ?, ?, 0, ?, ?, ?, ?)`,
+        )
+        .run(id, `Squad ${id}`, `slug-${id}`, `INV-${id}`, ownerId, status, now, now);
+      env.sqlite
+        .prepare(
+          "INSERT INTO community_members (id, community_id, user_id, role, joined_at, status) VALUES (?, ?, ?, 'owner', ?, 'active')",
+        )
+        .run(crypto.randomUUID(), id, ownerId, now);
+    };
+    seed("adm-comm-1", ownerA, "active");
+    seed("adm-comm-2", ownerB, "archived");
+
+    const all = (
+      await data(
+        await listCommunities.handler(
+          authRequest(`${BASE}/api/v1/admin/communities`, "admin-c"),
+          env,
+        ),
+      )
+    ).data;
+    expect(all.total).toBe(2);
+    const first = all.items.find((c: { id: string }) => c.id === "adm-comm-1");
+    expect(first.memberCount).toBe(1);
+    expect(first.ownerName).toBe("User owner-a");
+    expect(first.status).toBe("active");
+
+    const archived = (
+      await data(
+        await listCommunities.handler(
+          authRequest(`${BASE}/api/v1/admin/communities?status=archived`, "admin-c"),
+          env,
+        ),
+      )
+    ).data;
+    expect(archived.total).toBe(1);
+    expect(archived.items[0].id).toBe("adm-comm-2");
+  });
+
+  it("is closed to members", async () => {
+    const env = createTestEnv();
+    env.seedUser("member-c");
+    const response = await listCommunities.handler(
+      authRequest(`${BASE}/api/v1/admin/communities`, "member-c"),
+      env,
+    );
+    expect(response.status).toBe(403);
+  });
+});

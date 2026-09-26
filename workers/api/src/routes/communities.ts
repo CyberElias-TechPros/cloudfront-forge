@@ -3,7 +3,7 @@ import { createResponse, createErrorResponse } from "../middleware/errorHandler"
 import { requireAuth } from "../middleware/auth";
 import { Database, sqlBool } from "../lib/database";
 import { generateInviteCode, generateSlug } from "../lib/utils";
-import { sanitize } from "../lib/sanitize";
+import { sanitize, sanitizeMultiline } from "../lib/sanitize";
 import { z } from "zod";
 import { createLogger } from "../lib/logger";
 import { upsertMembership } from "./community-management";
@@ -31,6 +31,8 @@ const communitySettingsSchema = z.object({
   allowCollaboration: z.boolean().optional(),
   requireApproval: z.boolean().optional(),
   defaultLanguage: z.string().min(2).max(10).nullable().optional(),
+  /** Squad-specific rules shown on the community page; null/empty clears them. */
+  rules: z.string().max(5000).nullable().optional(),
 });
 
 export const communityRoutes: RouteDefinition[] = [
@@ -137,6 +139,7 @@ export const communityRoutes: RouteDefinition[] = [
             isOwner: community.owner_id === userId,
             inviteCode: community.invite_code,
             myRole: myMembership?.role ?? null,
+            rules: community.rules ?? null,
             settings: {
               allowPeerReview: settingsRow ? Boolean(settingsRow.allow_peer_review) : true,
               allowCollaboration: settingsRow ? Boolean(settingsRow.allow_collaboration) : true,
@@ -410,6 +413,20 @@ export const communityRoutes: RouteDefinition[] = [
             ],
           );
         }
+
+        // Squad rules live on the community row (not the settings row) so the
+        // public community page can show them without a join. Omitted field
+        // keeps the current value; an empty string clears back to platform
+        // defaults. Text is sanitized like every other member-written field.
+        if (parsed.data.rules !== undefined) {
+          const rules = parsed.data.rules ? sanitizeMultiline(parsed.data.rules) : null;
+          await db.execute("UPDATE communities SET rules = ?, updated_at = ? WHERE id = ?", [
+            rules,
+            now,
+            communityId,
+          ]);
+        }
+
         return createResponse({ message: "Settings updated" });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {

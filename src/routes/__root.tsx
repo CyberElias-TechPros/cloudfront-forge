@@ -15,6 +15,7 @@ import { SiteFooter, SiteHeader } from "../components/site-chrome";
 import { InstallBanner } from "../components/install-banner";
 import { AuthProvider, RequireAuth } from "../hooks/useAuth";
 import { validateFrontendEnv } from "../lib/env-validation";
+import { getThemePreference, THEME_INIT_SCRIPT, watchSystemTheme } from "../lib/theme";
 
 validateFrontendEnv();
 
@@ -126,6 +127,8 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        {/* Applies the stored theme before first paint (no flash of the wrong palette). */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body>
         {children}
@@ -153,6 +156,13 @@ function RootComponent() {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
+  }, []);
+
+  // Re-apply the stored theme on mount (covers first load in dev and any
+  // tab that slept through a storage change) and keep "system" in sync.
+  useEffect(() => {
+    const preference = getThemePreference();
+    return watchSystemTheme(preference);
   }, []);
 
   const outlet = isPublic ? (

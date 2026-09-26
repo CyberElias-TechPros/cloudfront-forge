@@ -15,6 +15,9 @@ const members = communityRoutes.find(
 const settings = communityRoutes.find(
   (r) => "pattern" in r && (r.pattern ?? "").includes("settings"),
 )!;
+const getCommunity = communityRoutes.find(
+  (r) => "pattern" in r && (r.pattern ?? "").endsWith("communities/([^/]+)$"),
+)!;
 const listNotifications = notificationRoutes.find(
   (r) => r.path === "/api/v1/notifications" && r.method === "GET",
 )!;
@@ -326,5 +329,124 @@ describe("notifications", () => {
       env,
     );
     expect(response.status).toBe(400);
+  });
+});
+
+describe("member visibility", () => {
+  it("hides a private creator profile behind identity-only fields", async () => {
+    const env = createTestEnv();
+    const ownerUid = "visibility-owner";
+    const owner = env.seedUser(ownerUid);
+    const memberUid = "visibility-member";
+    const member = env.seedUser(memberUid);
+
+    // The member opts out of the public profile.
+    await putProfile.handler(
+      jsonRequest(`${BASE}/api/v1/users/me/profile`, memberUid, "PUT", {
+        bio: "Private diary entry",
+        publicProfile: false,
+      }),
+      env,
+    );
+    void owner;
+
+    const response = await getUser.handler(
+      authRequest(`${BASE}/api/v1/users/${member}`, ownerUid),
+      env,
+    );
+    expect(response.status).toBe(200);
+    const body = await data(response);
+    expect(body.id).toBe(member);
+    expect(body.displayName).toBeTruthy();
+    expect(body.profile).toBeNull();
+  });
+
+  it("shows the profile to other members while it stays public", async () => {
+    const env = createTestEnv();
+    const viewerUid = "visibility-viewer";
+    env.seedUser(viewerUid);
+    const memberUid = "visibility-public";
+    const member = env.seedUser(memberUid);
+
+    await putProfile.handler(
+      jsonRequest(`${BASE}/api/v1/users/me/profile`, memberUid, "PUT", {
+        bio: "Teaching calculus with short films",
+        publicProfile: true,
+      }),
+      env,
+    );
+
+    const response = await getUser.handler(
+      authRequest(`${BASE}/api/v1/users/${member}`, viewerUid),
+      env,
+    );
+    const body = await data(response);
+    expect(body.profile.bio).toBe("Teaching calculus with short films");
+  });
+});
+
+describe("community rules", () => {
+  it("lets the owner publish squad rules that members can read", async () => {
+    const env = createTestEnv();
+    const ownerUid = "rules-owner";
+    const owner = env.seedUser(ownerUid);
+    const memberUid = "rules-member";
+    env.seedUser(memberUid);
+    const communityId = seedCommunity(env, owner, true, "community-rules");
+
+    // A member cannot change the rules.
+    const denied = await settings.handler(
+      jsonRequest(`${BASE}/api/v1/communities/${communityId}/settings`, memberUid, "PUT", {
+        rules: "No self-promo",
+      }),
+      env,
+    );
+    expect(denied.status).toBe(403);
+
+    // The owner publishes rules; markup is stripped like every member field.
+    const allowed = await settings.handler(
+      jsonRequest(`${BASE}/api/v1/communities/${communityId}/settings`, ownerUid, "PUT", {
+        rules: "<b>Watch</b> before you comment\nNo sub4sub",
+      }),
+      env,
+    );
+    expect(allowed.status).toBe(200);
+
+    const detail = await data(
+      await getCommunity.handler(
+        authRequest(`${BASE}/api/v1/communities/${communityId}`, memberUid),
+        env,
+      ),
+    );
+    expect(detail.community.rules).toBe("Watch before you comment\nNo sub4sub");
+
+    // Omitting the field keeps the current rules; clearing returns to defaults.
+    await settings.handler(
+      jsonRequest(`${BASE}/api/v1/communities/${communityId}/settings`, ownerUid, "PUT", {
+        allowPeerReview: false,
+      }),
+      env,
+    );
+    const kept = await data(
+      await getCommunity.handler(
+        authRequest(`${BASE}/api/v1/communities/${communityId}`, memberUid),
+        env,
+      ),
+    );
+    expect(kept.community.rules).toContain("No sub4sub");
+
+    await settings.handler(
+      jsonRequest(`${BASE}/api/v1/communities/${communityId}/settings`, ownerUid, "PUT", {
+        rules: "",
+      }),
+      env,
+    );
+    const cleared = await data(
+      await getCommunity.handler(
+        authRequest(`${BASE}/api/v1/communities/${communityId}`, memberUid),
+        env,
+      ),
+    );
+    expect(cleared.community.rules).toBeNull();
   });
 });

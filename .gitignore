@@ -39,3 +39,7 @@ dist-ssr
 
 # HAR / network captures
 *.har
+
+# Playwright E2E artifacts
+playwright-report/
+test-results/
