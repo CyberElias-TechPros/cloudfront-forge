@@ -138,6 +138,9 @@ The repository's automated suites were run on 2026-09-25:
 
 - Frontend: `npm run typecheck`, `npm test` (26 tests / 4 files), and
   `npm run build` — passed.
+- End-to-end: `npm run test:e2e` — 6 Playwright smoke flows (real Chromium,
+  Vite dev server, `wrangler dev` with local D1) passed in ~25 s; runbook in
+  `docs/D1_RESTORE.md` for point-in-time recovery.
 - Worker: `npm --prefix workers/api run typecheck`,
   `npm --prefix workers/api test` — 299 tests passed (37 files), including
   readiness/schema-drift coverage and the lifecycle/moderation suites.

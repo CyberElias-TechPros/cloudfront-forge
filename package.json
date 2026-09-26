@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:e2e": "node e2e/prepare-browser.mjs && playwright test",
     "test:watch": "vitest",
     "test:workers": "npm --prefix workers/api test",
     "lint": "eslint . && npm --prefix workers/api run lint",
@@ -74,6 +75,8 @@
   "devDependencies": {
     "@eslint/js": "^9.32.0",
     "@lovable.dev/vite-tanstack-config": "^2.10.0",
+    "@playwright/test": "^1.63.0",
+    "@sparticuz/chromium": "^153.0.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.4",
