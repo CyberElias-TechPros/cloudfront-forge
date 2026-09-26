@@ -59,3 +59,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+
+  # Cloudflare Workers Builds installs with `bun install --frozen-lockfile`
+  # (bun 1.2.15 by default). Dependency changes made through npm used to leave
+  # bun.lock stale, which failed every Worker build before it deployed. Catch
+  # that here instead. Fix a failure with `npm run lockfile:bun` and commit.
+  bun-lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.15
+      - name: bun.lock matches package.json
+        run: bun install --frozen-lockfile --ignore-scripts

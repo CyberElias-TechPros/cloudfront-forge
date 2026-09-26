@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import worker from "../src/index";
-import { createTestEnv, type TestEnv } from "./helpers/test-env";
+import { createTestEnv, authRequest, type TestEnv } from "./helpers/test-env";
+import { errorHandler } from "../src/middleware/errorHandler";
+import { DatabaseError } from "../src/lib/database";
 
 const BASE = "https://api.test";
 
@@ -56,7 +58,7 @@ describe("worker entry point", () => {
     const body = (await response.json()) as {
       data: { status: string; schemaVersion: string };
     };
-    expect(body.data).toMatchObject({ status: "ready", schemaVersion: "036" });
+    expect(body.data).toMatchObject({ status: "ready", schemaVersion: "037" });
   });
 
   it("fails readiness when a required migration object is missing", async () => {
@@ -144,5 +146,63 @@ describe("worker entry point", () => {
   it("rejects an unknown HTTP method on a known path", async () => {
     const response = await call(env, "/api/v1/leaderboards", { method: "DELETE" });
     expect(response.status).toBe(404);
+  });
+  describe("schema drift (Worker deployed ahead of D1 migrations)", () => {
+    function dropUserStatusColumn() {
+      // Recreates production before migration 031: no users.status column.
+      env.sqlite.exec("DROP INDEX IF EXISTS idx_users_status");
+      env.sqlite.exec("ALTER TABLE users DROP COLUMN status");
+    }
+
+    it("still lets members register and sign in when users.status is missing", async () => {
+      dropUserStatusColumn();
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const response = await worker.fetch(
+        authRequest(`${BASE}/api/v1/auth/register`, "uid-drift", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ displayName: "Drift Tester" }),
+        }),
+        env,
+        ctx,
+      );
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as { data: { user: { displayName: string } } };
+      expect(body.data.user.displayName).toBe("Drift Tester");
+    });
+
+    it("keeps rejecting deleted accounts on the fallback path", async () => {
+      const uid = "uid-drift-deleted";
+      const id = env.seedUser(uid);
+      env.sqlite
+        .prepare("UPDATE users SET deleted_at = ? WHERE id = ?")
+        .run(new Date().toISOString(), id);
+      dropUserStatusColumn();
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const response = await worker.fetch(authRequest(`${BASE}/api/v1/auth/me`, uid), env, ctx);
+      expect(response.status).toBe(403);
+      expect((await json(response)).error?.code).toBe("ACCOUNT_DELETED");
+    });
+
+    it("fails readiness until the newest migration (037) is applied", async () => {
+      env.sqlite.exec("ALTER TABLE users DROP COLUMN welcome_sent_at");
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const response = await call(env, "/ready");
+      expect(response.status).toBe(503);
+    });
+
+    it("maps missing tables/columns to 503 SCHEMA_OUT_OF_DATE, not a generic 500", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const drift = errorHandler(
+        new DatabaseError("D1_ERROR: no such column: status: SQLITE_ERROR", "SELECT status"),
+      );
+      expect(drift.status).toBe(503);
+      expect(drift.headers.get("Retry-After")).toBe("60");
+      expect((await json(drift)).error?.code).toBe("SCHEMA_OUT_OF_DATE");
+
+      const other = errorHandler(new DatabaseError("UNIQUE constraint failed: users.id"));
+      expect(other.status).toBe(500);
+      expect((await json(other)).error?.code).toBe("DATABASE_ERROR");
+    });
   });
 });

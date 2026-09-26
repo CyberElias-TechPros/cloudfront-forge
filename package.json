@@ -14,7 +14,8 @@
     "test:workers": "npm --prefix workers/api test",
     "lint": "eslint . && npm --prefix workers/api run lint",
     "lint:workers": "cd workers/api && npm run lint",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "lockfile:bun": "rm -f bun.lock && npx -y bun@1.2.15 install --lockfile-only"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
