@@ -4,6 +4,7 @@ import {
   errorHandler,
   createResponse,
   createErrorResponse,
+  isSchemaDriftError,
   SECURITY_HEADERS,
 } from "./middleware/errorHandler";
 import { rateLimitMiddleware } from "./middleware/rateLimit";
@@ -73,8 +74,41 @@ async function assertSchemaReady(env: Env): Promise<void> {
        (SELECT status FROM communities LIMIT 1) AS community_status,
        (SELECT overdue_notified FROM reviews LIMIT 1) AS review_overdue_flag,
        (SELECT id FROM join_requests LIMIT 1) AS join_request_id,
-       (SELECT id FROM support_requests LIMIT 1) AS support_request_id`,
+       (SELECT id FROM support_requests LIMIT 1) AS support_request_id,
+       (SELECT welcome_sent_at FROM users LIMIT 1) AS user_welcome_sent_at,
+       (SELECT rules FROM communities LIMIT 1) AS community_rules`,
   );
+}
+
+/**
+ * Moderation state for the entry-point account gate.
+ *
+ * `users.status` arrives with migration 031. If the Worker is deployed ahead
+ * of that migration, the gate used to throw on *every* authenticated request —
+ * sign-in included — turning a pending migration into a total outage. Without
+ * the column no member can have been suspended or banned, so falling back to
+ * the soft-delete check is equivalent; the drift is logged loudly and `/ready`
+ * keeps failing until the migration is applied.
+ */
+async function loadAccountState(
+  env: Env,
+  firebaseUid: string,
+): Promise<{ status?: string | null; deleted_at?: string | null } | null> {
+  const db = new Database(env);
+  try {
+    return await db.querySingle("SELECT status, deleted_at FROM users WHERE firebase_uid = ?", [
+      firebaseUid,
+    ]);
+  } catch (error) {
+    if (!isSchemaDriftError(error)) throw error;
+    createLogger(env).error(
+      "SCHEMA_DRIFT: users.status is missing — apply D1 migrations (npm run db:migrate)",
+      error,
+    );
+    return await db.querySingle("SELECT deleted_at FROM users WHERE firebase_uid = ?", [
+      firebaseUid,
+    ]);
+  }
 }
 
 export default {
@@ -128,7 +162,7 @@ export default {
             {
               status: "ready",
               environment: env.ENVIRONMENT,
-              schemaVersion: "036",
+              schemaVersion: "037",
               timestamp: new Date().toISOString(),
             },
             200,
@@ -193,10 +227,7 @@ export default {
       // same distinguishable 403 — the frontend maps the codes to a useful
       // screen instead of a generic failure.
       if (auth.isAuthenticated) {
-        const account = await new Database(env).querySingle(
-          "SELECT status, deleted_at FROM users WHERE firebase_uid = ?",
-          [auth.userId],
-        );
+        const account = await loadAccountState(env, auth.userId);
         if (account) {
           if (account.deleted_at) {
             return createErrorResponse(

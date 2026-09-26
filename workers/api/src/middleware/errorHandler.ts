@@ -21,6 +21,19 @@ function withSecurityHeaders(headers: Headers): Headers {
   return headers;
 }
 
+function isDatabaseError(error: any): boolean {
+  return error instanceof DatabaseError || error?.name === "DatabaseError";
+}
+
+/**
+ * True when a D1/SQLite error says the schema is missing an object the query
+ * needs — the signature of unapplied migrations.
+ */
+export function isSchemaDriftError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /no such (table|column)|has no column named/i.test(message);
+}
+
 export function errorHandler(
   error: any,
   request?: Request,
@@ -47,9 +60,37 @@ export function errorHandler(
   let errorCode = "INTERNAL_ERROR";
   let message = "An internal error occurred";
 
+  // A statement that references a table or column the database does not have
+  // means the Worker code is ahead of the applied D1 migrations (e.g. the code
+  // was deployed but `wrangler d1 migrations apply` never ran). That is a
+  // deployment state, not a bug in the request: answer 503 with a distinct
+  // code so operators can tell it apart from genuine database failures.
+  if (isDatabaseError(error) && isSchemaDriftError(error)) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: {
+          code: "SCHEMA_OUT_OF_DATE",
+          message: "The service is being updated. Please try again shortly.",
+        },
+        meta: { timestamp: new Date().toISOString(), version: "v1" },
+      } satisfies ApiResponse),
+      {
+        status: 503,
+        headers: withSecurityHeaders(
+          new Headers({
+            "Content-Type": "application/json",
+            "Retry-After": "60",
+            ...(corsHeaders ? Object.fromEntries(corsHeaders.entries()) : {}),
+          }),
+        ),
+      },
+    );
+  }
+
   // Database failures are logged with SQL + driver message, but never echoed to
   // the client — the response stays generic.
-  if (error instanceof DatabaseError || error.name === "DatabaseError") {
+  if (isDatabaseError(error)) {
     return new Response(
       JSON.stringify({
         success: false,

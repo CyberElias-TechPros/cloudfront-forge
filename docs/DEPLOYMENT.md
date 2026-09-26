@@ -116,7 +116,7 @@ npx wrangler d1 migrations apply creatorloop-db --remote
 ```
 
 Migration files are the source of truth and are applied in filename order
-(`migrations/001_*.sql` … `036_*.sql`). `wrangler.toml` intentionally has **no**
+(`migrations/001_*.sql` … `037_*.sql`). `wrangler.toml` intentionally has **no**
 `[[migrations]]` tags — a hand-maintained tag list drifted out of sync with the
 directory and silently skipped files. Cloudflare tracks the full filename, so
 the two historical `004_*.sql` files are distinct and must not be renamed.
@@ -124,8 +124,31 @@ the two historical `004_*.sql` files are distinct and must not be renamed.
 `030_seed_missions.sql` seeds the starter mission catalogue with
 `INSERT OR IGNORE`, so it is safe on an existing database and gives a fresh
 install a populated Missions screen. Migrations 031–036 add account/community
-lifecycle, join/support flows and review recovery state; current Worker code
-must not be deployed against a database that stops at 030.
+lifecycle, join/support flows and review recovery state; 037 adds community
+rules and the welcome-email claim. Current Worker code must not be deployed
+against a database that stops before 037.
+
+### Troubleshooting: `500 DATABASE_ERROR` / `503 SCHEMA_OUT_OF_DATE` on sign-in
+
+If `/api/v1/auth/register` (and most authenticated routes) fail while
+`/health` is fine, the Worker code is ahead of the production D1 schema —
+typically Cloudflare Workers Builds deployed `main` but the migration step
+never ran (e.g. the GitHub `Production` environment has no
+`CLOUDFLARE_API_TOKEN`). The Worker now answers such queries with
+`503 SCHEMA_OUT_OF_DATE` and logs `SCHEMA_DRIFT` instead of a generic 500.
+Fix:
+
+```sh
+cd workers/api
+npx wrangler login                                       # or export CLOUDFLARE_API_TOKEN
+npx wrangler d1 migrations list creatorloop-db --remote  # shows what is pending
+npx wrangler d1 migrations apply creatorloop-db --remote
+curl --fail https://creatorloop-api.autumn-surf-21ec.workers.dev/ready
+```
+
+If `apply` stops with `duplicate column name`, production already has that
+column from an earlier manual change: see `reconcile-prod.sql` for how to
+record such a migration as applied, then re-run `apply`.
 
 ---
 
@@ -155,7 +178,7 @@ curl https://<worker-host>/health
 # {"status":"ok","environment":"production","timestamp":"..."}
 
 curl --fail https://<worker-host>/ready
-# {"success":true,"data":{"status":"ready","schemaVersion":"036",...}}
+# {"success":true,"data":{"status":"ready","schemaVersion":"037",...}}
 ```
 
 `/health` deliberately stays healthy during a bad configuration so uptime

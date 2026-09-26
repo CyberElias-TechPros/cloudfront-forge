@@ -35,6 +35,24 @@ jobs:
         working-directory: workers/api
         run: npm test
 
+      # Every deploy so far died inside wrangler with "it's necessary to set a
+      # CLOUDFLARE_API_TOKEN environment variable" because the secret was never
+      # configured — while Cloudflare Workers Builds kept shipping new code
+      # from main, leaving production D1 migrations behind the Worker. Fail
+      # early with an actionable message instead.
+      - name: Check Cloudflare credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=""
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          if [ -n "$missing" ]; then
+            echo "::error title=Missing Cloudflare secrets::Add$missing to Settings → Environments → Production → Secrets (token needs Workers Scripts:Edit + D1:Edit). Until then production D1 migrations are NOT applied."
+            exit 1
+          fi
+
       # Migrations are deliberately before code deployment. The Worker may rely
       # on additive schema, while an additive schema may safely precede code.
       - name: Apply production D1 migrations
