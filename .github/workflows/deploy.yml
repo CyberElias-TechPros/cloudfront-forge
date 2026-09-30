@@ -81,6 +81,7 @@ jobs:
     name: Build and deploy Vercel frontend
     needs: deploy-backend
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment: Production
     steps:
       - uses: actions/checkout@v4
