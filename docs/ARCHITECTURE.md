@@ -22,15 +22,15 @@ and no second database.
 
 ## Why this shape
 
-| Concern | Where it lives | Why |
-| --- | --- | --- |
-| UI | Vercel static SPA (`dist/client`) | Deploys from a static directory, SPA fallback rewrite for client routing, CDN + immutable asset caching for free |
-| API | Cloudflare Worker | Single deployable, cold-start-free, runs next to D1/KV/R2 |
-| Relational data | D1 (SQLite) | Transactions, partial/partial-unique indexes, `ON CONFLICT` upserts — all used by the reward ledger |
-| Counters & caches | KV | Rate limiting and YouTube metadata, both eventually-consistent by nature |
-| Binary uploads | R2 | Top-up receipts are private objects; streamed to admins only |
-| Scheduled work | Cron Triggers | Daily streak decay, challenge sweeps, digests |
-| Identity | Firebase Auth | Already integrated; the Worker verifies tokens, never trusts the client's user id |
+| Concern           | Where it lives                    | Why                                                                                                              |
+| ----------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| UI                | Vercel static SPA (`dist/client`) | Deploys from a static directory, SPA fallback rewrite for client routing, CDN + immutable asset caching for free |
+| API               | Cloudflare Worker                 | Single deployable, cold-start-free, runs next to D1/KV/R2                                                        |
+| Relational data   | D1 (SQLite)                       | Transactions, partial/partial-unique indexes, `ON CONFLICT` upserts — all used by the reward ledger              |
+| Counters & caches | KV                                | Rate limiting and YouTube metadata, both eventually-consistent by nature                                         |
+| Binary uploads    | R2                                | Top-up receipts are private objects; streamed to admins only                                                     |
+| Scheduled work    | Cron Triggers                     | Daily streak decay, challenge sweeps, digests                                                                    |
+| Identity          | Firebase Auth                     | Already integrated; the Worker verifies tokens, never trusts the client's user id                                |
 
 Durable Objects and Queues are deliberately **not** used. Every consistency
 requirement in the product (one payout per watch session, one pending top-up per
@@ -57,6 +57,9 @@ gain.
 
 ```
 src/index.ts        entry: CORS, security headers, rate-limit tiers, routing, cron
+src/contract/       request/response schemas, endpoint registry, error registry,
+                    generated OpenAPI document (see docs/CONTRACT.md)
+src/lib/verification/  watch-evidence policy + heartbeat scoring (SEC-010…012)
 src/lib/router.ts   regex route matching (patterns compiled once, cached)
 src/routes/index.ts the single `routes` table (110 entries) — the only routing source
 src/middleware/     auth (Firebase token + admin roles), rate limiting, error envelope
@@ -91,6 +94,11 @@ migrations/         001…036, applied in filename order
 
 ## Security model
 
+- **Watch evidence**: `POST /watch` payout is decided by
+  `src/lib/verification/policy.ts`. Server-observed evidence (YouTube API, or
+  heartbeats scored by `src/lib/verification/heartbeat.ts`) pays in full;
+  self-reported time follows `EVIDENCE_POLICY` (`legacy` | `self_report_capped`
+  | `verified_only`). Heartbeats reject rewinds, fast-forwarding and long gaps.
 - **AuthN**: Firebase ID tokens verified against Google JWKS; with caching and
   audience/project checks. A dev token is accepted **only** when
   `ENVIRONMENT !== "production"`.

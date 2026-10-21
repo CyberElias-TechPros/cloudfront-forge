@@ -12,9 +12,13 @@
     "test:e2e": "node e2e/prepare-browser.mjs && playwright test",
     "test:watch": "vitest",
     "test:workers": "npm --prefix workers/api test",
+    "contract:build": "npm --prefix workers/api run contract:build",
+    "contract:check": "npm --prefix workers/api run contract:check",
+    "docs:api": "node scripts/api-docs.mjs",
     "lint": "eslint . && npm --prefix workers/api run lint",
     "lint:workers": "cd workers/api && npm run lint",
     "format": "prettier --write .",
+    "roadmap:status": "node scripts/roadmap-status.mjs",
     "lockfile:bun": "rm -f bun.lock && npx -y bun@1.2.15 install --lockfile-only"
   },
   "dependencies": {

@@ -60,6 +60,36 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+  # The API contract (OpenAPI + route inventory + docs/API.md) is generated
+  # from the Zod schemas handlers actually validate with. Any change to a
+  # request/response shape must be committed here too, otherwise web and
+  # Android clients silently drift from the server.
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            workers/api/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix workers/api
+      - name: Regenerate the contract
+        run: npm run contract:build
+      - name: Regenerate the API reference
+        run: npm run docs:api
+      - name: Fail on drift
+        run: |
+          git diff --exit-code -- workers/api/src/contract docs/API.md || {
+            echo "::error title=Contract is stale::Run 'npm run contract:build && npm run docs:api' and commit the result."
+            exit 1
+          }
+      - name: Contract tests
+        run: npm --prefix workers/api run test -- tests/contract
+
   # Cloudflare Workers Builds installs with `bun install --frozen-lockfile`
   # (bun 1.2.15 by default). Dependency changes made through npm used to leave
   # bun.lock stale, which failed every Worker build before it deployed. Catch

@@ -1,242 +1,645 @@
-# API catalogue
+# API reference
 
-Generated from `workers/api/src/routes/index.ts` — the single routing table the
-Worker matches against. Regenerate after adding routes:
+> **Generated** from `workers/api/src/contract/openapi.generated.json` by `npm run docs:api`.
+> Do not edit by hand — the contract is the source of truth and CI fails on drift.
 
-```sh
-cd workers/api && npx tsx -e 'import { routes } from "./src/routes/index"; for (const r of routes) console.log(`${r.method} ${r.path ?? r.pattern}`)'
-```
+**LoopSquad API v1.0.0** — OpenAPI 3.1.0
 
-Two non-versioned endpoints live outside this table:
+HTTP API for LoopSquad: verified watch-for-watch growth for creator communities.
 
-| Method | Path | Purpose |
-| ------ | ---- | ------- |
-| `GET` | `/health` | Liveness probe. Answers even when required secrets are missing, so a misconfigured deploy is distinguishable from a dead one. |
-| `GET` | `/ready` | Deployment/readiness probe. Returns 200 only when required environment and the current D1 schema (through migration 036) are available. |
+Every response is enveloped:
+- success: `{ success: true, data, meta }`
+- failure: `{ success: false, error: { code, message }, meta }`
 
-Every route is authenticated unless it is `/health` or `/ready` — including
-`/auth/register`, which creates or syncs the *caller's* row from the verified
-Firebase ID token and ignores any client-supplied `firebaseUid`. Admin routes
-additionally require an `admin` or `super_admin` row in `admin_users`. All
-responses use the envelope `{ success, data?, error?, meta }`.
+Authenticate with a Firebase ID token (`Authorization: Bearer <token>`). Clients must branch on
+`error.code` (see the Error schema), never on `error.message`.
+
+## Servers
+
+- Production: `https://creatorloop-api.autumn-surf-21ec.workers.dev`
+- Staging: `https://creatorloop-api-staging.autumn-surf-21ec.workers.dev`
+- Local wrangler dev: `http://localhost:8787`
+
+Live document: `GET /openapi.json` on any deployment.
+
+## Authentication
+
+`Authorization: Bearer <Firebase ID token>`. Operations marked **public** need no token. The Worker derives the member from the verified token; no endpoint accepts a client-supplied user id.
+
+## Error codes
+
+Clients branch on `error.code`, never on `error.message`.
+
+| Code | HTTP | Retryable | Client action | Meaning |
+| --- | --- | --- | --- | --- |
+| `VALIDATION_ERROR` | 400 | no | `fix_input` | The payload failed schema validation. |
+| `BAD_REQUEST` | 400 | no | `fix_input` | The request was malformed. |
+| `UNAUTHORIZED` | 401 | no | `sign_in` | The presented credential is not valid for this request. |
+| `AUTH_REQUIRED` | 401 | no | `sign_in` | A Firebase ID token is required (or it expired). |
+| `AUTH_ERROR` | 401 | no | `sign_in` | Authentication could not be completed. |
+| `FORBIDDEN` | 403 | no | `none` | The authenticated member is not allowed to perform this action. |
+| `ACCOUNT_DELETED` | 403 | no | `contact_support` | This account has been deleted. |
+| `ACCOUNT_SUSPENDED` | 403 | no | `contact_support` | This account is suspended. |
+| `ACCOUNT_BANNED` | 403 | no | `contact_support` | This account has been banned. |
+| `SUBMISSION_COOLDOWN` | 429 | yes | `wait` | The member submitted a video too recently (one per cooldown window). |
+| `RATIO_GATE` | 403 | no | `none` | The member's give/take ratio is below the minimum required to submit. |
+| `CHANNEL_CONFLICT` | 409 | no | `contact_support` | This YouTube channel is already linked to another account. |
+| `AI_NOT_CONFIGURED` | 503 | yes | `none` | The AI coach is not configured on this deployment. |
+| `NOT_FOUND` | 404 | no | `none` | The requested resource does not exist (or is not visible to this member). |
+| `CONFLICT` | 409 | no | `none` | The request conflicts with the current state of the resource. |
+| `INSUFFICIENT_CREDITS` | 400 | no | `upgrade` | The member does not have enough credits for this purchase. |
+| `DAILY_LIMIT` | 429 | yes | `wait` | A per-day allowance (e.g. claimable watches) is exhausted. |
+| `RATE_LIMITED` | 429 | yes | `wait` | Too many requests from this client in the current window. |
+| `QUOTA_EXCEEDED` | 429 | yes | `wait` | A member- or platform-level quota (e.g. AI messages) is exhausted. |
+| `INTERNAL_ERROR` | 500 | yes | `retry` | An unexpected server error. Safe to retry with backoff. |
+| `DATABASE_ERROR` | 500 | yes | `retry` | The database operation failed. Safe to retry with backoff. |
+| `SERVICE_UNAVAILABLE` | 503 | yes | `retry` | A dependency is unavailable. Respect `Retry-After`. |
+| `AI_UNAVAILABLE` | 503 | yes | `retry` | The AI provider is not configured or is failing. |
+| `MISSING_ENV` | 503 | yes | `contact_support` | The deployment is missing a required binding or secret. |
+| `SCHEMA_OUT_OF_DATE` | 503 | yes | `retry` | Migrations have not been applied yet; the service is being updated. |
+| `NOT_READY` | 503 | yes | `retry` | A readiness dependency failed (`/ready` gate). |
+
+Retryable codes return `Retry-After` where applicable; clients should back off with jitter.
+
+## Contract coverage
+
+45/110 router entries are documented (40.9%). Undocumented routes are listed in `workers/api/src/contract/inventory.generated.json` and are being migrated into the contract schema-by-schema (PLAT-002).
+
+## Endpoints
 
 ### Auth
 
-| Method | Path | Notes |
-| ------ | ---- | ----- |
-| `POST` | `/api/v1/auth/register` | Verified token only; body `firebaseUid`/`email` ignored. Returns `{ message, user }` |
-| `GET` | `/api/v1/auth/me` | Current user's full row |
-| `PUT` | `/api/v1/auth/profile` | Update `displayName` |
-| `GET` | `/api/v1/auth/permissions` | Own role/permissions; admins may pass `?userId=` to read another user. `?userId=` is not a public lookup — anonymous callers get 401 |
+_Identity bootstrap and profile._
 
-### Users & profiles
+#### `GET /api/v1/auth/me`
 
-| Method | Path | Notes |
-| ------ | ---- | ----- |
-| `GET` | `/api/v1/users/:id` | |
-| `GET` | `/api/v1/users/me/profile` | |
-| `PUT` | `/api/v1/users/me/profile` | |
-| `POST` | `/api/v1/users/me/youtube-channel` | |
-| `GET` | `/api/v1/users/me/member` | |
-| `GET` | `/api/v1/users/me/youtube-channels` | |
-| `GET` | `/api/v1/users/me/insights` | |
-| `DELETE` | `/api/v1/users/me` | Soft account deletion: memberships end, videos are archived, open reviews skipped, pending requests/top-ups cancelled, push subscriptions removed. Ledgers stay for audit. |
+**Bootstrap the signed-in member** — auth: `user`
 
-### Communities
+Response `data` fields:
 
-| Method | Path | Notes |
-| ------ | ---- | ----- |
-| `GET` | `/api/v1/communities` | |
-| `GET` | `/api/v1/communities/:id` | Includes caller's `myRole` and community `settings` |
-| `POST` | `/api/v1/communities` | |
-| `POST` | `/api/v1/communities/join` | Join by invite code (always immediate) |
-| `POST` | `/api/v1/communities/:id/join` | Public communities only: joins immediately or creates a pending request when approval is required (202) |
-| `POST` | `/api/v1/communities/:id/leave` | Members leave; owners must archive instead |
-| `GET` | `/api/v1/communities/:id/members` | |
-| `GET` | `/api/v1/communities/:id/requests` | Managers only: pending join requests |
-| `POST` | `/api/v1/communities/:id/requests/:requestId/approve` | Status-locked; capacity re-checked |
-| `POST` | `/api/v1/communities/:id/requests/:requestId/reject` | Status-locked |
-| `POST` | `/api/v1/communities/:id/members/:userId/role` | Owner only; body `{ role: "member" \| "moderator" }` |
-| `POST` | `/api/v1/communities/:id/members/:userId/remove` | Owner or moderator; owners cannot be removed |
-| `POST` | `/api/v1/communities/:id/invite/regenerate` | Owner only; old code stops working |
-| `DELETE` | `/api/v1/communities/:id` | Owner only; archives the community, its videos and pending requests |
-| `PUT` | `/api/v1/communities/:id/settings` | |
-| `GET` | `/api/v1/admin/communities` | |
+- `id`: string
+- `firebaseUid`: string
+- `email`: string
+- `displayName`: string
+- `name`: string
+- `photoUrl`: string
+- `level`: number
+- `totalXp`: number
+- `credits`: number
+- `streak`: number
+- `niche`: string
+- `publicProfile`: boolean
+- `createdAt`: string
+- `updatedAt`: string
+- `lastActive`: string
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `GET /api/v1/auth/permissions`
+
+**Roles and permissions for the caller** — auth: `user`
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `PUT /api/v1/auth/profile`
+
+**Update display name or email** — auth: `user`
+
+Body fields:
+
+- `displayName`: string (min 1, max 50)
+- `email`: string
+
+Response `data` fields:
+
+- `id`: string
+- `firebaseUid`: string
+- `email`: string
+- `displayName`: string
+- `name`: string
+- `photoUrl`: string
+- `level`: number
+- `totalXp`: number
+- `credits`: number
+- `streak`: number
+- `niche`: string
+- `publicProfile`: boolean
+- `createdAt`: string
+- `updatedAt`: string
+- `lastActive`: string
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/auth/register`
+
+**Register (or return) the account for the verified token** — auth: `user`
+
+Identity comes exclusively from the bearer token; a client-supplied `firebaseUid` is ignored.
+
+Body fields:
+
+- `firebaseUid`: string (min 1)
+- `email`: string
+- `displayName`: string (min 1, max 50)
+- `photoUrl`: string
+
+Response `data` fields:
+
+- `id`: string
+- `firebaseUid`: string
+- `email`: string
+- `displayName`: string
+- `name`: string
+- `photoUrl`: string
+- `level`: number
+- `totalXp`: number
+- `credits`: number
+- `streak`: number
+- `niche`: string
+- `publicProfile`: boolean
+- `createdAt`: string
+- `updatedAt`: string
+- `lastActive`: string
+
+Statuses: `200`, `400`, `401`, `403`, `404`, `409`, `429`, `500`, `503`
+
+### Users
+
+_Member profiles, insights and channel links._
+
+#### `GET /api/v1/users/{userId}`
+
+**Public member profile (respects the member's visibility setting)** — auth: `user`
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `GET /api/v1/users/me/insights`
+
+**Personal growth insights** — auth: `user`
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `GET /api/v1/users/me/member`
+
+**Member card used by the header and dashboard** — auth: `user`
+
+Response `data` fields:
+
+- `id`: string
+- `firebaseUid`: string
+- `email`: string
+- `displayName`: string
+- `name`: string
+- `photoUrl`: string
+- `level`: number
+- `totalXp`: number
+- `credits`: number
+- `streak`: number
+- `niche`: string
+- `publicProfile`: boolean
+- `createdAt`: string
+- `updatedAt`: string
+- `lastActive`: string
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `GET /api/v1/users/me/profile`
+
+**Full profile of the caller** — auth: `user`
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `PUT /api/v1/users/me/profile`
+
+**Update profile, goals and visibility** — auth: `user`
+
+Body fields:
+
+- `displayName`: string (min 1, max 50)
+- `bio`: string (max 500)
+- `country`: string (max 100)
+- `language`: string (max 50)
+- `experienceLevel`: `beginner` | `intermediate` | `advanced`
+- `niche`: string (max 100)
+- `contentCategories`: string (max 500)
+- `goals`: string (max 500)
+- `lookingFor`: `collaboration` | `feedback` | `support` | `mentorship`
+- `publicProfile`: boolean
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/users/me/youtube-channel`
+
+**Link a YouTube channel to the member** — auth: `user`
+
+Body fields:
+
+- `channelId` (required): string (min 1)
+- `channelName`: string
+
+Statuses: `200`, `400`, `401`, `404`, `409`, `429`, `500`, `503`
+
+### Watch
+
+_Verified watch sessions and payouts._
+
+#### `POST /api/v1/watch`
+
+**Claim a watched video** — auth: `user`
+
+Payout depends on the evidence level: server-verified watch time (YouTube API or signed session) pays; self-reported time is recorded but pays nothing under the `evidence` policy.
+
+Body fields:
+
+- `videoId` (required): string (min 1)
+- `watchSeconds` (required): number (min 0, max 86400)
+- `subscribed`: boolean
+- `commented`: boolean
+- `sessionToken`: string (max 512)
+
+Response `data` fields:
+
+- `status`: `started` | `verified` | `claimed`
+- `claimable`: boolean
+- `attentionBlocked`: boolean
+- `xpAwarded`: number
+- `creditsAwarded`: number
+- `watchVerified`: boolean
+- `subscribed`: boolean
+- `commented`: boolean
+- `rewardBreakdown`: object { watch, subscribe, comment }
+- `evidence`: object { level, paid, verifiedSeconds, reason }
+- `subReason`: string
+- `level`: number
+- `totalXp`: number
+
+Statuses: `200`, `400`, `401`, `403`, `404`, `409`, `429`, `500`, `503`
+
+#### `POST /api/v1/watch/challenge`
+
+**Issue a mid-watch attention challenge** — auth: `user`
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/watch/challenge/{challengeId}/answer`
+
+**Answer an attention challenge** — auth: `user`
+
+Body fields:
+
+- `answer` (required): any
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/watch/heartbeat`
+
+**Record a player-time sample** — auth: `user`
+
+Body fields:
+
+- `sessionToken` (required): string (min 1, max 512)
+- `playerTime` (required): number (min 0, max 86400)
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/watch/start`
+
+**Open a signed watch session** — auth: `user`
+
+Returns `{ sessionToken: null, enabled: false }` while `WATCH_SESSIONS_ENABLED` is off; the claim then falls back to weak evidence (SEC-010).
+
+Body fields:
+
+- `videoId` (required): string (min 1)
+
+Response `data` fields:
+
+- `sessionToken`: string
+- `enabled`: boolean
+- `startTs`: number
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
 ### Videos
 
-| Method | Path | Notes |
-| ------ | ---- | ----- |
-| `GET` | `/api/v1/videos` | |
-| `POST` | `/api/v1/videos` | |
-| `GET` | `/api/v1/videos/:id` | |
-| `POST` | `/api/v1/videos/:id/archive` | Owner only; takes the video out of rotation, history kept |
+_Submissions and archive._
+
+#### `GET /api/v1/videos`
+
+**List videos visible to the caller** — auth: `user`
+
+Response `data` fields:
+
+- `videos`: array of object { id, youtubeVideoId, youtubeUrl, title, thumbnailUrl, durationSeconds, status, createdAt }
+- `pagination`: object { limit, offset, total }
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/videos`
+
+**Submit a YouTube video to the loop** — auth: `user`
+
+Body fields:
+
+- `youtubeUrl` (required): string
+- `communityId`: string
+- `title`: string (min 1, max 200)
+- `magicWord`: string (min 2, max 30)
+- `niche`: string (max 50)
+
+Statuses: `200`, `400`, `401`, `403`, `404`, `409`, `429`, `500`, `503`
+
+#### `GET /api/v1/videos/{videoId}`
+
+**Video detail** — auth: `user`
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/videos/{videoId}/archive`
+
+**Archive one of the caller's videos** — auth: `user`
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
 ### Reviews
 
-| Method | Path |
-| ------ | ---- |
-| `GET` | `/api/v1/reviews` |
-| `GET` | `/api/v1/reviews/:id` |
-| `POST` | `/api/v1/reviews/:id/start` |
-| `POST` | `/api/v1/reviews/:id/complete` |
-| `POST` | `/api/v1/reviews/:id/answers` |
-| `POST` | `/api/v1/reviews/:id/helpful` |
+_Structured peer reviews._
 
-### Missions & quests
+#### `GET /api/v1/reviews`
 
-| Method | Path |
-| ------ | ---- |
-| `GET` | `/api/v1/missions` |
-| `POST` | `/api/v1/missions` |
-| `POST` | `/api/v1/missions/:id/assign` |
-| `GET` | `/api/v1/missions/assignments` |
-| `POST` | `/api/v1/missions/assignments/:id/complete` |
-| `POST` | `/api/v1/missions/assignments/:id/skip` |
-| `POST` | `/api/v1/missions/chain` |
-| `GET` | `/api/v1/daily-quests` |
+**Reviews assigned to or submitted by the caller** — auth: `user`
 
-### Gamification
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
-| Method | Path |
-| ------ | ---- |
-| `GET` | `/api/v1/credits` |
-| `GET` | `/api/v1/xp` |
-| `GET` | `/api/v1/reputation` |
-| `GET` | `/api/v1/streaks` |
-| `GET` | `/api/v1/badges` |
-| `GET` | `/api/v1/leaderboards` |
-| `POST` | `/api/v1/gamification/daily-bonus` |
+#### `GET /api/v1/reviews/{reviewId}`
 
-### Queue, submissions & activity
+**Review detail with questions** — auth: `user`
 
-| Method | Path |
-| ------ | ---- |
-| `GET` | `/api/v1/queue` |
-| `GET` | `/api/v1/submissions` |
-| `GET` | `/api/v1/activity` |
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
-### Watch verification
+#### `POST /api/v1/reviews/{reviewId}/answers`
 
-| Method | Path |
-| ------ | ---- |
-| `POST` | `/api/v1/watch/challenge` |
-| `POST` | `/api/v1/watch/challenge/:id/answer` |
-| `POST` | `/api/v1/watch/start` |
-| `POST` | `/api/v1/watch/heartbeat` |
-| `POST` | `/api/v1/watch` |
+**Draft the structured answers for a review** — auth: `user`
 
-### AI assistant
+Body fields:
 
-| Method | Path |
-| ------ | ---- |
-| `POST` | `/api/v1/ai/chat` |
-| `POST` | `/api/v1/ai/chat/stream` |
-| `GET` | `/api/v1/ai/conversations` |
-| `GET` | `/api/v1/ai/conversations/:id/messages` |
-| `DELETE` | `/api/v1/ai/conversations/:id` |
+- `answers`: array of object { questionId, ratingValue, textAnswer }
 
-### YouTube
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
-| Method | Path |
-| ------ | ---- |
-| `GET` | `/api/v1/youtube/oauth/authorize` |
-| `GET` | `/api/v1/youtube/oauth/callback` |
-| `POST` | `/api/v1/youtube/oauth/callback` |
-| `GET` | `/api/v1/youtube/status` |
-| `POST` | `/api/v1/youtube/disconnect` |
+#### `POST /api/v1/reviews/{reviewId}/complete`
 
-### Notifications & push
+**Complete a review and trigger its single payout** — auth: `user`
 
-| Method | Path |
-| ------ | ---- |
-| `GET` | `/api/v1/notifications` |
-| `POST` | `/api/v1/notifications` |
-| `POST` | `/api/v1/notifications/read-all` |
-| `POST` | `/api/v1/notifications/:id/read` |
-| `DELETE` | `/api/v1/notifications/:id` |
-| `PUT` | `/api/v1/notifications/preferences` |
-| `GET` | `/api/v1/notifications/preferences` |
-| `POST` | `/api/v1/notifications/push/subscribe` |
-| `POST` | `/api/v1/notifications/push/unsubscribe` |
+Body fields:
 
-### Search & discovery
+- `score`: number (min 1, max 5)
+- `feedbackText`: string (max 2000)
+- `answers`: array of object { questionId, ratingValue, textAnswer }
 
-| Method | Path |
-| ------ | ---- |
-| `GET` | `/api/v1/search` |
-| `GET` | `/api/v1/discover/collaborators` |
+Statuses: `200`, `400`, `401`, `404`, `409`, `429`, `500`, `503`
 
-### Reports & appeals
+#### `POST /api/v1/reviews/{reviewId}/helpful`
 
-| Method | Path | Notes |
-| ------ | ---- | ----- |
-| `GET` | `/api/v1/admin/reports` | Moderation tier (moderator+) |
-| `POST` | `/api/v1/admin/reports/:id/resolve` | Moderation tier |
-| `POST` | `/api/v1/reports` | |
-| `GET` | `/api/v1/reports/mine` | Reports filed against the caller, with appeal state |
-| `POST` | `/api/v1/reports/:id/appeal` | One appeal per report per member |
-| `GET` | `/api/v1/admin/appeals` | Moderation tier; `?status=pending\|accepted\|rejected` |
-| `POST` | `/api/v1/admin/appeals/:id` | Moderation tier; body `{ status: accepted\|rejected, note? }`. Accepting dismisses the report, restores the trust penalty and re-activates a removed video |
+**Rate a received review as helpful** — auth: `user`
 
-### Support
+Body fields:
 
-| Method | Path | Notes |
-| ------ | ---- | ----- |
-| `POST` | `/api/v1/support` | Body `{ topic, message }`; admins notified, optional email ack |
-| `GET` | `/api/v1/admin/support` | Moderation tier; `?status=open\|resolved` |
-| `POST` | `/api/v1/admin/support/:id/resolve` | Moderation tier; notifies the member |
+- `helpful` (required): boolean
 
-### Shop (credit sinks)
+Statuses: `200`, `400`, `401`, `404`, `409`, `429`, `500`, `503`
 
-| Method | Path |
-| ------ | ---- |
-| `GET` | `/api/v1/shop` |
-| `POST` | `/api/v1/shop/purchase` |
+#### `POST /api/v1/reviews/{reviewId}/start`
 
-### Top-ups (naira)
+**Mark a review in progress** — auth: `user`
 
-| Method | Path |
-| ------ | ---- |
-| `GET` | `/api/v1/topups` |
-| `POST` | `/api/v1/topups/proof` |
-| `POST` | `/api/v1/topups` |
-| `GET` | `/api/v1/topups/mine` |
-| `GET` | `/api/v1/admin/topups` |
-| `GET` | `/api/v1/admin/topups/:id/proof` |
-| `POST` | `/api/v1/admin/topups/:id/approve` |
-| `POST` | `/api/v1/admin/topups/:id/reject` |
+Statuses: `200`, `400`, `401`, `404`, `409`, `429`, `500`, `503`
 
-### Admin (admin tier)
+### Missions
 
-| Method | Path | Notes |
-| ------ | ---- | ----- |
-| `GET` | `/api/v1/admin/analytics` | |
-| `GET` | `/api/v1/admin/users` | `?status=active\|suspended\|deleted`; includes `status` and `platformRole` |
-| `GET` | `/api/v1/admin/metrics` | |
-| `GET` | `/api/v1/admin/retention` | |
-| `POST` | `/api/v1/admin/users/:id/suspend` | Body `{ reason? }`; member notified; entry gate blocks them everywhere |
-| `POST` | `/api/v1/admin/users/:id/reinstate` | |
-| `POST` | `/api/v1/admin/users/:id/role` | Body `{ role: "moderator" \| "admin" \| null }`; admin tier manages admins only via super admins; super admins are immutable |
-| `POST` | `/api/v1/admin/videos/:id/restore` | Re-activates removed/archived videos |
+_Missions, chains and assignments._
 
-Two tiers exist: **admin** (`requireAdmin`: super_admin/admin) and
-**moderation** (`requireModerator`: adds moderators). Moderators get reports,
-appeals, support and video restore; analytics, user management, top-ups and
-role changes stay admin-only — matching `ROLE_PERMISSIONS` in
-`workers/api/src/middleware/permissions.ts`.
+#### `GET /api/v1/missions`
 
-## Conventions
+**Missions available to the caller** — auth: `user`
 
-- **Auth**: `Authorization: Bearer <firebase-id-token>`. Accounts that are
-  deleted, suspended or banned are rejected at the entry point with a 403 and
-  a distinguishable code: `ACCOUNT_DELETED`, `ACCOUNT_SUSPENDED`,
-  `ACCOUNT_BANNED`.
-- **Errors**: `{ success: false, error: { code, message } }` with a meaningful
-  HTTP status (`400` validation, `401` unauthenticated, `403` forbidden,
-  `404` not found, `409` conflict, `429` rate limited or quota exceeded,
-  `503` service not configured).
-- **Pagination**: `?limit=` (max 100) and `?offset=`; list responses return
-  `{ items, total, limit, offset }`.
-- **Snake/camel**: D1 columns are snake_case; the API converts every key to
-  camelCase before responding (`toCamelCaseKeys`).
+Response `data` fields:
+
+- `missions`: array of object { id, title, description, difficulty, xpReward, creditReward, status }
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/missions`
+
+**Create a mission (admin)** — auth: `admin`
+
+Body fields:
+
+- `title` (required): string (min 5, max 200)
+- `description` (required): string (max 1000)
+- `difficulty`: `easy` | `medium` | `hard`
+- `xpReward`: number (min 0)
+- `creditReward`: number (min 0)
+- `timeEstimateMinutes`: number (min 1, max 300)
+- `chainId`: string
+- `chainStep`: number (min 1, max 3)
+
+Statuses: `200`, `400`, `401`, `403`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/missions/{missionId}/assign`
+
+**Assign a mission to the caller** — auth: `user`
+
+Statuses: `200`, `400`, `401`, `404`, `409`, `429`, `500`, `503`
+
+#### `GET /api/v1/missions/assignments`
+
+**The caller's mission assignments** — auth: `user`
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/missions/assignments/{assignmentId}/complete`
+
+**Complete an assignment (pays once)** — auth: `user`
+
+Body fields:
+
+- `completionData`: string (max 2000)
+
+Statuses: `200`, `400`, `401`, `404`, `409`, `429`, `500`, `503`
+
+#### `POST /api/v1/missions/chain`
+
+**Create a 2–5 step mission chain (admin)** — auth: `admin`
+
+Body fields:
+
+- `niche` (required): string (min 2, max 50)
+- `steps` (required): array of object { title, description, difficulty, xpReward, creditReward, timeEstimateMinutes }
+
+Statuses: `200`, `400`, `401`, `403`, `404`, `429`, `500`, `503`
+
+### Shop
+
+_Credit sinks._
+
+#### `GET /api/v1/shop`
+
+**Shop catalogue and the caller's balance** — auth: `user`
+
+Response `data` fields:
+
+- `items`: array of object { id, name, description, cost, itemType }
+- `balance`: number
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/shop/purchase`
+
+**Spend credits on a boost or streak freeze** — auth: `user`
+
+Body fields:
+
+- `itemType` (required): `boost` | `streak_freeze`
+- `videoId`: string
+
+Statuses: `200`, `400`, `401`, `404`, `409`, `429`, `500`, `503`
+
+### Top-ups
+
+_NGN top-ups (web only — not sold in the Play app)._
+
+#### `GET /api/v1/admin/topups`
+
+**Top-up review queue (admin)** — auth: `admin`
+
+Statuses: `200`, `400`, `401`, `403`, `404`, `429`, `500`, `503`
+
+#### `GET /api/v1/topups`
+
+**Server-defined top-up tiers** — auth: `user`
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/topups`
+
+**Request a top-up awaiting admin review** — auth: `user`
+
+Web only. The Android app must route purchases through Play Billing (AND-059/060).
+
+Body fields:
+
+- `tierId` (required): string (min 1, max 32)
+- `proofImage`: string (min 1, max 512)
+- `proofImageName`: string (max 255)
+- `proofImageType`: string (max 64)
+- `transferReference`: string (min 4, max 64)
+
+Statuses: `200`, `400`, `401`, `404`, `409`, `429`, `500`, `503`
+
+#### `GET /api/v1/topups/mine`
+
+**The caller's top-up requests and their state** — auth: `user`
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+### Notifications
+
+_Inbox, preferences and push registration._
+
+#### `GET /api/v1/notifications`
+
+**Inbox for the caller** — auth: `user`
+
+Response `data` fields:
+
+- `notifications`: array of object { id, type, title, message, isRead, createdAt }
+- `unreadCount`: number
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `DELETE /api/v1/notifications/{notificationId}`
+
+**Delete one notification** — auth: `user`
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/notifications/{notificationId}/read`
+
+**Mark one notification read** — auth: `user`
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `GET /api/v1/notifications/preferences`
+
+**Per-channel notification preferences** — auth: `user`
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `PUT /api/v1/notifications/preferences`
+
+**Update preferences and quiet hours** — auth: `user`
+
+Body fields:
+
+- `emailEnabled`: boolean
+- `pushEnabled`: boolean
+- `inAppEnabled`: boolean
+- `whatsappEnabled`: boolean
+- `missionReminders`: boolean
+- `reviewRequests`: boolean
+- `communityUpdates`: boolean
+- `quietHoursStart`: number (min 0, max 23)
+- `quietHoursEnd`: number (min 0, max 23)
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/notifications/push/subscribe`
+
+**Register a Web Push subscription (web and PWA only)** — auth: `user`
+
+Body fields:
+
+- `endpoint` (required): string (min 1, max 2048)
+- `keys` (required): object { p256dh, auth }
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/notifications/push/unsubscribe`
+
+**Remove a Web Push subscription** — auth: `user`
+
+Body fields:
+
+- `endpoint` (required): string (min 1, max 2048)
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/notifications/read-all`
+
+**Mark the whole inbox read** — auth: `user`
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+### System
+
+_Health, readiness and the API document._
+
+#### `GET /health`
+
+**Liveness probe (answers even when configuration is incomplete)** — auth: `public`
+
+Statuses: `200`, `400`, `404`, `429`, `500`, `503`
+
+#### `GET /openapi.json`
+
+**This document** — auth: `public`
+
+Statuses: `200`, `400`, `404`, `429`, `500`, `503`
+
+#### `GET /ready`
+
+**Readiness gate — verifies bindings and applied schema** — auth: `public`
+
+Statuses: `200`, `400`, `404`, `429`, `500`, `503`
+
