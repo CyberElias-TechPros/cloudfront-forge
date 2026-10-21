@@ -45,7 +45,7 @@ CI regenerates them and fails if anything changed (`contract` job in `.github/wo
 | Path templates match route pattern groups                                           | `tests/contract/openapi.test.ts` |
 | Committed JSON equals a fresh build                                                 | `tests/contract/openapi.test.ts` |
 | Documented coverage never regresses (ratchet)                                       | `tests/contract/openapi.test.ts` |
-| Only registered error codes are returned, with the registered status                | `tests/contract/errors.test.ts`  |
+| Only registered error codes are returned, always as literals, with the registered status | `tests/contract/errors.test.ts`  |
 | `/openapi.json` is served, cached, CORS-aware and available during misconfiguration | `tests/contract/served.test.ts`  |
 
 ## Changing an endpoint

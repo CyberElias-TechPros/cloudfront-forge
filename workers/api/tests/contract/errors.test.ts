@@ -123,11 +123,15 @@ describe("error registry", () => {
     ).toEqual([]);
   });
 
-  it("reports codes that are still built dynamically", () => {
-    // Dynamic codes cannot be documented or typed, so they are listed rather
-    // than failed: this test is a visibility ratchet during PLAT-002.
+  it("uses no error codes built from variables", () => {
+    // A code assembled at runtime cannot be documented, typed or caught by the
+    // registry tests, so every call site must pass a literal. There are zero
+    // today; this assertion keeps it that way as PLAT-002 grows coverage.
     const dynamic = calls.filter((call) => call.code.startsWith("__dynamic__"));
-    expect(dynamic.length).toBeLessThanOrEqual(5);
+    expect(
+      dynamic.map((call) => `${call.file}: ${call.code.replace("__dynamic__:", "")}`),
+      "error codes must be string literals registered in src/contract/errors.ts",
+    ).toEqual([]);
   });
 
   it("returns the status each code declares", () => {

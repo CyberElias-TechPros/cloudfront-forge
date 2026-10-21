@@ -30,8 +30,8 @@ describe("YouTubeService", () => {
   it("returns null when no token exists", async () => {
     const env = {
       DB: {
-        prepare: (sql: string) => ({
-          bind: (...params: any[]) => ({
+        prepare: (_sql: string) => ({
+          bind: (..._params: any[]) => ({
             first: () => Promise.resolve(null),
           }),
           first: () => Promise.resolve(null),
@@ -50,8 +50,8 @@ describe("YouTubeService", () => {
     const futureDate = new Date(Date.now() + 3600000).toISOString();
     const env = {
       DB: {
-        prepare: (sql: string) => ({
-          bind: (...params: any[]) => ({
+        prepare: (_sql: string) => ({
+          bind: (..._params: any[]) => ({
             first: () => Promise.resolve({ access_token: "valid-token", refresh_token: "refresh", expires_at: futureDate }),
           }),
           first: () => Promise.resolve({ access_token: "valid-token", refresh_token: "refresh", expires_at: futureDate }),
