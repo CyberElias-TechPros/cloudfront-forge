@@ -4,6 +4,11 @@ import { requireAuth } from "../middleware/auth";
 import { Database, sqlBool } from "../lib/database";
 import { sanitize } from "../lib/sanitize";
 import { z } from "zod";
+import {
+  notificationPreferencesSchema,
+  pushSubscribeSchema,
+  pushUnsubscribeSchema as pushUnsubscribeContractSchema,
+} from "../contract/schemas/content";
 import { notifyUserPush } from "../lib/push";
 
 function getPagination(request: Request): { limit: number; offset: number } {
@@ -20,17 +25,7 @@ const createNotificationSchema = z.object({
   data: z.record(z.any()).optional(),
 });
 
-const updatePreferencesSchema = z.object({
-  emailEnabled: z.boolean().optional(),
-  pushEnabled: z.boolean().optional(),
-  inAppEnabled: z.boolean().optional(),
-  whatsappEnabled: z.boolean().optional(),
-  missionReminders: z.boolean().optional(),
-  reviewRequests: z.boolean().optional(),
-  communityUpdates: z.boolean().optional(),
-  quietHoursStart: z.number().min(0).max(23).nullable().optional(),
-  quietHoursEnd: z.number().min(0).max(23).nullable().optional(),
-});
+const updatePreferencesSchema = notificationPreferencesSchema;
 
 export const notificationRoutes: RouteDefinition[] = [
   {
@@ -386,10 +381,10 @@ export const notificationRoutes: RouteDefinition[] = [
         }
         const { endpoint } = parsed.data;
         const db = new Database(env);
-        await db.execute(
-          "DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?",
-          [userId, endpoint],
-        );
+        await db.execute("DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?", [
+          userId,
+          endpoint,
+        ]);
         return createResponse({ message: "Push subscription removed" });
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
@@ -403,28 +398,7 @@ export const notificationRoutes: RouteDefinition[] = [
 
 /** Push endpoints are always https URLs; `z.string().url()` accepts
  *  `javascript:` too, which would be stored and later fetched. */
-const pushEndpoint = z
-  .string()
-  .max(512)
-  .refine((value) => {
-    try {
-      return new URL(value).protocol === "https:";
-    } catch {
-      return false;
-    }
-  }, "endpoint must be an https URL");
-
-const pushSubscriptionSchema = z.object({
-  endpoint: pushEndpoint,
-  keys: z.object({
-    // Web Push uses unpadded base64url keys; both are ~65 bytes encoded.
-    p256dh: z.string().min(1).max(256).regex(/^[A-Za-z0-9_-]+$/, "p256dh must be base64url"),
-    auth: z.string().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/, "auth must be base64url"),
-  }),
-});
-
-const pushUnsubscribeSchema = z.object({
-  endpoint: pushEndpoint,
-});
+const pushSubscriptionSchema = pushSubscribeSchema;
+const pushUnsubscribeSchema = pushUnsubscribeContractSchema;
 
 export default notificationRoutes;

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { shopPurchaseSchema } from "../contract/schemas/content";
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth } from "../middleware/auth";
@@ -8,10 +8,7 @@ const BOOST_COST = 50;
 const FREEZE_COST = 30;
 const BOOST_HOURS = 24;
 
-const purchaseSchema = z.object({
-  itemType: z.enum(["boost", "streak_freeze"]),
-  videoId: z.string().optional(),
-});
+const purchaseSchema = shopPurchaseSchema;
 
 export const shopRoutes: RouteDefinition[] = [
   {
@@ -61,7 +58,11 @@ export const shopRoutes: RouteDefinition[] = [
           );
         }
         if (validation.data.itemType === "boost" && !validation.data.videoId) {
-          return createErrorResponse("VALIDATION_ERROR", "videoId is required for boost purchases", 400);
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            "videoId is required for boost purchases",
+            400,
+          );
         }
 
         const db = new Database(env);
@@ -78,11 +79,7 @@ export const shopRoutes: RouteDefinition[] = [
             [validation.data.videoId, userId],
           );
           if (!video) {
-            return createErrorResponse(
-              "NOT_FOUND",
-              "Video not found or no longer active",
-              404,
-            );
+            return createErrorResponse("NOT_FOUND", "Video not found or no longer active", 404);
           }
         }
 
@@ -92,7 +89,11 @@ export const shopRoutes: RouteDefinition[] = [
         );
         const balance = Number(account?.balance ?? 0);
         if (balance < cost) {
-          return createErrorResponse("INSUFFICIENT_CREDITS", `Not enough credits (need ${cost})`, 400);
+          return createErrorResponse(
+            "INSUFFICIENT_CREDITS",
+            `Not enough credits (need ${cost})`,
+            400,
+          );
         }
         const balanceAfter = balance - cost;
 

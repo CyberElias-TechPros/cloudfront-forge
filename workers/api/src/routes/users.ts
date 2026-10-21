@@ -3,26 +3,12 @@ import { createResponse, createErrorResponse } from "../middleware/errorHandler"
 import { requireAuth } from "../middleware/auth";
 import { Database, sqlBool } from "../lib/database";
 import { sanitize } from "../lib/sanitize";
-import { z } from "zod";
+import { profileUpdateSchema, youtubeChannelSchema } from "../contract/schemas/auth";
 import { createLogger } from "../lib/logger";
 
-const updateProfileSchema = z.object({
-  displayName: z.string().min(1).max(50).optional(),
-  bio: z.string().max(500).optional(),
-  country: z.string().max(100).optional(),
-  language: z.string().max(50).optional(),
-  experienceLevel: z.enum(["beginner", "intermediate", "advanced"]).optional(),
-  niche: z.string().max(100).optional(),
-  contentCategories: z.string().max(500).optional(),
-  goals: z.string().max(500).optional(),
-  lookingFor: z.enum(["collaboration", "feedback", "support", "mentorship"]).optional(),
-  publicProfile: z.boolean().optional(),
-});
-
-const updateYouTubeChannelSchema = z.object({
-  channelId: z.string().min(1),
-  channelName: z.string().optional(),
-});
+// Schemas are shared with the contract (single definition, PLAT-002).
+const updateProfileSchema = profileUpdateSchema;
+const updateYouTubeChannelSchema = youtubeChannelSchema;
 
 export const userRoutes: RouteDefinition[] = [
   {
@@ -108,7 +94,10 @@ export const userRoutes: RouteDefinition[] = [
           [userId],
         );
         const allChannels: any[] = [...(channels.results as any[])];
-        if (oauthToken?.channel_id && !allChannels.some((c) => c.channel_id === oauthToken.channel_id)) {
+        if (
+          oauthToken?.channel_id &&
+          !allChannels.some((c) => c.channel_id === oauthToken.channel_id)
+        ) {
           allChannels.unshift({
             id: "__oauth_connected",
             channel_id: oauthToken.channel_id,
@@ -469,7 +458,12 @@ export const userRoutes: RouteDefinition[] = [
         let watchSecondsReceived = 0;
 
         const perVideo = videos.map((v) => {
-          const s = statsByVideo.get(v.id) ?? { watches: 0, subs: 0, comments: 0, watch_seconds: 0 };
+          const s = statsByVideo.get(v.id) ?? {
+            watches: 0,
+            subs: 0,
+            comments: 0,
+            watch_seconds: 0,
+          };
           const watches = Number(s.watches ?? 0);
           const subs = Number(s.subs ?? 0);
           const comments = Number(s.comments ?? 0);

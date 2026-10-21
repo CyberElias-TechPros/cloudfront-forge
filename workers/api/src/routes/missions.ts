@@ -5,7 +5,11 @@ import { Database } from "../lib/database";
 import { awardXp } from "../lib/xp";
 import { recordAudit } from "../lib/audit";
 import { notify } from "../lib/notify";
-import { z } from "zod";
+import {
+  missionCreateSchema,
+  missionChainSchema,
+  missionCompleteSchema,
+} from "../contract/schemas/content";
 
 function getPagination(request: Request): { limit: number; offset: number } {
   const { searchParams } = new URL(request.url);
@@ -14,31 +18,11 @@ function getPagination(request: Request): { limit: number; offset: number } {
   return { limit, offset };
 }
 
-const createMissionSchema = z.object({
-  title: z.string().min(5).max(200),
-  description: z.string().max(1000),
-  difficulty: z.enum(["easy", "medium", "hard"]).default("medium"),
-  xpReward: z.number().min(0).default(25),
-  creditReward: z.number().min(0).default(10),
-  timeEstimateMinutes: z.number().min(1).max(300).default(15),
-  chainId: z.string().uuid().optional(),
-  chainStep: z.number().min(1).max(3).optional(),
-});
+const createMissionSchema = missionCreateSchema;
 
-const createChainSchema = z.object({
-  niche: z.string().min(2).max(50),
-  steps: z.array(z.object({
-    title: z.string().min(5).max(200),
-    description: z.string().max(1000).default(""),
-    difficulty: z.enum(["easy", "medium", "hard"]).default("medium"),
-    xpReward: z.number().min(0).default(25),
-    creditReward: z.number().min(0).default(10),
-  })).min(2).max(5),
-});
+const createChainSchema = missionChainSchema;
 
-const completeMissionSchema = z.object({
-  completionData: z.string().max(2000).optional(),
-});
+const completeMissionSchema = missionCompleteSchema;
 
 export const missionRoutes: RouteDefinition[] = [
   {
@@ -170,10 +154,9 @@ export const missionRoutes: RouteDefinition[] = [
           return createResponse(existing);
         }
 
-        const mission = await db.querySingle(
-          "SELECT title FROM missions WHERE id = ?",
-          [missionId],
-        );
+        const mission = await db.querySingle("SELECT title FROM missions WHERE id = ?", [
+          missionId,
+        ]);
         if (!mission) {
           return createErrorResponse("NOT_FOUND", "Mission not found", 404);
         }
@@ -254,9 +237,7 @@ export const missionRoutes: RouteDefinition[] = [
         const parts = url.pathname.split("/");
         const assignmentId = parts[5];
 
-        const completion = completeMissionSchema.safeParse(
-          await request.json().catch(() => ({})),
-        );
+        const completion = completeMissionSchema.safeParse(await request.json().catch(() => ({})));
         if (!completion.success) {
           return createErrorResponse(
             "VALIDATION_ERROR",
@@ -409,10 +390,10 @@ export const missionRoutes: RouteDefinition[] = [
           return createResponse({ message: "Already completed or skipped" });
         }
 
-        await db.execute("UPDATE mission_assignments SET status = 'skipped', updated_at = ? WHERE id = ?", [
-          new Date().toISOString(),
-          assignmentId,
-        ]);
+        await db.execute(
+          "UPDATE mission_assignments SET status = 'skipped', updated_at = ? WHERE id = ?",
+          [new Date().toISOString(), assignmentId],
+        );
 
         return createResponse({ message: "Mission skipped" });
       } catch (error: any) {
@@ -479,12 +460,15 @@ export const missionRoutes: RouteDefinition[] = [
           metadata: { niche: validation.data.niche, steps: validation.data.steps.length },
         });
 
-        return createResponse({
-          message: "Mission chain created",
-          chainId,
-          missions: missionIds,
-          steps: validation.data.steps.length,
-        }, 201);
+        return createResponse(
+          {
+            message: "Mission chain created",
+            chainId,
+            missions: missionIds,
+            steps: validation.data.steps.length,
+          },
+          201,
+        );
       } catch (error: any) {
         if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);

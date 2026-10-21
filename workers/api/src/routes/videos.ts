@@ -7,7 +7,12 @@ import { progressQuest } from "../lib/quests";
 import { trackEvent } from "../lib/analytics";
 import { awardXp, getXpState, type XpAccountState } from "../lib/xp";
 import { recordAudit } from "../lib/audit";
-import { z } from "zod";
+import {
+  submitVideoSchema,
+  reviewAnswersSchema,
+  reviewHelpfulSchema,
+  reviewSubmitSchema,
+} from "../contract/schemas/content";
 import { createLogger } from "../lib/logger";
 import { sanitize } from "../lib/sanitize";
 
@@ -20,46 +25,18 @@ function getPagination(request: Request): { limit: number; offset: number } {
   return { limit, offset };
 }
 
-const submitVideoSchema = z.object({
-  youtubeUrl: z.string().url(),
-  communityId: z.string().uuid().optional(),
-  title: z.string().min(1).max(200).optional(),
-  magicWord: z.string().min(2).max(30).optional(),
-  niche: z.string().max(50).optional(),
-});
+// Schemas are shared with the contract (single definition, PLAT-002).
+const helpfulSchema = reviewHelpfulSchema;
+const reviewSchema = reviewSubmitSchema;
 
-const reviewAnswersSchema = z.object({
-  answers: z
-    .array(
-      z.object({
-        questionId: z.string().min(1).max(100),
-        ratingValue: z.number().min(0).max(5).optional(),
-        textAnswer: z.string().max(500).optional(),
-      }),
-    )
-    .max(20)
-    .default([]),
-});
-
-const helpfulSchema = z.object({
-  helpful: z.boolean(),
-});
-
-const reviewSchema = z.object({
-  score: z.number().min(1).max(5).optional(),
-  feedbackText: z.string().max(2000).optional(),
-  answers: z
-    .array(
-      z.object({
-        questionId: z.string(),
-        ratingValue: z.number().min(0).max(5).optional(),
-        textAnswer: z.string().max(500).optional(),
-      }),
-    )
-    .optional(),
-});
-
-async function notifyCommunityMembers(db: Database, communityId: string, type: string, title: string, message: string, excludeUserId: string): Promise<void> {
+async function notifyCommunityMembers(
+  db: Database,
+  communityId: string,
+  type: string,
+  title: string,
+  message: string,
+  excludeUserId: string,
+): Promise<void> {
   const members = await db.query(
     "SELECT user_id FROM community_members WHERE community_id = ? AND user_id != ? AND status = 'active'",
     [communityId, excludeUserId],
@@ -90,7 +67,8 @@ export const videoRoutes: RouteDefinition[] = [
         const db = new Database(env);
 
         let countQuery = "SELECT COUNT(*) as count FROM videos v WHERE v.status = 'active'";
-        let dataQuery = "SELECT v.*, c.name as community_name FROM videos v LEFT JOIN communities c ON v.community_id = c.id WHERE v.status = 'active'";
+        let dataQuery =
+          "SELECT v.*, c.name as community_name FROM videos v LEFT JOIN communities c ON v.community_id = c.id WHERE v.status = 'active'";
         const params: any[] = [];
 
         if (communityId) {
@@ -203,7 +181,7 @@ export const videoRoutes: RouteDefinition[] = [
           // Only gate users who have received subs AND used their 3 free submissions
           const watchHours = (rep?.watch_minutes ?? 0) / 60.0;
           const giveTakeRatio = (given + watchHours) / received;
-          if (giveTakeRatio < 0.80) {
+          if (giveTakeRatio < 0.8) {
             return createErrorResponse(
               "RATIO_GATE",
               `Your give/take ratio is ${giveTakeRatio.toFixed(2)}. Minimum 0.80 required to submit. Watch more videos to earn trust first.`,
@@ -229,7 +207,9 @@ export const videoRoutes: RouteDefinition[] = [
           }
         }
         const finalTitle =
-          validation.data.title?.trim() || (metadata.title ? sanitize(metadata.title) : "") || "Untitled video";
+          validation.data.title?.trim() ||
+          (metadata.title ? sanitize(metadata.title) : "") ||
+          "Untitled video";
 
         const videoId = db.uuid();
         const communityId = validation.data.communityId || null;
@@ -417,7 +397,13 @@ export const videoRoutes: RouteDefinition[] = [
 
         await recordAudit(
           db,
-          { actorId: userId, action: "video.archive", resourceType: "video", resourceId: videoId, request },
+          {
+            actorId: userId,
+            action: "video.archive",
+            resourceType: "video",
+            resourceId: videoId,
+            request,
+          },
           env,
         );
         return createResponse({ message: "Video archived — it is out of the queue" });
@@ -665,7 +651,9 @@ export const reviewRoutes: RouteDefinition[] = [
           .filter((v: number) => Number.isFinite(v) && v > 0);
         const computedScore =
           ratingValues.length > 0
-            ? Math.round(ratingValues.reduce((a: number, b: number) => a + b, 0) / ratingValues.length)
+            ? Math.round(
+                ratingValues.reduce((a: number, b: number) => a + b, 0) / ratingValues.length,
+              )
             : (validation.data.score ?? null);
 
         await db.execute(
@@ -894,22 +882,26 @@ export const reviewRoutes: RouteDefinition[] = [
 
         const database = db(env);
         const review = await database.query("SELECT * FROM reviews WHERE id = ?", [reviewId]);
-        if (review.results.length === 0) return createErrorResponse("NOT_FOUND", "Review not found", 404);
+        if (review.results.length === 0)
+          return createErrorResponse("NOT_FOUND", "Review not found", 404);
 
         const reviewRow = review.results[0] as Record<string, unknown>;
-        const video = await database.query("SELECT * FROM videos WHERE id = ?", [reviewRow.video_id]);
-        if (video.results.length === 0) return createErrorResponse("NOT_FOUND", "Video not found", 404);
+        const video = await database.query("SELECT * FROM videos WHERE id = ?", [
+          reviewRow.video_id,
+        ]);
+        if (video.results.length === 0)
+          return createErrorResponse("NOT_FOUND", "Video not found", 404);
         if ((video.results[0] as Record<string, unknown>).user_id !== userId) {
-          return createErrorResponse("FORBIDDEN", "Only the video submitter can rate this review", 403);
+          return createErrorResponse(
+            "FORBIDDEN",
+            "Only the video submitter can rate this review",
+            403,
+          );
         }
 
         const parsed = helpfulSchema.safeParse(await request.json().catch(() => ({})));
         if (!parsed.success) {
-          return createErrorResponse(
-            "VALIDATION_ERROR",
-            "helpful must be a boolean",
-            400,
-          );
+          return createErrorResponse("VALIDATION_ERROR", "helpful must be a boolean", 400);
         }
         const helpful = parsed.data.helpful;
         await database.query("UPDATE reviews SET helpful = ? WHERE id = ?", [

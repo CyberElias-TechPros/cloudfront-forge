@@ -4,24 +4,11 @@ import { UserService } from "../services/user";
 import { requireAuth, requireAdmin } from "../middleware/auth";
 import { getUserPermissions } from "../middleware/permissions";
 import { Database } from "../lib/database";
-import { z } from "zod";
+import { registerSchema, updateUserSchema } from "../contract/schemas/auth";
 
 // `firebaseUid` is accepted for backwards compatibility with older clients but
-// is deliberately *ignored*: the caller's identity comes exclusively from the
-// verified Firebase ID token on the Authorization header. Accepting a
-// client-supplied uid let anyone create rows for (or read the profiles of)
-// arbitrary accounts.
-const registerSchema = z.object({
-  firebaseUid: z.string().min(1).optional(),
-  email: z.string().email().nullable().optional(),
-  displayName: z.string().min(1).max(50).nullable().optional(),
-  photoUrl: z.string().url().nullable().optional(),
-});
-
-const updateUserSchema = z.object({
-  displayName: z.string().min(1).max(50).optional(),
-  email: z.string().email().optional(),
-});
+// The request schemas live in `src/contract/schemas/auth.ts` so the OpenAPI
+// document and the generated clients cannot drift from this validation.
 
 const isAuthError = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : "";
