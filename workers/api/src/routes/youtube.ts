@@ -10,7 +10,10 @@ const STATE_TTL_SEC = 600; // 10 minutes
 
 // First allowed CORS origin doubles as the canonical frontend origin for OAuth redirects.
 function frontendOrigin(env: Env): string {
-  const first = (env.CORS_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean)[0];
+  const first = (env.CORS_ORIGINS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)[0];
   return first || "https://loop.freegameplay.site";
 }
 
@@ -46,9 +49,10 @@ export const youtubeRoutes: RouteDefinition[] = [
         const nowEpoch = Math.floor(Date.now() / 1000);
 
         // Opportunistic cleanup of expired states
-        await db.execute("DELETE FROM youtube_oauth_states WHERE expires_at IS NOT NULL AND expires_at < ?", [
-          nowEpoch,
-        ]);
+        await db.execute(
+          "DELETE FROM youtube_oauth_states WHERE expires_at IS NOT NULL AND expires_at < ?",
+          [nowEpoch],
+        );
 
         await db.execute(
           "INSERT INTO youtube_oauth_states (id, user_id, state, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
@@ -156,7 +160,7 @@ export const youtubeRoutes: RouteDefinition[] = [
           return createErrorResponse("SERVICE_UNAVAILABLE", "YouTube OAuth is not configured", 503);
         }
         if (message.includes("YOUTUBE_TOKEN_EXCHANGE_FAILED")) {
-          return createErrorResponse("AUTH_ERROR", "Failed to exchange authorization code", 400);
+          return createErrorResponse("BAD_REQUEST", "Failed to exchange authorization code", 400);
         }
         return createErrorResponse("INTERNAL_ERROR", "OAuth callback failed", 500);
       }

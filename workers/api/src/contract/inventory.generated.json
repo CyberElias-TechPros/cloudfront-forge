@@ -1,0 +1,1207 @@
+{
+  "generatedBy": "npm run contract:build",
+  "coverage": {
+    "routes": 110,
+    "documented": 45,
+    "percent": 40.9,
+    "undocumented": [
+      {
+        "method": "GET",
+        "key": "/api/v1/users/me/youtube-channels"
+      },
+      {
+        "method": "DELETE",
+        "key": "/api/v1/users/me"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/communities"
+      },
+      {
+        "method": "GET",
+        "key": "^\\/api\\/v1/communities/([^/]+)$"
+      },
+      {
+        "method": "POST",
+        "key": "/api/v1/communities"
+      },
+      {
+        "method": "POST",
+        "key": "/api/v1/communities/join"
+      },
+      {
+        "method": "GET",
+        "key": "^\\/api\\/v1/communities/([^/]+)/members$"
+      },
+      {
+        "method": "PUT",
+        "key": "^\\/api\\/v1/communities/([^/]+)/settings$"
+      },
+      {
+        "method": "POST",
+        "key": "^\\/api\\/v1/communities/([^/]+)/leave$"
+      },
+      {
+        "method": "POST",
+        "key": "^\\/api\\/v1/communities/([^/]+)/join$"
+      },
+      {
+        "method": "GET",
+        "key": "^\\/api\\/v1/communities/([^/]+)/requests$"
+      },
+      {
+        "method": "POST",
+        "key": "^\\/api\\/v1/communities/([^/]+)/requests/([^/]+)/approve$"
+      },
+      {
+        "method": "POST",
+        "key": "^\\/api\\/v1/communities/([^/]+)/requests/([^/]+)/reject$"
+      },
+      {
+        "method": "POST",
+        "key": "^\\/api\\/v1/communities/([^/]+)/members/([^/]+)/role$"
+      },
+      {
+        "method": "POST",
+        "key": "^\\/api\\/v1/communities/([^/]+)/members/([^/]+)/remove$"
+      },
+      {
+        "method": "POST",
+        "key": "^\\/api\\/v1/communities/([^/]+)/invite/regenerate$"
+      },
+      {
+        "method": "DELETE",
+        "key": "^\\/api\\/v1/communities/([^/]+)$"
+      },
+      {
+        "method": "POST",
+        "key": "/api/v1/support"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/admin/support"
+      },
+      {
+        "method": "POST",
+        "key": "^\\/api\\/v1/admin/support/([^/]+)/resolve$"
+      },
+      {
+        "method": "POST",
+        "key": "^\\/api\\/v1/missions/assignments/([^/]+)/skip$"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/daily-quests"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/credits"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/xp"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/reputation"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/streaks"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/badges"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/leaderboards"
+      },
+      {
+        "method": "POST",
+        "key": "/api/v1/gamification/daily-bonus"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/admin/analytics"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/admin/users"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/admin/communities"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/admin/reports"
+      },
+      {
+        "method": "POST",
+        "key": "^\\/api\\/v1/admin/reports/([^/]+)/resolve$"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/admin/metrics"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/admin/retention"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/admin/appeals"
+      },
+      {
+        "method": "POST",
+        "key": "^\\/api\\/v1/admin/users/([^/]+)/suspend$"
+      },
+      {
+        "method": "POST",
+        "key": "^\\/api\\/v1/admin/users/([^/]+)/reinstate$"
+      },
+      {
+        "method": "POST",
+        "key": "^\\/api\\/v1/admin/users/([^/]+)/role$"
+      },
+      {
+        "method": "POST",
+        "key": "^\\/api\\/v1/admin/videos/([^/]+)/restore$"
+      },
+      {
+        "method": "POST",
+        "key": "/api/v1/notifications"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/queue"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/submissions"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/activity"
+      },
+      {
+        "method": "POST",
+        "key": "/api/v1/ai/chat"
+      },
+      {
+        "method": "POST",
+        "key": "/api/v1/ai/chat/stream"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/ai/conversations"
+      },
+      {
+        "method": "GET",
+        "key": "^\\/api\\/v1/ai/conversations/([^/]+)/messages$"
+      },
+      {
+        "method": "DELETE",
+        "key": "^\\/api\\/v1/ai/conversations/([^/]+)$"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/youtube/oauth/authorize"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/youtube/oauth/callback"
+      },
+      {
+        "method": "POST",
+        "key": "/api/v1/youtube/oauth/callback"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/youtube/status"
+      },
+      {
+        "method": "POST",
+        "key": "/api/v1/youtube/disconnect"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/search"
+      },
+      {
+        "method": "POST",
+        "key": "/api/v1/reports"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/reports/mine"
+      },
+      {
+        "method": "POST",
+        "key": "^\\/api\\/v1/reports/([^/]+)/appeal$"
+      },
+      {
+        "method": "POST",
+        "key": "^\\/api\\/v1/admin/appeals/([^/]+)$"
+      },
+      {
+        "method": "POST",
+        "key": "/api/v1/topups/proof"
+      },
+      {
+        "method": "GET",
+        "key": "^\\/api\\/v1/admin/topups/([^/]+)/proof$"
+      },
+      {
+        "method": "POST",
+        "key": "^\\/api\\/v1/admin/topups/([^/]+)/approve$"
+      },
+      {
+        "method": "POST",
+        "key": "^\\/api\\/v1/admin/topups/([^/]+)/reject$"
+      },
+      {
+        "method": "GET",
+        "key": "/api/v1/discover/collaborators"
+      }
+    ]
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "key": "/health",
+      "matcher": "path",
+      "documented": true,
+      "auth": "public",
+      "tag": "System",
+      "operationId": "health",
+      "path": "/health"
+    },
+    {
+      "method": "GET",
+      "key": "/ready",
+      "matcher": "path",
+      "documented": true,
+      "auth": "public",
+      "tag": "System",
+      "operationId": "ready",
+      "path": "/ready"
+    },
+    {
+      "method": "GET",
+      "key": "/openapi.json",
+      "matcher": "path",
+      "documented": true,
+      "auth": "public",
+      "tag": "System",
+      "operationId": "openApiDocument",
+      "path": "/openapi.json"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/auth/register",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Auth",
+      "operationId": "registerAccount",
+      "path": "/api/v1/auth/register"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/auth/me",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Auth",
+      "operationId": "getCurrentAccount",
+      "path": "/api/v1/auth/me"
+    },
+    {
+      "method": "PUT",
+      "key": "/api/v1/auth/profile",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Auth",
+      "operationId": "updateAccount",
+      "path": "/api/v1/auth/profile"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/auth/permissions",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Auth",
+      "operationId": "getPermissions",
+      "path": "/api/v1/auth/permissions"
+    },
+    {
+      "method": "GET",
+      "key": "^\\/api\\/v1/users/([^/]+)$",
+      "matcher": "pattern",
+      "documented": true,
+      "auth": "user",
+      "tag": "Users",
+      "operationId": "getMemberById",
+      "path": "/api/v1/users/{userId}"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/users/me/profile",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Users",
+      "operationId": "getMyProfile",
+      "path": "/api/v1/users/me/profile"
+    },
+    {
+      "method": "PUT",
+      "key": "/api/v1/users/me/profile",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Users",
+      "operationId": "updateMyProfile",
+      "path": "/api/v1/users/me/profile"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/users/me/youtube-channel",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Users",
+      "operationId": "linkYouTubeChannel",
+      "path": "/api/v1/users/me/youtube-channel"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/users/me/member",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Users",
+      "operationId": "getMyMemberCard",
+      "path": "/api/v1/users/me/member"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/users/me/youtube-channels",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/users/me/insights",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Users",
+      "operationId": "getMyInsights",
+      "path": "/api/v1/users/me/insights"
+    },
+    {
+      "method": "DELETE",
+      "key": "/api/v1/users/me",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/communities",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "^\\/api\\/v1/communities/([^/]+)$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/communities",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/communities/join",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "^\\/api\\/v1/communities/([^/]+)/members$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "PUT",
+      "key": "^\\/api\\/v1/communities/([^/]+)/settings$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/communities/([^/]+)/leave$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/communities/([^/]+)/join$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "^\\/api\\/v1/communities/([^/]+)/requests$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/communities/([^/]+)/requests/([^/]+)/approve$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/communities/([^/]+)/requests/([^/]+)/reject$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/communities/([^/]+)/members/([^/]+)/role$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/communities/([^/]+)/members/([^/]+)/remove$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/communities/([^/]+)/invite/regenerate$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "DELETE",
+      "key": "^\\/api\\/v1/communities/([^/]+)$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/support",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/admin/support",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/admin/support/([^/]+)/resolve$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/videos",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Videos",
+      "operationId": "listVideos",
+      "path": "/api/v1/videos"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/videos",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Videos",
+      "operationId": "submitVideo",
+      "path": "/api/v1/videos"
+    },
+    {
+      "method": "GET",
+      "key": "^\\/api\\/v1/videos/([^/]+)$",
+      "matcher": "pattern",
+      "documented": true,
+      "auth": "user",
+      "tag": "Videos",
+      "operationId": "getVideo",
+      "path": "/api/v1/videos/{videoId}"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/videos/([^/]+)/archive$",
+      "matcher": "pattern",
+      "documented": true,
+      "auth": "user",
+      "tag": "Videos",
+      "operationId": "archiveVideo",
+      "path": "/api/v1/videos/{videoId}/archive"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/reviews",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Reviews",
+      "operationId": "listReviews",
+      "path": "/api/v1/reviews"
+    },
+    {
+      "method": "GET",
+      "key": "^\\/api\\/v1/reviews/([^/]+)$",
+      "matcher": "pattern",
+      "documented": true,
+      "auth": "user",
+      "tag": "Reviews",
+      "operationId": "getReview",
+      "path": "/api/v1/reviews/{reviewId}"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/reviews/([^/]+)/start$",
+      "matcher": "pattern",
+      "documented": true,
+      "auth": "user",
+      "tag": "Reviews",
+      "operationId": "startReview",
+      "path": "/api/v1/reviews/{reviewId}/start"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/reviews/([^/]+)/complete$",
+      "matcher": "pattern",
+      "documented": true,
+      "auth": "user",
+      "tag": "Reviews",
+      "operationId": "completeReview",
+      "path": "/api/v1/reviews/{reviewId}/complete"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/reviews/([^/]+)/answers$",
+      "matcher": "pattern",
+      "documented": true,
+      "auth": "user",
+      "tag": "Reviews",
+      "operationId": "saveReviewAnswers",
+      "path": "/api/v1/reviews/{reviewId}/answers"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/reviews/([^/]+)/helpful$",
+      "matcher": "pattern",
+      "documented": true,
+      "auth": "user",
+      "tag": "Reviews",
+      "operationId": "rateReviewHelpful",
+      "path": "/api/v1/reviews/{reviewId}/helpful"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/missions",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Missions",
+      "operationId": "listMissions",
+      "path": "/api/v1/missions"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/missions",
+      "matcher": "path",
+      "documented": true,
+      "auth": "admin",
+      "tag": "Missions",
+      "operationId": "createMission",
+      "path": "/api/v1/missions"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/missions/([^/]+)/assign$",
+      "matcher": "pattern",
+      "documented": true,
+      "auth": "user",
+      "tag": "Missions",
+      "operationId": "assignMission",
+      "path": "/api/v1/missions/{missionId}/assign"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/missions/assignments",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Missions",
+      "operationId": "listMissionAssignments",
+      "path": "/api/v1/missions/assignments"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/missions/assignments/([^/]+)/complete$",
+      "matcher": "pattern",
+      "documented": true,
+      "auth": "user",
+      "tag": "Missions",
+      "operationId": "completeMissionAssignment",
+      "path": "/api/v1/missions/assignments/{assignmentId}/complete"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/missions/assignments/([^/]+)/skip$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/missions/chain",
+      "matcher": "path",
+      "documented": true,
+      "auth": "admin",
+      "tag": "Missions",
+      "operationId": "createMissionChain",
+      "path": "/api/v1/missions/chain"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/daily-quests",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/credits",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/xp",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/reputation",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/streaks",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/badges",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/leaderboards",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/gamification/daily-bonus",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/admin/analytics",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/admin/users",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/admin/communities",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/admin/reports",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/admin/reports/([^/]+)/resolve$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/admin/metrics",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/admin/retention",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/admin/appeals",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/admin/users/([^/]+)/suspend$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/admin/users/([^/]+)/reinstate$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/admin/users/([^/]+)/role$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/admin/videos/([^/]+)/restore$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/notifications",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Notifications",
+      "operationId": "listNotifications",
+      "path": "/api/v1/notifications"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/notifications",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/notifications/read-all",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Notifications",
+      "operationId": "markAllNotificationsRead",
+      "path": "/api/v1/notifications/read-all"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/notifications/([^/]+)/read$",
+      "matcher": "pattern",
+      "documented": true,
+      "auth": "user",
+      "tag": "Notifications",
+      "operationId": "markNotificationRead",
+      "path": "/api/v1/notifications/{notificationId}/read"
+    },
+    {
+      "method": "DELETE",
+      "key": "^\\/api\\/v1/notifications/([^/]+)$",
+      "matcher": "pattern",
+      "documented": true,
+      "auth": "user",
+      "tag": "Notifications",
+      "operationId": "deleteNotification",
+      "path": "/api/v1/notifications/{notificationId}"
+    },
+    {
+      "method": "PUT",
+      "key": "/api/v1/notifications/preferences",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Notifications",
+      "operationId": "updateNotificationPreferences",
+      "path": "/api/v1/notifications/preferences"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/notifications/preferences",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Notifications",
+      "operationId": "getNotificationPreferences",
+      "path": "/api/v1/notifications/preferences"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/notifications/push/subscribe",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Notifications",
+      "operationId": "subscribeWebPush",
+      "path": "/api/v1/notifications/push/subscribe"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/notifications/push/unsubscribe",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Notifications",
+      "operationId": "unsubscribeWebPush",
+      "path": "/api/v1/notifications/push/unsubscribe"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/queue",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/submissions",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/activity",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/watch/challenge",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Watch",
+      "operationId": "createAttentionChallenge",
+      "path": "/api/v1/watch/challenge"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/watch/challenge/([^/]+)/answer$",
+      "matcher": "pattern",
+      "documented": true,
+      "auth": "user",
+      "tag": "Watch",
+      "operationId": "answerAttentionChallenge",
+      "path": "/api/v1/watch/challenge/{challengeId}/answer"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/watch/start",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Watch",
+      "operationId": "startWatchSession",
+      "path": "/api/v1/watch/start"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/watch/heartbeat",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Watch",
+      "operationId": "recordWatchHeartbeat",
+      "path": "/api/v1/watch/heartbeat"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/watch",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Watch",
+      "operationId": "claimWatch",
+      "path": "/api/v1/watch"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/ai/chat",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/ai/chat/stream",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/ai/conversations",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "^\\/api\\/v1/ai/conversations/([^/]+)/messages$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "DELETE",
+      "key": "^\\/api\\/v1/ai/conversations/([^/]+)$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/youtube/oauth/authorize",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/youtube/oauth/callback",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/youtube/oauth/callback",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/youtube/status",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/youtube/disconnect",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/search",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/reports",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/reports/mine",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/reports/([^/]+)/appeal$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/admin/appeals/([^/]+)$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/shop",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Shop",
+      "operationId": "listShopItems",
+      "path": "/api/v1/shop"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/shop/purchase",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Shop",
+      "operationId": "purchaseShopItem",
+      "path": "/api/v1/shop/purchase"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/topups",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Top-ups",
+      "operationId": "listTopupTiers",
+      "path": "/api/v1/topups"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/topups/proof",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/topups",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Top-ups",
+      "operationId": "requestTopup",
+      "path": "/api/v1/topups"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/topups/mine",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Top-ups",
+      "operationId": "listMyTopups",
+      "path": "/api/v1/topups/mine"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/admin/topups",
+      "matcher": "path",
+      "documented": true,
+      "auth": "admin",
+      "tag": "Top-ups",
+      "operationId": "adminListTopups",
+      "path": "/api/v1/admin/topups"
+    },
+    {
+      "method": "GET",
+      "key": "^\\/api\\/v1/admin/topups/([^/]+)/proof$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/admin/topups/([^/]+)/approve$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "POST",
+      "key": "^\\/api\\/v1/admin/topups/([^/]+)/reject$",
+      "matcher": "pattern",
+      "documented": false,
+      "auth": "undocumented"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/discover/collaborators",
+      "matcher": "path",
+      "documented": false,
+      "auth": "undocumented"
+    }
+  ]
+}
