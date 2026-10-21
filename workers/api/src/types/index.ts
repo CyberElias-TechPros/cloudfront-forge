@@ -35,6 +35,14 @@ export interface Env {
   AI_DAILY_GLOBAL_LIMIT?: string;
   WATCH_SESSIONS_ENABLED?: string;
   WATCH_SESSION_SECRET?: string;
+  /** Watch-evidence policy: `legacy` (default) | `self_report_capped` | `verified_only`. */
+  EVIDENCE_POLICY?: string;
+  /** Share of the watch reward paid on self-reported evidence in capped mode (0–1). */
+  EVIDENCE_SELF_REPORT_SHARE?: string;
+  /** Heartbeat samples further apart than this many seconds credit nothing. */
+  WATCH_HEARTBEAT_MAX_GAP_SEC?: string;
+  /** Credited watch seconds may not exceed wall-clock seconds by this factor. */
+  WATCH_HEARTBEAT_MAX_RATE?: string;
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   RESEND_API_KEY?: string;

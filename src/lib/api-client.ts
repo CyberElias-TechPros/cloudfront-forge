@@ -295,6 +295,40 @@ export interface QueueTask {
   magicWord?: string | null;
 }
 
+/**
+ * Why a claim paid — computed server-side by the evidence policy (SEC-010).
+ *
+ * Clients render this instead of guessing: `self_report` in a
+ * verification-enforced deployment means the watch was recorded but earned
+ * nothing, and `reason` explains what to do about it.
+ */
+export interface WatchEvidenceDTO {
+  level: "youtube_api" | "signed_session" | "self_report" | "none";
+  paid: boolean;
+  verifiedSeconds: number;
+  reason: string;
+}
+
+export interface WatchClaimResultDTO {
+  status: string;
+  claimable: boolean;
+  attentionBlocked?: boolean;
+  xpAwarded: number;
+  creditsAwarded: number;
+  watchVerified: boolean;
+  subscribed: boolean;
+  commented: boolean;
+  evidence?: WatchEvidenceDTO;
+  subReason?: string;
+  level?: number;
+  totalXp?: number;
+  rewardBreakdown?: {
+    watch: RewardComponent;
+    subscribe: RewardComponent;
+    comment: RewardComponent;
+  };
+}
+
 export interface SubmissionDTO {
   id: string;
   title: string;
@@ -701,27 +735,25 @@ export const apiClientService = {
       subscribed: boolean;
       commented: boolean;
       sessionToken?: string;
-    }) =>
-      postData<{
-        status: string;
-        claimable: boolean;
-        xpAwarded: number;
-        creditsAwarded: number;
-        watchVerified: boolean;
-        subscribed: boolean;
-        commented: boolean;
-        rewardBreakdown?: {
-          watch: RewardComponent;
-          subscribe: RewardComponent;
-          comment: RewardComponent;
-        };
-      }>("/api/v1/watch", data),
+    }) => postData<WatchClaimResultDTO>("/api/v1/watch", data),
     start: (videoId: string) =>
       postData<{ sessionToken: string | null; enabled: boolean }>("/api/v1/watch/start", {
         videoId,
       }),
+    /**
+     * One player-time sample. The server scores it: rewind, fast-forward and
+     * long gaps are recorded but never credited, so the response says whether
+     * this sample counted (`accepted`) and how much verified time the session
+     * has so far (`verifiedSeconds`).
+     */
     heartbeat: (sessionToken: string, playerTime: number) =>
-      postData<{ ok: boolean }>("/api/v1/watch/heartbeat", { sessionToken, playerTime }),
+      postData<{
+        ok: boolean;
+        accepted?: boolean;
+        deltaSeconds?: number;
+        verifiedSeconds?: number;
+        rejectReason?: string | null;
+      }>("/api/v1/watch/heartbeat", { sessionToken, playerTime }),
     challenge: (videoId: string) =>
       postData<{ challengeId: string; question: string; ttlSec: number }>(
         "/api/v1/watch/challenge",

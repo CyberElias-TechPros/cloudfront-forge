@@ -26,7 +26,7 @@ import {
   useAnswerChallenge,
   useCommunities,
 } from "@/hooks/use-api";
-import { apiClientService } from "@/lib/api-client";
+import { apiClientService, type WatchClaimResultDTO } from "@/lib/api-client";
 import {
   Dialog,
   DialogContent,
@@ -124,16 +124,7 @@ function Queue() {
         subscribed,
         commented,
         ...(sessionTokenRef.current ? { sessionToken: sessionTokenRef.current } : {}),
-      })) as {
-        status: string;
-        claimable: boolean;
-        xpAwarded: number;
-        creditsAwarded: number;
-        watchVerified: boolean;
-        subscribed: boolean;
-        commented: boolean;
-        subReason?: string;
-      };
+      })) as WatchClaimResultDTO;
       if (result.status === "claimed") {
         setRewarded({ watch: true, comment: true });
       } else {
@@ -146,6 +137,11 @@ function Queue() {
         const parts = [`+${result.xpAwarded} XP`];
         if (result.creditsAwarded > 0) parts.push(`+${result.creditsAwarded} credits`);
         toast.success(`Claimed ${parts.join(" & ")}!`);
+      } else if (result.evidence && !result.evidence.paid) {
+        // The server tells us *why* it did not pay (evidence policy), instead of
+        // the UI guessing. Covers "watch not verified yet" and enforced
+        // deployments that only pay for server-verified attention.
+        toast.info(result.evidence.reason);
       } else if (result.subReason) {
         toast.info(`Watch recorded: ${result.subReason}`);
       } else {
