@@ -5,8 +5,24 @@
  * if an entry does not match a real route, so these cannot drift.
  */
 import type { EndpointContract } from "../contract-types";
-import { communityCreateSchema, communityJoinByCodeSchema, communitySettingsSchema, communityJoinRequestSchema, communityMemberRoleSchema } from "../schemas/community";
-import { communityListResponseSchema, communityDetailResponseSchema, communityCreateResponseSchema, communityJoinResponseSchema, communityMemberListResponseSchema, actionMessageSchema, joinRequestListResponseSchema, inviteCodeResponseSchema } from "../schemas/views";
+import { PAGINATION } from "../contract-types";
+import {
+  communityCreateSchema,
+  communityJoinByCodeSchema,
+  communitySettingsSchema,
+  communityJoinRequestSchema,
+  communityMemberRoleSchema,
+} from "../schemas/community";
+import {
+  communityListResponseSchema,
+  communityDetailResponseSchema,
+  communityCreateResponseSchema,
+  communityJoinResponseSchema,
+  communityMemberListResponseSchema,
+  actionMessageSchema,
+  joinRequestListResponseSchema,
+  inviteCodeResponseSchema,
+} from "../schemas/views";
 
 export const communityEndpoints: EndpointContract[] = [
   {
@@ -17,10 +33,7 @@ export const communityEndpoints: EndpointContract[] = [
     tag: "Communities",
     auth: "user",
     response: communityListResponseSchema,
-    query: [
-      { name: "limit", type: "integer", description: "Page size (1–100, default 20)." },
-      { name: "offset", type: "integer", description: "Rows to skip (default 0)." },
-    ],
+    query: PAGINATION,
   },
   {
     route: { method: "GET", pattern: "^\\/api\\/v1/communities/([^/]+)$" },
@@ -107,7 +120,10 @@ export const communityEndpoints: EndpointContract[] = [
     errors: ["FORBIDDEN"],
   },
   {
-    route: { method: "POST", pattern: "^\\/api\\/v1/communities/([^/]+)/requests/([^/]+)/approve$" },
+    route: {
+      method: "POST",
+      pattern: "^\\/api\\/v1/communities/([^/]+)/requests/([^/]+)/approve$",
+    },
     path: "/api/v1/communities/{communityId}/requests/{requestId}/approve",
     operationId: "approveJoinRequest",
     summary: "Approve a join request",

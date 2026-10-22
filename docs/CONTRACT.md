@@ -138,6 +138,41 @@ It found three real defects the first time it ran, all fixed:
    authenticated but are intentionally public (landing page and shared links);
    the registry now says `public`, so the document tells the truth.
 
+## Versioning and deprecation (PLAT-018)
+
+Two clients ship on independent schedules, so a change that removes a field or
+tightens an enum must be announced before it lands rather than discovered by a
+crash in the Play Store.
+
+**Policy**
+
+- The API version (`/api/v1`) changes only when a breaking change cannot be
+  staged. Everything below is expected within `v1`.
+- A deprecated operation or parameter keeps working for **at least one release
+  of both clients** (the web build and the next Android version), and never less
+  than **90 days**. It responds with `Deprecation: true`, a `Sunset` date and a
+  human-readable `Warning` header, and is marked `deprecated: true` in the spec.
+- Breaking changes are announced in [`API_CHANGELOG.md`](./API_CHANGELOG.md),
+  which is generated from the spec diff, not written by hand.
+- The reference client (`src/lib/retry.ts`, `src/lib/api.ts`) surfaces a
+  deprecation `Warning` in development builds so nobody ships a new dependency
+  on a dying endpoint.
+
+**Where the diff runs**
+
+`node scripts/api-diff.mjs --base origin/main` classifies every difference as
+breaking, deprecating or additive. CI runs it on every pull request, publishes
+the summary to the job's step summary and comments on the PR; `--check-breaking`
+turns a silent break into a red check.
+
+## Corrections vs. earlier documents
+
+The spec diff is honest about documentation fixes, so they appear as breaking
+entries even where the server never changed:
+
+- `GET /videos` was documented as `{ videos, pagination }`; the handler has always
+  returned `{ items, total, limit, offset }`. The schema now matches the server.
+
 ## Rate limits
 
 Two buckets per caller, deliberately different:

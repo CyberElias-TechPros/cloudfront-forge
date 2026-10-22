@@ -10,13 +10,7 @@ import {
 } from "../contract/schemas/content";
 import { notificationCreateSchema as notificationCreateContractSchema } from "../contract/schemas/moderation";
 import { notifyUserPush } from "../lib/push";
-
-function getPagination(request: Request): { limit: number; offset: number } {
-  const { searchParams } = new URL(request.url);
-  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "50", 10)));
-  const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10));
-  return { limit, offset };
-}
+import { buildPage, cursorErrorResponse, paginate } from "../lib/pagination";
 
 const createNotificationSchema = notificationCreateContractSchema;
 
@@ -31,33 +25,46 @@ export const notificationRoutes: RouteDefinition[] = [
         const userId = await requireAuth(request, env);
         const { searchParams } = new URL(request.url);
         const isRead = searchParams.get("isRead");
-        const { limit, offset } = getPagination(request);
+
+        // Keyset pagination (PLAT-016): offset paging duplicated or skipped rows
+        // when new notifications arrived mid-scroll.
+        const page = paginate(request, { columns: ["created_at", "id"], defaultLimit: 50 });
+        const unreadClause = isRead === "false" ? "AND is_read = 0" : "";
 
         const db = new Database(env);
 
-        const countQuery = `SELECT COUNT(*) as count FROM notifications WHERE user_id = ? ${isRead === "false" ? "AND is_read = 0" : ""}`;
-        const countResult = await db.query(countQuery, [userId]);
+        const countResult = await db.query(
+          `SELECT COUNT(*) as count FROM notifications WHERE user_id = ? ${unreadClause}`,
+          [userId],
+        );
 
-        let result;
-        if (isRead === "false") {
-          result = await db.query(
-            "SELECT * FROM notifications WHERE user_id = ? AND is_read = 0 ORDER BY created_at DESC LIMIT ? OFFSET ?",
-            [userId, limit, offset],
-          );
-        } else {
-          result = await db.query(
-            "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
-            [userId, limit, offset],
-          );
-        }
+        const result = await db.query(
+          `SELECT * FROM notifications WHERE user_id = ? ${unreadClause} ${page.clause}
+             ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
+          [userId, ...page.params, page.fetchLimit, page.offset],
+        );
 
-        return createResponse({
-          items: result.results,
-          total: countResult.results[0]?.count ?? 0,
-          limit,
-          offset,
-        });
+        const { items, pagination } = buildPage(
+          result.results as Array<{ created_at: string; id: string }>,
+          page.limit,
+          (row) => [row.created_at, row.id],
+        );
+
+        return createResponse(
+          {
+            items,
+            total: countResult.results[0]?.count ?? 0,
+            limit: page.limit,
+            offset: page.offset,
+            nextCursor: pagination.nextCursor,
+            hasMore: pagination.hasMore,
+          },
+          200,
+          new Headers(page.headers),
+        );
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -109,6 +116,8 @@ export const notificationRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Notification created" }, 201);
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -129,6 +138,8 @@ export const notificationRoutes: RouteDefinition[] = [
         ]);
         return createResponse({ message: "All notifications marked as read" });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -155,6 +166,8 @@ export const notificationRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Notification marked as read" });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -181,6 +194,8 @@ export const notificationRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Notification deleted" });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -273,6 +288,8 @@ export const notificationRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Preferences updated" });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -320,6 +337,8 @@ export const notificationRoutes: RouteDefinition[] = [
           quietHoursEnd: preferences.quiet_hours_end ?? null,
         });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -353,6 +372,8 @@ export const notificationRoutes: RouteDefinition[] = [
         );
         return createResponse({ message: "Push subscription saved" });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -382,6 +403,8 @@ export const notificationRoutes: RouteDefinition[] = [
         ]);
         return createResponse({ message: "Push subscription removed" });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }

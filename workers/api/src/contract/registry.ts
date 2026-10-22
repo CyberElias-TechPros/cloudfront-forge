@@ -17,6 +17,7 @@
  * real route.
  */
 import type { EndpointContract, AuthTier } from "./contract-types";
+import { PAGINATION } from "./contract-types";
 import {
   registerSchema,
   updateUserSchema,
@@ -64,11 +65,7 @@ import { discoveryEndpoints } from "./endpoints/discovery";
 import { topupsadminEndpoints } from "./endpoints/topups-admin";
 import { missionsEndpoints } from "./endpoints/missions";
 
-export type {
-  AuthTier,
-  QueryParam,
-  EndpointContract,
-} from "./contract-types";
+export type { AuthTier, QueryParam, EndpointContract } from "./contract-types";
 export { COMMON_ERRORS, TAGS } from "./contract-types";
 
 const AUTH_USER: AuthTier = "user";
@@ -212,7 +209,7 @@ const coreEndpoints: EndpointContract[] = [
     auth: AUTH_USER,
     request: watchClaimSchema,
     response: watchClaimResponseSchema,
-        headers: [
+    headers: [
       {
         name: "Idempotency-Key",
         required: false,
@@ -251,6 +248,7 @@ const coreEndpoints: EndpointContract[] = [
     tag: "Videos",
     auth: AUTH_USER,
     response: videoListResponseSchema,
+    query: PAGINATION,
   },
   {
     route: { method: "POST", path: "/api/v1/videos" },
@@ -261,7 +259,7 @@ const coreEndpoints: EndpointContract[] = [
     auth: AUTH_USER,
     request: submitVideoSchema,
     response: freeFormDataSchema,
-        headers: [
+    headers: [
       {
         name: "Idempotency-Key",
         required: false,
@@ -301,6 +299,7 @@ const coreEndpoints: EndpointContract[] = [
     tag: "Reviews",
     auth: AUTH_USER,
     response: freeFormDataSchema,
+    query: PAGINATION,
   },
   {
     route: { method: "GET", pattern: "^\\/api\\/v1/reviews/([^/]+)$" },
@@ -436,7 +435,7 @@ const coreEndpoints: EndpointContract[] = [
     auth: AUTH_USER,
     request: shopPurchaseSchema,
     response: freeFormDataSchema,
-        headers: [
+    headers: [
       {
         name: "Idempotency-Key",
         required: false,
@@ -468,7 +467,7 @@ const coreEndpoints: EndpointContract[] = [
     auth: AUTH_USER,
     request: topupRequestSchema,
     response: freeFormDataSchema,
-        headers: [
+    headers: [
       {
         name: "Idempotency-Key",
         required: false,
@@ -507,6 +506,7 @@ const coreEndpoints: EndpointContract[] = [
     tag: "Notifications",
     auth: AUTH_USER,
     response: notificationListResponseSchema,
+    query: PAGINATION,
   },
   {
     route: { method: "POST", path: "/api/v1/notifications/read-all" },

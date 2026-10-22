@@ -88,6 +88,7 @@ function queryParameters(endpoint: EndpointContract) {
     name: param.name,
     in: "query",
     required: param.required ?? false,
+    ...(param.deprecated ? { deprecated: true } : {}),
     ...(param.description ? { description: param.description } : {}),
     schema: {
       type: param.type ?? "string",
@@ -207,6 +208,7 @@ function operationFor(endpoint: EndpointContract) {
     summary: endpoint.summary,
     ...(endpoint.description ? { description: endpoint.description } : {}),
     ...(endpoint.deprecated ? { deprecated: true } : {}),
+    ...(endpoint.sunset ? { "x-sunset": endpoint.sunset } : {}),
     security: endpoint.auth === "public" ? [] : [{ bearerAuth: [] }],
     "x-auth-tier": endpoint.auth,
     ...(parameters.length > 0 ? { parameters } : {}),

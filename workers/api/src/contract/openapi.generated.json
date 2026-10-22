@@ -5963,6 +5963,36 @@
           }
         ],
         "x-auth-tier": "user",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size (1–100, default 20).",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque cursor from the previous page's `nextCursor`. Preferred over `offset`: offset paging repeats or skips rows when new rows are inserted mid-scroll.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "deprecated": true,
+            "description": "Deprecated: rows to skip (default 0). Kept for one release; cursor requests are stable under concurrent writes. Responses that use it carry `Deprecation`, `Sunset` and `Warning` headers.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful response",
@@ -5985,7 +6015,7 @@
                     "data": {
                       "type": "object",
                       "properties": {
-                        "videos": {
+                        "items": {
                           "type": "array",
                           "items": {
                             "type": "object",
@@ -6031,28 +6061,26 @@
                             "additionalProperties": true
                           }
                         },
-                        "pagination": {
-                          "type": "object",
-                          "properties": {
-                            "limit": {
-                              "type": "number"
-                            },
-                            "offset": {
-                              "type": "number"
-                            },
-                            "total": {
-                              "type": "number"
-                            }
-                          },
-                          "required": [
-                            "limit",
-                            "offset"
-                          ],
-                          "additionalProperties": true
+                        "total": {
+                          "type": "number"
+                        },
+                        "limit": {
+                          "type": "number"
+                        },
+                        "offset": {
+                          "type": "number"
+                        },
+                        "nextCursor": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "hasMore": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
-                        "videos"
+                        "items",
+                        "total"
                       ],
                       "additionalProperties": false
                     },
@@ -7462,6 +7490,36 @@
           }
         ],
         "x-auth-tier": "user",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size (1–100, default 20).",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque cursor from the previous page's `nextCursor`. Preferred over `offset`: offset paging repeats or skips rows when new rows are inserted mid-scroll.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "deprecated": true,
+            "description": "Deprecated: rows to skip (default 0). Kept for one release; cursor requests are stable under concurrent writes. Responses that use it carry `Deprecation`, `Sunset` and `Warning` headers.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful response",
@@ -14338,6 +14396,36 @@
           }
         ],
         "x-auth-tier": "user",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size (1–100, default 20).",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque cursor from the previous page's `nextCursor`. Preferred over `offset`: offset paging repeats or skips rows when new rows are inserted mid-scroll.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "deprecated": true,
+            "description": "Deprecated: rows to skip (default 0). Kept for one release; cursor requests are stable under concurrent writes. Responses that use it carry `Deprecation`, `Sunset` and `Warning` headers.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful response",
@@ -14395,6 +14483,13 @@
                         },
                         "unreadCount": {
                           "type": "number"
+                        },
+                        "nextCursor": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "hasMore": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -17575,10 +17670,20 @@
             }
           },
           {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque cursor from the previous page's `nextCursor`. Preferred over `offset`: offset paging repeats or skips rows when new rows are inserted mid-scroll.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
-            "description": "Rows to skip (default 0).",
+            "deprecated": true,
+            "description": "Deprecated: rows to skip (default 0). Kept for one release; cursor requests are stable under concurrent writes. Responses that use it carry `Deprecation`, `Sunset` and `Warning` headers.",
             "schema": {
               "type": "integer"
             }
@@ -17675,6 +17780,13 @@
                         },
                         "offset": {
                           "type": "number"
+                        },
+                        "nextCursor": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "hasMore": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -23949,10 +24061,20 @@
             }
           },
           {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque cursor from the previous page's `nextCursor`. Preferred over `offset`: offset paging repeats or skips rows when new rows are inserted mid-scroll.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
-            "description": "Rows to skip (default 0).",
+            "deprecated": true,
+            "description": "Deprecated: rows to skip (default 0). Kept for one release; cursor requests are stable under concurrent writes. Responses that use it carry `Deprecation`, `Sunset` and `Warning` headers.",
             "schema": {
               "type": "integer"
             }
@@ -24054,6 +24176,13 @@
                         },
                         "offset": {
                           "type": "number"
+                        },
+                        "nextCursor": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "hasMore": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -24380,10 +24509,20 @@
             }
           },
           {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque cursor from the previous page's `nextCursor`. Preferred over `offset`: offset paging repeats or skips rows when new rows are inserted mid-scroll.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
-            "description": "Rows to skip (default 0).",
+            "deprecated": true,
+            "description": "Deprecated: rows to skip (default 0). Kept for one release; cursor requests are stable under concurrent writes. Responses that use it carry `Deprecation`, `Sunset` and `Warning` headers.",
             "schema": {
               "type": "integer"
             }
@@ -24457,6 +24596,13 @@
                         },
                         "offset": {
                           "type": "number"
+                        },
+                        "nextCursor": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "hasMore": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -24783,10 +24929,20 @@
             }
           },
           {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque cursor from the previous page's `nextCursor`. Preferred over `offset`: offset paging repeats or skips rows when new rows are inserted mid-scroll.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
-            "description": "Rows to skip (default 0).",
+            "deprecated": true,
+            "description": "Deprecated: rows to skip (default 0). Kept for one release; cursor requests are stable under concurrent writes. Responses that use it carry `Deprecation`, `Sunset` and `Warning` headers.",
             "schema": {
               "type": "integer"
             }
@@ -24852,6 +25008,13 @@
                         },
                         "offset": {
                           "type": "number"
+                        },
+                        "nextCursor": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "hasMore": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -27485,6 +27648,13 @@
                             },
                             "offset": {
                               "type": "number"
+                            },
+                            "nextCursor": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "hasMore": {
+                              "type": "boolean"
                             }
                           },
                           "required": [
@@ -28723,6 +28893,13 @@
                         },
                         "offset": {
                           "type": "number"
+                        },
+                        "nextCursor": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "hasMore": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -29184,6 +29361,13 @@
                         },
                         "offset": {
                           "type": "number"
+                        },
+                        "nextCursor": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "hasMore": {
+                          "type": "boolean"
                         }
                       },
                       "required": [

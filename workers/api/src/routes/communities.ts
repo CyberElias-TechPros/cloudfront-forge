@@ -2,6 +2,7 @@ import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth, isAuthError } from "../middleware/auth";
 import { Database, sqlBool } from "../lib/database";
+import { buildPage, cursorErrorResponse, paginate } from "../lib/pagination";
 import { generateInviteCode, generateSlug } from "../lib/utils";
 import { sanitize, sanitizeMultiline } from "../lib/sanitize";
 import { createLogger } from "../lib/logger";
@@ -11,13 +12,6 @@ import {
   communitySettingsSchema,
 } from "../contract/schemas/community";
 import { upsertMembership } from "./community-management";
-
-function getPagination(request: Request): { limit: number; offset: number } {
-  const { searchParams } = new URL(request.url);
-  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)));
-  const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10));
-  return { limit, offset };
-}
 
 // Request schemas are shared with the contract (single definition, PLAT-002).
 const createCommunitySchema = communityCreateSchema;
@@ -34,7 +28,7 @@ export const communityRoutes: RouteDefinition[] = [
       try {
         const userId = await requireAuth(request, env);
         const db = new Database(env);
-        const { limit, offset } = getPagination(request);
+        const page = paginate(request, { columns: ["cm.joined_at", "c.id"] });
 
         const totalResult = await db.query(
           `SELECT COUNT(*) as count FROM communities c
@@ -45,22 +39,35 @@ export const communityRoutes: RouteDefinition[] = [
 
         const result = await db.query(
           `
-          SELECT c.* FROM communities c
+          SELECT c.*, cm.joined_at FROM communities c
           JOIN community_members cm ON c.id = cm.community_id
-          WHERE cm.user_id = ? AND cm.status = 'active' AND c.status = 'active'
-          ORDER BY cm.joined_at DESC
+          WHERE cm.user_id = ? AND cm.status = 'active' AND c.status = 'active' ${page.clause}
+          ORDER BY cm.joined_at DESC, c.id DESC
           LIMIT ? OFFSET ?
         `,
-          [userId, limit, offset],
+          [userId, ...page.params, page.fetchLimit, page.offset],
         );
 
-        return createResponse({
-          items: result.results,
-          total: totalResult.results[0]?.count ?? 0,
-          limit,
-          offset,
-        });
+        const paged = buildPage(result.results as Array<Record<string, any>>, page.limit, (row) => [
+          String(row.joined_at),
+          String(row.id),
+        ]);
+
+        return createResponse(
+          {
+            items: paged.items,
+            total: totalResult.results[0]?.count ?? 0,
+            limit: page.limit,
+            offset: page.offset,
+            nextCursor: paged.pagination.nextCursor,
+            hasMore: paged.pagination.hasMore,
+          },
+          200,
+          new Headers(page.headers),
+        );
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -141,6 +148,8 @@ export const communityRoutes: RouteDefinition[] = [
           members: members.results,
         });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -209,6 +218,8 @@ export const communityRoutes: RouteDefinition[] = [
           slug,
         });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -274,6 +285,8 @@ export const communityRoutes: RouteDefinition[] = [
           communityName: community.name,
         });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -307,11 +320,7 @@ export const communityRoutes: RouteDefinition[] = [
           return createErrorResponse("NOT_FOUND", "Community not found", 404);
         }
         if (!access.is_public && !access.is_member) {
-          return createErrorResponse(
-            "FORBIDDEN",
-            "Join this community to see its members",
-            403,
-          );
+          return createErrorResponse("FORBIDDEN", "Join this community to see its members", 403);
         }
 
         const result = await db.query(
@@ -325,6 +334,8 @@ export const communityRoutes: RouteDefinition[] = [
         );
         return createResponse({ members: result.results ?? [] });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -420,6 +431,8 @@ export const communityRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Settings updated" });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }

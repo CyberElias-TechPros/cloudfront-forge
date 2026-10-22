@@ -376,8 +376,12 @@ _Submissions and archive._
 
 Response `data` fields:
 
-- `videos`: array of object { id, youtubeVideoId, youtubeUrl, title, thumbnailUrl, durationSeconds, status, createdAt }
-- `pagination`: object { limit, offset, total }
+- `items`: array of object { id, youtubeVideoId, youtubeUrl, title, thumbnailUrl, durationSeconds, status, createdAt }
+- `total`: number
+- `limit`: number
+- `offset`: number
+- `nextCursor`: string
+- `hasMore`: boolean
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
@@ -641,6 +645,8 @@ Response `data` fields:
 - `total`: number
 - `limit`: number
 - `offset`: number
+- `nextCursor`: string
+- `hasMore`: boolean
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
@@ -654,6 +660,8 @@ Response `data` fields:
 - `total`: number
 - `limit`: number
 - `offset`: number
+- `nextCursor`: string
+- `hasMore`: boolean
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
@@ -667,6 +675,8 @@ Response `data` fields:
 - `total`: number
 - `limit`: number
 - `offset`: number
+- `nextCursor`: string
+- `hasMore`: boolean
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
@@ -684,6 +694,8 @@ Response `data` fields:
 - `total`: number
 - `limit`: number
 - `offset`: number
+- `nextCursor`: string
+- `hasMore`: boolean
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
@@ -996,6 +1008,8 @@ Response `data` fields:
 
 - `notifications`: array of object { id, type, title, message, isRead, createdAt }
 - `unreadCount`: number
+- `nextCursor`: string
+- `hasMore`: boolean
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
@@ -1218,6 +1232,8 @@ Response `data` fields:
 - `total`: number
 - `limit`: number
 - `offset`: number
+- `nextCursor`: string
+- `hasMore`: boolean
 
 Statuses: `200`, `400`, `401`, `403`, `404`, `429`, `500`, `503`
 
@@ -1280,6 +1296,8 @@ Response `data` fields:
 - `total`: number
 - `limit`: number
 - `offset`: number
+- `nextCursor`: string
+- `hasMore`: boolean
 
 Statuses: `200`, `400`, `401`, `403`, `404`, `429`, `500`, `503`
 

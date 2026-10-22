@@ -5,7 +5,12 @@
  * if an entry does not match a real route, so these cannot drift.
  */
 import type { EndpointContract } from "../contract-types";
-import { queueResponseSchema, submissionListResponseSchema, activityResponseSchema } from "../schemas/views";
+import { PAGINATION } from "../contract-types";
+import {
+  queueResponseSchema,
+  submissionListResponseSchema,
+  activityResponseSchema,
+} from "../schemas/views";
 
 export const feedEndpoints: EndpointContract[] = [
   {
@@ -16,9 +21,10 @@ export const feedEndpoints: EndpointContract[] = [
     tag: "Feed",
     auth: "user",
     response: queueResponseSchema,
-    query: [{ name: "communityId", description: "Restrict the queue to one squad." },
-      { name: "limit", type: "integer", description: "Page size (1–100, default 20)." },
-      { name: "offset", type: "integer", description: "Rows to skip (default 0)." }],
+    query: [
+      { name: "communityId", description: "Restrict the queue to one squad." },
+      ...PAGINATION,
+    ],
   },
   {
     route: { method: "GET", path: "/api/v1/submissions" },
@@ -28,10 +34,7 @@ export const feedEndpoints: EndpointContract[] = [
     tag: "Feed",
     auth: "user",
     response: submissionListResponseSchema,
-    query: [
-      { name: "limit", type: "integer", description: "Page size (1–100, default 20)." },
-      { name: "offset", type: "integer", description: "Rows to skip (default 0)." },
-    ],
+    query: PAGINATION,
   },
   {
     route: { method: "GET", path: "/api/v1/activity" },
@@ -41,9 +44,6 @@ export const feedEndpoints: EndpointContract[] = [
     tag: "Feed",
     auth: "user",
     response: activityResponseSchema,
-    query: [
-      { name: "limit", type: "integer", description: "Page size (1–100, default 20)." },
-      { name: "offset", type: "integer", description: "Rows to skip (default 0)." },
-    ],
+    query: PAGINATION,
   },
 ];
