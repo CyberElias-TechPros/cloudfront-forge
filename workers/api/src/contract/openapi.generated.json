@@ -3,7 +3,7 @@
   "info": {
     "title": "LoopSquad API",
     "version": "1.0.0",
-    "description": "HTTP API for LoopSquad: verified watch-for-watch growth for creator communities.\n\nEvery response is enveloped:\n- success: `{ success: true, data, meta }`\n- failure: `{ success: false, error: { code, message }, meta }`\n\nAuthenticate with a Firebase ID token (`Authorization: Bearer <token>`). Clients must branch on\n`error.code` (see the Error schema), never on `error.message`."
+    "description": "HTTP API for LoopSquad: verified watch-for-watch growth for creator communities.\n\nEvery response is enveloped:\n- success: `{ success: true, data, meta }`\n- failure: `{ success: false, error: { code, message }, meta }`\n\nAuthenticate with a Firebase ID token (`Authorization: Bearer <token>`). Clients must branch on\n`error.code` (see the Error schema), never on `error.message`.\n\nEvery response carries `X-Request-Id` (echoing a caller-supplied one when it is a safe token).\nQuote it in support reports: it is also the id on the server's structured request log line."
   },
   "servers": [
     {

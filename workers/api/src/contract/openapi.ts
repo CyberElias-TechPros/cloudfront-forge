@@ -22,6 +22,9 @@ export const API_DESCRIPTION = [
   "",
   "Authenticate with a Firebase ID token (`Authorization: Bearer <token>`). Clients must branch on",
   "`error.code` (see the Error schema), never on `error.message`.",
+  "",
+  "Every response carries `X-Request-Id` (echoing a caller-supplied one when it is a safe token).",
+  "Quote it in support reports: it is also the id on the server's structured request log line.",
 ].join("\n");
 
 type JsonSchema = Record<string, unknown>;

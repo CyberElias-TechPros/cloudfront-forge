@@ -14,6 +14,9 @@ Every response is enveloped:
 Authenticate with a Firebase ID token (`Authorization: Bearer <token>`). Clients must branch on
 `error.code` (see the Error schema), never on `error.message`.
 
+Every response carries `X-Request-Id` (echoing a caller-supplied one when it is a safe token).
+Quote it in support reports: it is also the id on the server's structured request log line.
+
 ## Servers
 
 - Production: `https://creatorloop-api.autumn-surf-21ec.workers.dev`
