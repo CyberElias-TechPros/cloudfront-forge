@@ -69,6 +69,20 @@ function pathParameters(path: string) {
   }));
 }
 
+function headerParameters(endpoint: EndpointContract) {
+  return (endpoint.headers ?? []).map((header) => ({
+    name: header.name,
+    in: "header",
+    required: header.required ?? false,
+    ...(header.description ? { description: header.description } : {}),
+    schema: {
+      type: "string",
+      ...(header.enum ? { enum: header.enum } : {}),
+      ...(header.default !== undefined ? { default: header.default } : {}),
+    },
+  }));
+}
+
 function queryParameters(endpoint: EndpointContract) {
   return (endpoint.query ?? []).map((param) => ({
     name: param.name,
@@ -158,7 +172,11 @@ function requestBodyFor(endpoint: EndpointContract) {
 }
 
 function operationFor(endpoint: EndpointContract) {
-  const parameters = [...pathParameters(endpoint.path), ...queryParameters(endpoint)];
+  const parameters = [
+    ...pathParameters(endpoint.path),
+    ...queryParameters(endpoint),
+    ...headerParameters(endpoint),
+  ];
 
   return {
     tags: [endpoint.tag],

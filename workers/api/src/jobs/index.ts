@@ -10,6 +10,7 @@ import {
 import { sendWeeklyDigests } from "./digest";
 import { sweepAnomalyScoring } from "./anomaly";
 import { sweepBadgeAwards } from "./badges";
+import { pruneIdempotencyKeys } from "../middleware/idempotency";
 
 export type JobFn = (db: Database) => Promise<number>;
 
@@ -63,6 +64,11 @@ export async function runAllJobs(env: Env): Promise<void> {
   for (const r of results) {
     logger.info(`sweep ${r.job}: ${r.ok ? "ok" : "FAIL"} (${r.processed} rows)`);
   }
+
+  // Expired idempotency keys are dead weight: the replay window is 24 hours, so
+  // a daily sweep keeps the table proportional to a day of writes (PLAT-010).
+  const pruned = await logRun(db, "prune-idempotency-keys", () => pruneIdempotencyKeys(env));
+  logger.info(`sweep prune-idempotency-keys: ${pruned.ok ? "ok" : "FAIL"} (${pruned.processed})`);
 
   // Runs after overdue-reviews marking above: notifies once, then reassigns.
   const recovered = await logRun(db, "overdue-review-recovery", () => recoverOverdueReviews(env));

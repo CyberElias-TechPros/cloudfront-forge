@@ -4426,6 +4426,17 @@
           }
         ],
         "x-auth-tier": "user",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Opaque key (8–255 chars, A-Za-z0-9_-). The first successful outcome is replayed for 24 hours; reusing a key with a different body returns 409 IDEMPOTENCY_CONFLICT.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -4814,7 +4825,7 @@
             }
           },
           "409": {
-            "description": "CONFLICT: The request conflicts with the current state of the resource.",
+            "description": "CONFLICT: The request conflicts with the current state of the resource. · IDEMPOTENCY_CONFLICT: The Idempotency-Key was already used with a different request body. Use a new key for a new operation.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4841,7 +4852,8 @@
                         "code": {
                           "type": "string",
                           "enum": [
-                            "CONFLICT"
+                            "CONFLICT",
+                            "IDEMPOTENCY_CONFLICT"
                           ]
                         },
                         "message": {
@@ -6045,6 +6057,17 @@
           }
         ],
         "x-auth-tier": "user",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Opaque key (8–255 chars, A-Za-z0-9_-). The first successful outcome is replayed for 24 hours; reusing a key with a different body returns 409 IDEMPOTENCY_CONFLICT.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -6291,7 +6314,7 @@
             }
           },
           "409": {
-            "description": "CONFLICT: The request conflicts with the current state of the resource.",
+            "description": "CONFLICT: The request conflicts with the current state of the resource. · IDEMPOTENCY_CONFLICT: The Idempotency-Key was already used with a different request body. Use a new key for a new operation.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6318,7 +6341,8 @@
                         "code": {
                           "type": "string",
                           "enum": [
-                            "CONFLICT"
+                            "CONFLICT",
+                            "IDEMPOTENCY_CONFLICT"
                           ]
                         },
                         "message": {
@@ -11834,6 +11858,17 @@
           }
         ],
         "x-auth-tier": "user",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Opaque key (8–255 chars, A-Za-z0-9_-). The first successful outcome is replayed for 24 hours; reusing a key with a different body returns 409 IDEMPOTENCY_CONFLICT.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -12025,7 +12060,7 @@
             }
           },
           "409": {
-            "description": "CONFLICT: The request conflicts with the current state of the resource.",
+            "description": "CONFLICT: The request conflicts with the current state of the resource. · IDEMPOTENCY_CONFLICT: The Idempotency-Key was already used with a different request body. Use a new key for a new operation.",
             "content": {
               "application/json": {
                 "schema": {
@@ -12052,7 +12087,8 @@
                         "code": {
                           "type": "string",
                           "enum": [
-                            "CONFLICT"
+                            "CONFLICT",
+                            "IDEMPOTENCY_CONFLICT"
                           ]
                         },
                         "message": {
@@ -12526,6 +12562,17 @@
           }
         ],
         "x-auth-tier": "user",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Opaque key (8–255 chars, A-Za-z0-9_-). The first successful outcome is replayed for 24 hours; reusing a key with a different body returns 409 IDEMPOTENCY_CONFLICT.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -12730,7 +12777,7 @@
             }
           },
           "409": {
-            "description": "CONFLICT: The request conflicts with the current state of the resource.",
+            "description": "CONFLICT: The request conflicts with the current state of the resource. · IDEMPOTENCY_CONFLICT: The Idempotency-Key was already used with a different request body. Use a new key for a new operation.",
             "content": {
               "application/json": {
                 "schema": {
@@ -12757,7 +12804,8 @@
                         "code": {
                           "type": "string",
                           "enum": [
-                            "CONFLICT"
+                            "CONFLICT",
+                            "IDEMPOTENCY_CONFLICT"
                           ]
                         },
                         "message": {
@@ -42138,6 +42186,7 @@
           "AI_NOT_CONFIGURED",
           "NOT_FOUND",
           "CONFLICT",
+          "IDEMPOTENCY_CONFLICT",
           "INSUFFICIENT_CREDITS",
           "DAILY_LIMIT",
           "RATE_LIMITED",
@@ -42252,6 +42301,12 @@
         "retryable": false,
         "action": "none",
         "description": "The request conflicts with the current state of the resource."
+      },
+      "IDEMPOTENCY_CONFLICT": {
+        "status": 409,
+        "retryable": false,
+        "action": "fix_input",
+        "description": "The Idempotency-Key was already used with a different request body. Use a new key for a new operation."
       },
       "INSUFFICIENT_CREDITS": {
         "status": 400,

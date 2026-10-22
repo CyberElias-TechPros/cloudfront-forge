@@ -138,6 +138,32 @@ It found three real defects the first time it ran, all fixed:
    authenticated but are intentionally public (landing page and shared links);
    the registry now says `public`, so the document tells the truth.
 
+## Idempotent writes
+
+Four writes can cost money or duplicate content, so a lost response must be
+safe to retry:
+
+| Operation             | Scope            | Why it is guarded                                       |
+| --------------------- | ---------------- | ------------------------------------------------------- |
+| `POST /videos`        | `videos.submit`  | A retry would publish the same video twice.             |
+| `POST /watch`         | `watch.claim`    | A retry would pay the same watch twice.                 |
+| `POST /shop/purchase` | `shop.purchase`  | A retry would spend the credits twice.                  |
+| `POST /topups`        | `topups.request` | A retry would open two transfer claims for one payment. |
+
+Clients send `Idempotency-Key: <opaque 8–255 char token>`; the server stores the
+first **2xx** outcome for 24 hours and replays it byte-for-byte with
+`Idempotent-Replay: true`. Rules:
+
+- **No header, no change.** Existing clients behave exactly as before.
+- **Same key, different body → `409 IDEMPOTENCY_CONFLICT`.** Silently replaying
+  the first response would perform the wrong action.
+- **Keys are scoped per member and per endpoint**, so a shared key in a client
+  library cannot collide across users or routes.
+- **Failures are never stored**, so a corrected retry (add credits, fix the
+  payload) works immediately.
+- **Expired keys are reusable**; a daily sweep (`prune-idempotency-keys`) deletes
+  rows past their window.
+
 ## Evidence in the contract
 
 `POST /api/v1/watch` documents an `evidence` object in its response:

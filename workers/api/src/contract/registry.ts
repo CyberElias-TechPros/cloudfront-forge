@@ -212,7 +212,15 @@ const coreEndpoints: EndpointContract[] = [
     auth: AUTH_USER,
     request: watchClaimSchema,
     response: watchClaimResponseSchema,
-    errors: ["FORBIDDEN", "DAILY_LIMIT", "CONFLICT"],
+        headers: [
+      {
+        name: "Idempotency-Key",
+        required: false,
+        description:
+          "Opaque key (8–255 chars, A-Za-z0-9_-). The first successful outcome is replayed for 24 hours; reusing a key with a different body returns 409 IDEMPOTENCY_CONFLICT.",
+      },
+    ],
+    errors: ["IDEMPOTENCY_CONFLICT", "FORBIDDEN", "DAILY_LIMIT", "CONFLICT"],
   },
   {
     route: { method: "POST", path: "/api/v1/watch/challenge" },
@@ -253,7 +261,15 @@ const coreEndpoints: EndpointContract[] = [
     auth: AUTH_USER,
     request: submitVideoSchema,
     response: freeFormDataSchema,
-    errors: ["CONFLICT", "FORBIDDEN"],
+        headers: [
+      {
+        name: "Idempotency-Key",
+        required: false,
+        description:
+          "Opaque key (8–255 chars, A-Za-z0-9_-). The first successful outcome is replayed for 24 hours; reusing a key with a different body returns 409 IDEMPOTENCY_CONFLICT.",
+      },
+    ],
+    errors: ["IDEMPOTENCY_CONFLICT", "CONFLICT", "FORBIDDEN"],
   },
   {
     route: { method: "GET", pattern: "^\\/api\\/v1/videos/([^/]+)$" },
@@ -420,7 +436,15 @@ const coreEndpoints: EndpointContract[] = [
     auth: AUTH_USER,
     request: shopPurchaseSchema,
     response: freeFormDataSchema,
-    errors: ["INSUFFICIENT_CREDITS", "CONFLICT"],
+        headers: [
+      {
+        name: "Idempotency-Key",
+        required: false,
+        description:
+          "Opaque key (8–255 chars, A-Za-z0-9_-). The first successful outcome is replayed for 24 hours; reusing a key with a different body returns 409 IDEMPOTENCY_CONFLICT.",
+      },
+    ],
+    errors: ["IDEMPOTENCY_CONFLICT", "INSUFFICIENT_CREDITS", "CONFLICT"],
   },
 
   // --- Top-ups (web only) -------------------------------------------------
@@ -444,7 +468,15 @@ const coreEndpoints: EndpointContract[] = [
     auth: AUTH_USER,
     request: topupRequestSchema,
     response: freeFormDataSchema,
-    errors: ["CONFLICT"],
+        headers: [
+      {
+        name: "Idempotency-Key",
+        required: false,
+        description:
+          "Opaque key (8–255 chars, A-Za-z0-9_-). The first successful outcome is replayed for 24 hours; reusing a key with a different body returns 409 IDEMPOTENCY_CONFLICT.",
+      },
+    ],
+    errors: ["IDEMPOTENCY_CONFLICT", "CONFLICT"],
   },
   {
     route: { method: "GET", path: "/api/v1/topups/mine" },

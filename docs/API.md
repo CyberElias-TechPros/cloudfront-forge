@@ -50,6 +50,7 @@ Clients branch on `error.code`, never on `error.message`.
 | `AI_NOT_CONFIGURED` | 503 | yes | `none` | The AI coach is not configured on this deployment. |
 | `NOT_FOUND` | 404 | no | `none` | The requested resource does not exist (or is not visible to this member). |
 | `CONFLICT` | 409 | no | `none` | The request conflicts with the current state of the resource. |
+| `IDEMPOTENCY_CONFLICT` | 409 | no | `fix_input` | The Idempotency-Key was already used with a different request body. Use a new key for a new operation. |
 | `INSUFFICIENT_CREDITS` | 400 | no | `upgrade` | The member does not have enough credits for this purchase. |
 | `DAILY_LIMIT` | 429 | yes | `wait` | A per-day allowance (e.g. claimable watches) is exhausted. |
 | `RATE_LIMITED` | 429 | yes | `wait` | Too many requests from this client in the current window. |

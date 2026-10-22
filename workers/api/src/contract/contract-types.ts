@@ -37,6 +37,8 @@ export interface EndpointContract {
   response?: z.ZodTypeAny;
   /** Query parameters, documented in order. */
   query?: QueryParam[];
+  /** Request headers the endpoint reads (e.g. `Idempotency-Key`, `If-None-Match`). */
+  headers?: QueryParam[];
   /**
    * Request body media type. Defaults to `application/json`; proof uploads are
    * `multipart/form-data` and are documented with a single `file` field.
