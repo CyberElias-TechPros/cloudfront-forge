@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  rolePermissions,
-  hasPermission,
-  requirePermission,
-  getUserPermissions,
-} from "../src/middleware/permissions";
+import { rolePermissions, hasPermission } from "../src/middleware/permissions";
 
 describe("Permissions", () => {
   it("returns correct permissions for super_admin", () => {

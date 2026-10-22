@@ -1,6 +1,6 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, isAuthError } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { getRewardSplit } from "../lib/rewards";
 import { resolveRequiredWatchSeconds } from "../lib/utils";
@@ -139,7 +139,7 @@ export const feedRoutes: RouteDefinition[] = [
           offset,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch queue", 500);
@@ -195,7 +195,7 @@ export const feedRoutes: RouteDefinition[] = [
           offset,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch submissions", 500);
@@ -243,7 +243,7 @@ export const feedRoutes: RouteDefinition[] = [
           offset,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch activity", 500);

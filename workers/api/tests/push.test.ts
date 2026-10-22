@@ -90,6 +90,7 @@ async function decryptPushPayload(
   clientPrivateKey: CryptoKey,
 ): Promise<string> {
   const salt = body.slice(0, 16);
+  expect(salt.length).toBe(16); // every aes128gcm body starts with a 16-byte salt
   const view = new DataView(body.buffer, body.byteOffset, body.byteLength);
   const recordSize = view.getUint32(16, false);
   const keyIdLength = body[20];

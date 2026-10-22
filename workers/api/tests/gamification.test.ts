@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { gamificationRoutes } from "../src/routes/gamification";
-import { createTestEnv, authRequest, jsonRequest, type TestEnv } from "./helpers/test-env";
+import { createTestEnv, authRequest, type TestEnv } from "./helpers/test-env";
 
 const bonus = gamificationRoutes.find((r) => r.path === "/api/v1/gamification/daily-bonus");
 const leaderboard = gamificationRoutes.find((r) => r.path === "/api/v1/leaderboards");

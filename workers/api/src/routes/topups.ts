@@ -1,7 +1,7 @@
-import { z } from "zod";
+import { topupRequestSchema } from "../contract/schemas/content";
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth, requireAdmin } from "../middleware/auth";
+import { requireAuth, requireAdmin, isAuthError } from "../middleware/auth";
 import { recordAudit } from "../lib/audit";
 import { Database, DatabaseError } from "../lib/database";
 import { notify } from "../lib/notify";
@@ -27,26 +27,7 @@ const tierById: Record<string, (typeof TOPUP_TIERS)[number]> = Object.fromEntrie
   TOPUP_TIERS.map((t) => [t.id, t]),
 );
 
-const requestSchema = z.object({
-  tierId: z.string().min(1).max(32),
-  // Proof of payment is the primary path: a `proof:<path>` token returned by
-  // POST /topups/proof, pointing at the receipt stored in R2. The transfer
-  // reference is kept as an optional fallback for members whose bank statement
-  // shows a reference they'd rather quote than screenshot.
-  proofImage: z.string().min(1).max(512).optional(),
-  proofImageName: z.string().max(255).optional(),
-  proofImageType: z.string().max(64).optional(),
-  transferReference: z
-    .string()
-    .trim()
-    .min(4, "Transfer reference is too short")
-    .max(64)
-    .regex(
-      /^[A-Za-z0-9\-_/+]+$/,
-      "Transfer reference may only contain letters, numbers, dashes, underscores, slashes or plus signs",
-    )
-    .optional(),
-});
+const requestSchema = topupRequestSchema;
 
 const TOPUP_STATUSES = ["pending", "approved", "rejected"] as const;
 
@@ -84,7 +65,7 @@ export const topupRoutes: RouteDefinition[] = [
           pending: !!pending,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch top-up catalog", 500);
@@ -138,7 +119,7 @@ export const topupRoutes: RouteDefinition[] = [
 
         return createResponse({ path, name: file.name || path, type: file.type }, 201);
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to upload proof", 500);
@@ -259,7 +240,7 @@ export const topupRoutes: RouteDefinition[] = [
         const row = await db.querySingle("SELECT * FROM topup_requests WHERE id = ?", [id]);
         return createResponse({ message: "Top-up submitted for review", request: row }, 201);
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to submit top-up", 500);
@@ -281,7 +262,7 @@ export const topupRoutes: RouteDefinition[] = [
         );
         return createResponse({ items: result.results });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch top-ups", 500);
@@ -316,7 +297,7 @@ export const topupRoutes: RouteDefinition[] = [
         );
         return createResponse({ items: result.results });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {
@@ -356,7 +337,7 @@ export const topupRoutes: RouteDefinition[] = [
         headers.set("Cache-Control", "private, max-age=300");
         return new Response(object.body, { headers });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {
@@ -478,7 +459,7 @@ export const topupRoutes: RouteDefinition[] = [
           balance: balanceRowAfter?.balance ?? 0,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {
@@ -544,7 +525,7 @@ export const topupRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Top-up rejected" });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {

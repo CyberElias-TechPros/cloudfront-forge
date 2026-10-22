@@ -1,6 +1,6 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, isAuthError } from "../middleware/auth";
 import { Database } from "../lib/database";
 import {
   generateChatCompletion,
@@ -170,7 +170,7 @@ export const aiRoutes: RouteDefinition[] = [
           conversation: { id: convId, title: message.slice(0, 60) },
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         logger.error("AI chat error", error);
@@ -290,7 +290,7 @@ export const aiRoutes: RouteDefinition[] = [
           },
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         logger.error("AI stream error", error);
@@ -311,7 +311,7 @@ export const aiRoutes: RouteDefinition[] = [
         );
         return createResponse({ conversations: result.results ?? [] });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to list conversations", 500);
@@ -343,7 +343,7 @@ export const aiRoutes: RouteDefinition[] = [
         );
         return createResponse({ messages: result.results ?? [] });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to load messages", 500);
@@ -368,7 +368,7 @@ export const aiRoutes: RouteDefinition[] = [
         ]);
         return createResponse({ message: "Conversation deleted" });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to delete conversation", 500);

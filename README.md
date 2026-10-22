@@ -65,6 +65,8 @@ vercel.json              Static SPA deployment + caching + security headers
 | root          | `npm run preview`                                      | Serve the built SPA                                |
 | root          | `npm run lint`                                         | ESLint (frontend + worker)                         |
 | root          | `npm test`                                             | Frontend unit tests (Vitest)                       |
+| root          | `npm run contract:build` / `contract:check`            | Regenerate / verify the API contract artefacts     |
+| root          | `npm run docs:api`                                     | Regenerate `docs/API.md` from the contract         |
 | `workers/api` | `npm run dev`                                          | `wrangler dev`                                     |
 | `workers/api` | `npm run release` / `release:staging`                  | Migrate D1, then deploy production / staging       |
 | `workers/api` | `npm run deploy` / `deploy:staging`                    | Code-only deploy (preview/rollback automation)     |
@@ -113,6 +115,15 @@ missing secret).
 
 ## Documentation
 
+- **[`docs/CONTRACT.md`](docs/CONTRACT.md)** — the API contract: Zod schemas →
+  OpenAPI 3.1 → generated [API reference](docs/API.md), served at `/openapi.json`
+  and diff-gated in CI (`npm run contract:build`, `npm run docs:api`)
+- **[`docs/ROADMAP.md`](docs/ROADMAP.md)** — the implementation roadmap for web
+  and the native Android app: milestones, 237 granular tasks with status, effort,
+  dependencies and acceptance criteria. Run `npm run roadmap:status` for progress.
+- [`docs/roadmap/00-audit-and-baseline.md`](docs/roadmap/00-audit-and-baseline.md)
+  — verified baseline (2026-10-21) and the 45-item findings register with
+  file/line evidence
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — runtime topology, data
   integrity rules, security model
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — the exact Vercel + Cloudflare

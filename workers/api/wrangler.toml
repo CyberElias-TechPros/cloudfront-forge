@@ -80,6 +80,21 @@ AI_DAILY_GLOBAL_LIMIT = "2000"
 # watch time plus YouTube API verification.
 WATCH_SESSIONS_ENABLED = "0"
 
+# Watch-evidence policy (SEC-010). This decides whether a claim may pay:
+#   legacy              — self-reported time pays in full (current behaviour)
+#   self_report_capped  — self-reported time pays EVIDENCE_SELF_REPORT_SHARE
+#   verified_only       — only YouTube API or server-scored signed sessions pay
+# Rollout (SEC-013): enable WATCH_SESSIONS_ENABLED first, watch the
+# strong-evidence share in /admin/metrics, then move to self_report_capped and
+# finally verified_only. Flipping straight to verified_only before sessions are
+# enabled would stop most members earning.
+EVIDENCE_POLICY = "legacy"
+EVIDENCE_SELF_REPORT_SHARE = "0.5"
+# Heartbeat scoring: samples further apart than the gap are not credited, and
+# credited player time may not exceed wall-clock time by more than the rate.
+WATCH_HEARTBEAT_MAX_GAP_SEC = "120"
+WATCH_HEARTBEAT_MAX_RATE = "1.15"
+
 # D1 Database
 [[d1_databases]]
 binding = "DB"
@@ -145,7 +160,12 @@ AUTH_RATE_LIMIT_MAX_REQUESTS = "30"
 AUTH_RATE_LIMIT_WINDOW = "60"
 AI_DAILY_USER_LIMIT = "30"
 AI_DAILY_GLOBAL_LIMIT = "2000"
-WATCH_SESSIONS_ENABLED = "0"
+# Staging exercises the enforcement rollout before production does.
+WATCH_SESSIONS_ENABLED = "1"
+EVIDENCE_POLICY = "self_report_capped"
+EVIDENCE_SELF_REPORT_SHARE = "0.5"
+WATCH_HEARTBEAT_MAX_GAP_SEC = "120"
+WATCH_HEARTBEAT_MAX_RATE = "1.15"
 
 [[env.staging.d1_databases]]
 binding = "DB"

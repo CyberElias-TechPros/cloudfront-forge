@@ -1,11 +1,15 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, isAuthError } from "../middleware/auth";
 import { Database, sqlBool } from "../lib/database";
 import { generateInviteCode, generateSlug } from "../lib/utils";
 import { sanitize, sanitizeMultiline } from "../lib/sanitize";
-import { z } from "zod";
 import { createLogger } from "../lib/logger";
+import {
+  communityCreateSchema,
+  communityJoinByCodeSchema,
+  communitySettingsSchema,
+} from "../contract/schemas/community";
 import { upsertMembership } from "./community-management";
 
 function getPagination(request: Request): { limit: number; offset: number } {
@@ -15,25 +19,12 @@ function getPagination(request: Request): { limit: number; offset: number } {
   return { limit, offset };
 }
 
-const createCommunitySchema = z.object({
-  name: z.string().min(3).max(100),
-  description: z.string().max(500).optional(),
-  isPublic: z.boolean().default(false),
-  maxMembers: z.number().min(10).max(10000).default(10000),
-});
+// Request schemas are shared with the contract (single definition, PLAT-002).
+const createCommunitySchema = communityCreateSchema;
+const joinCommunitySchema = communityJoinByCodeSchema;
 
-const joinCommunitySchema = z.object({
-  inviteCode: z.string().min(4).max(20),
-});
-
-const communitySettingsSchema = z.object({
-  allowPeerReview: z.boolean().optional(),
-  allowCollaboration: z.boolean().optional(),
-  requireApproval: z.boolean().optional(),
-  defaultLanguage: z.string().min(2).max(10).nullable().optional(),
-  /** Squad-specific rules shown on the community page; null/empty clears them. */
-  rules: z.string().max(5000).nullable().optional(),
-});
+/** Squad-specific rules shown on the community page; null/empty clears them. */
+const settingsSchema = communitySettingsSchema;
 
 export const communityRoutes: RouteDefinition[] = [
   {
@@ -70,7 +61,7 @@ export const communityRoutes: RouteDefinition[] = [
           offset,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch communities", 500);
@@ -150,7 +141,7 @@ export const communityRoutes: RouteDefinition[] = [
           members: members.results,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         logger.error("Get community error", error);
@@ -218,7 +209,7 @@ export const communityRoutes: RouteDefinition[] = [
           slug,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to create community", 500);
@@ -283,7 +274,7 @@ export const communityRoutes: RouteDefinition[] = [
           communityName: community.name,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to join community", 500);
@@ -334,7 +325,7 @@ export const communityRoutes: RouteDefinition[] = [
         );
         return createResponse({ members: result.results ?? [] });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch members", 500);
@@ -364,7 +355,7 @@ export const communityRoutes: RouteDefinition[] = [
             403,
           );
         }
-        const parsed = communitySettingsSchema.safeParse(await request.json().catch(() => ({})));
+        const parsed = settingsSchema.safeParse(await request.json().catch(() => ({})));
         if (!parsed.success) {
           return createErrorResponse(
             "VALIDATION_ERROR",
@@ -429,7 +420,7 @@ export const communityRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Settings updated" });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to update settings", 500);

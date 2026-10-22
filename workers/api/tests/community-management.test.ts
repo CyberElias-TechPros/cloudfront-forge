@@ -176,7 +176,7 @@ describe("public join with approval", () => {
   it("rejects a duplicate pending request with 409", async () => {
     const env = createTestEnv();
     const owner = env.seedUser("owner-dup");
-    const joiner = env.seedUser("joiner-dup");
+    env.seedUser("joiner-dup");
     const communityId = seed(env, { ownerId: owner });
 
     await joinPublic.handler(
@@ -210,7 +210,7 @@ describe("public join with approval", () => {
   it("refuses public joins for private communities", async () => {
     const env = createTestEnv();
     const owner = env.seedUser("owner-priv");
-    const joiner = env.seedUser("joiner-priv");
+    env.seedUser("joiner-priv");
     const communityId = seed(env, { ownerId: owner, isPublic: false });
 
     const response = await joinPublic.handler(

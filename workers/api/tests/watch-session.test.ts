@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { watchRoutes, watchSessionSecret } from "../src/routes/watch";
-import { createTestEnv, authRequest, jsonRequest } from "./helpers/test-env";
+import { createTestEnv, jsonRequest } from "./helpers/test-env";
 
 const BASE = "https://api.test";
 const start = watchRoutes.find((r) => r.path === "/api/v1/watch/start")!;

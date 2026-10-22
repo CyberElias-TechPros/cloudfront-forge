@@ -1,6 +1,6 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, isAuthError } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { ensureDailyQuests } from "../lib/quests";
 import { calculateLevel } from "../lib/utils";
@@ -32,7 +32,7 @@ export const gamificationRoutes: RouteDefinition[] = [
         const quests = await ensureDailyQuests(env, userId);
         return createResponse({ items: quests, date: new Date().toISOString().slice(0, 10) });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch daily quests", 500);
@@ -73,7 +73,7 @@ export const gamificationRoutes: RouteDefinition[] = [
           transactions: transactions.results,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch credits", 500);
@@ -111,7 +111,7 @@ export const gamificationRoutes: RouteDefinition[] = [
           transactions: transactions.results,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch XP", 500);
@@ -142,7 +142,7 @@ export const gamificationRoutes: RouteDefinition[] = [
           events: events.results,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch reputation", 500);
@@ -176,7 +176,7 @@ export const gamificationRoutes: RouteDefinition[] = [
 
         return createResponse({ currentStreak, longestStreak, lastActive });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch streaks", 500);
@@ -202,7 +202,7 @@ export const gamificationRoutes: RouteDefinition[] = [
 
         return createResponse(result.results);
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch badges", 500);
@@ -292,7 +292,7 @@ export const gamificationRoutes: RouteDefinition[] = [
           cohort: cohort ?? "all",
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch leaderboard", 500);
@@ -407,7 +407,7 @@ export const gamificationRoutes: RouteDefinition[] = [
           streak: nextStreak,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to claim daily bonus", 500);

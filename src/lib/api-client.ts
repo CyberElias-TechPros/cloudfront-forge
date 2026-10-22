@@ -1,4 +1,5 @@
 import apiClient from "./api";
+import type { DataOf } from "../contract/api.generated";
 
 export interface CreatorProfile {
   userId?: string;
@@ -294,6 +295,22 @@ export interface QueueTask {
   creatorChannelId?: string | null;
   magicWord?: string | null;
 }
+
+/**
+ * Why a claim paid — computed server-side by the evidence policy (SEC-010).
+ *
+ * Clients render this instead of guessing: `self_report` in a
+ * verification-enforced deployment means the watch was recorded but earned
+ * nothing, and `reason` explains what to do about it.
+ */
+/**
+ * Watch payout shapes come straight from the contract (PLAT-006): if the claim
+ * handler changes what it returns, this file stops compiling instead of the UI
+ * silently reading `undefined`.
+ */
+export type WatchClaimResultDTO = DataOf<"claimWatch">;
+export type WatchEvidenceDTO = NonNullable<WatchClaimResultDTO["evidence"]>;
+export type WatchHeartbeatDTO = DataOf<"recordWatchHeartbeat">;
 
 export interface SubmissionDTO {
   id: string;
@@ -701,27 +718,19 @@ export const apiClientService = {
       subscribed: boolean;
       commented: boolean;
       sessionToken?: string;
-    }) =>
-      postData<{
-        status: string;
-        claimable: boolean;
-        xpAwarded: number;
-        creditsAwarded: number;
-        watchVerified: boolean;
-        subscribed: boolean;
-        commented: boolean;
-        rewardBreakdown?: {
-          watch: RewardComponent;
-          subscribe: RewardComponent;
-          comment: RewardComponent;
-        };
-      }>("/api/v1/watch", data),
+    }) => postData<WatchClaimResultDTO>("/api/v1/watch", data),
     start: (videoId: string) =>
       postData<{ sessionToken: string | null; enabled: boolean }>("/api/v1/watch/start", {
         videoId,
       }),
+    /**
+     * One player-time sample. The server scores it: rewind, fast-forward and
+     * long gaps are recorded but never credited, so the response says whether
+     * this sample counted (`accepted`) and how much verified time the session
+     * has so far (`verifiedSeconds`).
+     */
     heartbeat: (sessionToken: string, playerTime: number) =>
-      postData<{ ok: boolean }>("/api/v1/watch/heartbeat", { sessionToken, playerTime }),
+      postData<WatchHeartbeatDTO>("/api/v1/watch/heartbeat", { sessionToken, playerTime }),
     challenge: (videoId: string) =>
       postData<{ challengeId: string; question: string; ttlSec: number }>(
         "/api/v1/watch/challenge",

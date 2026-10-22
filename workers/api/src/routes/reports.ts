@@ -1,23 +1,19 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth, requireModerator } from "../middleware/auth";
+import { requireAuth, requireModerator, isAuthError } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { notifyUserPush } from "../lib/push";
 import { notify } from "../lib/notify";
-import { z } from "zod";
 import { sanitize } from "../lib/sanitize";
+import {
+  reportCreateSchema as createReportContractSchema,
+  reportAppealSchema,
+  appealReviewSchema,
+} from "../contract/schemas/moderation";
 
-const createReportSchema = z.object({
-  reportedUserId: z.string().uuid().optional(),
-  resourceType: z.enum(["video", "review", "comment", "user", "community"]),
-  resourceId: z.string().min(1),
-  reason: z.enum(["spam", "inappropriate", "harassment", "cheating", "misleading", "other"]),
-  description: z.string().max(1000).optional(),
-});
-
-const appealSchema = z.object({
-  reason: z.string().min(10).max(2000),
-});
+// Request schemas are shared with the contract (single definition, PLAT-002).
+const createReportSchema = createReportContractSchema;
+const appealSchema = reportAppealSchema;
 
 /** Apply a trust-score penalty on report (soft enforcement, capped at 0). */
 async function applyTrustPenalty(db: Database, userId: string): Promise<void> {
@@ -39,11 +35,6 @@ async function applyTrustPenalty(db: Database, userId: string): Promise<void> {
     );
   }
 }
-
-const appealReviewSchema = z.object({
-  status: z.enum(["accepted", "rejected"]),
-  note: z.string().max(2000).optional(),
-});
 
 export const reportRoutes: RouteDefinition[] = [
   {
@@ -116,7 +107,7 @@ export const reportRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Report submitted", reportId }, 201);
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to submit report", 500);
@@ -144,7 +135,7 @@ export const reportRoutes: RouteDefinition[] = [
         );
         return createResponse({ items: result.results });
       } catch (error: any) {
-        if (error.message === "AUTH_REQUIRED" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch your reports", 500);
@@ -213,7 +204,7 @@ export const reportRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Appeal submitted" }, 201);
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to submit appeal", 500);
@@ -325,7 +316,7 @@ export const reportRoutes: RouteDefinition[] = [
 
         return createResponse({ message: `Appeal ${parsed.data.status}` });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {

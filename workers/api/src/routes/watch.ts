@@ -1,9 +1,8 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, isAuthError } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { YouTubeService } from "../services/youtube";
-import { z } from "zod";
 import { createLogger } from "../lib/logger";
 import { progressQuest } from "../lib/quests";
 import { trackEvent } from "../lib/analytics";
@@ -11,6 +10,15 @@ import { getRewardSplit } from "../lib/rewards";
 import { resolveRequiredWatchSeconds } from "../lib/utils";
 import { awardXp, getXpState, type XpAccountState } from "../lib/xp";
 import { notify } from "../lib/notify";
+import {
+  applyPayoutShare,
+  evaluateWatchEvidence,
+  evidenceSettings,
+  sessionsEnabledFromEnv,
+  type EvidenceDecision,
+} from "../lib/verification/policy";
+import { scoreHeartbeat } from "../lib/verification/heartbeat";
+import { watchClaimSchema, watchHeartbeatSchema } from "../contract/schemas/watch";
 
 async function sha256Hex(input: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
@@ -33,8 +41,7 @@ async function verifyYouTubeSubscription(
   const logger = createLogger(env);
   const youtube = new YouTubeService(env);
   const accessToken = await youtube.getValidAccessToken(watcherId);
-  const REQUIRED_WATCH_SEC =
-    requiredWatchSec ?? parseInt(env.REQUIRED_WATCH_SEC || "180", 10);
+  const REQUIRED_WATCH_SEC = requiredWatchSec ?? parseInt(env.REQUIRED_WATCH_SEC || "180", 10);
   let watchVerified = false;
   let watchSeconds = 0;
 
@@ -61,7 +68,13 @@ async function verifyYouTubeSubscription(
   }
 
   if (!videoChannelId) {
-    return { connected: true, subscribed: null, watchVerified, watchSeconds, reason: "Video channel ID missing" };
+    return {
+      connected: true,
+      subscribed: null,
+      watchVerified,
+      watchSeconds,
+      reason: "Video channel ID missing",
+    };
   }
 
   try {
@@ -79,21 +92,23 @@ async function verifyYouTubeSubscription(
     };
   } catch (error) {
     logger.error("YouTube subscription verification error", error);
-    return { connected: true, subscribed: null, watchVerified, watchSeconds, reason: "YouTube verification failed" };
+    return {
+      connected: true,
+      subscribed: null,
+      watchVerified,
+      watchSeconds,
+      reason: "YouTube verification failed",
+    };
   }
 }
 
-const watchSchema = z.object({
-  videoId: z.string().min(1),
-  watchSeconds: z.number().min(0).max(86400),
-  subscribed: z.boolean().default(false),
-  commented: z.boolean().default(false),
-  sessionToken: z.string().optional(),
-});
+// The claim payload is defined once in `src/contract/schemas/watch.ts` so the
+// OpenAPI document, the generated clients and this validation cannot drift.
+const watchSchema = watchClaimSchema;
 
 // --- HMAC watch-session helpers (env-flagged, legacy fallback when disabled) ---
 function sessionsEnabled(env: Env): boolean {
-  return env.WATCH_SESSIONS_ENABLED === "1" || env.WATCH_SESSIONS_ENABLED === "true";
+  return sessionsEnabledFromEnv(env);
 }
 
 /**
@@ -110,6 +125,41 @@ export function watchSessionSecret(env: Env): string {
     throw new Error("MISSING_ENV: WATCH_SESSION_SECRET");
   }
   return "watch-session-secret-development-only";
+}
+
+/** Resolve a signed session token to a usable row (owner + video + not expired). */
+async function resolveWatchSession(
+  db: Database,
+  token: string,
+  userId: string,
+  videoId: string,
+): Promise<Record<string, unknown> | null> {
+  const row = await db.querySingle(
+    `SELECT id, start_ts, expires_at FROM watch_session_tokens
+     WHERE token = ? AND user_id = ? AND video_id = ? AND expires_at > ?`,
+    [token, userId, videoId, Math.floor(Date.now() / 1000)],
+  );
+  return (row as Record<string, unknown> | null) ?? null;
+}
+
+/** Server-scored watch seconds for one signed session. */
+async function verifiedSessionSeconds(db: Database, sessionTokenId: string): Promise<number> {
+  const row = await db.querySingle(
+    `SELECT COALESCE(SUM(delta_seconds), 0) AS total, COUNT(*) AS samples
+     FROM watch_heartbeats WHERE session_token_id = ? AND accepted = 1`,
+    [sessionTokenId],
+  );
+  return Number((row as { total?: number } | null)?.total ?? 0);
+}
+
+/** Heartbeat scoring configuration (env-tunable so tuning needs no deploy of logic). */
+function heartbeatConfig(env: Env): { maxGapSeconds: number; maxRate: number } {
+  const gap = Number.parseInt(env.WATCH_HEARTBEAT_MAX_GAP_SEC ?? "120", 10);
+  const rate = Number.parseFloat(env.WATCH_HEARTBEAT_MAX_RATE ?? "1.15");
+  return {
+    maxGapSeconds: Number.isFinite(gap) ? gap : 120,
+    maxRate: Number.isFinite(rate) ? rate : 1.15,
+  };
 }
 
 async function hmacSign(secret: string, data: string): Promise<string> {
@@ -153,7 +203,7 @@ export const watchRoutes: RouteDefinition[] = [
         );
         return createResponse({ challengeId: id, question, ttlSec: 120 });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to create challenge", 500);
@@ -220,7 +270,7 @@ export const watchRoutes: RouteDefinition[] = [
         ]);
         return createResponse({ passed: false, voided: false, attempts });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to submit answer", 500);
@@ -234,10 +284,12 @@ export const watchRoutes: RouteDefinition[] = [
     path: "/api/v1/watch/start",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
+        // Identity first: the contract documents this endpoint as authenticated,
+        // and an anonymous caller should not learn the feature-flag state.
+        const userId = await requireAuth(request, env);
         if (!sessionsEnabled(env)) {
           return createResponse({ sessionToken: null, enabled: false });
         }
-        const userId = await requireAuth(request, env);
         const body = (await request.json().catch(() => ({}))) as any;
         const videoId = body.videoId as string | undefined;
         if (!videoId) return createErrorResponse("VALIDATION_ERROR", "videoId required", 400);
@@ -258,7 +310,7 @@ export const watchRoutes: RouteDefinition[] = [
 
         return createResponse({ sessionToken: token, enabled: true, startTs });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to start session", 500);
@@ -271,31 +323,78 @@ export const watchRoutes: RouteDefinition[] = [
     path: "/api/v1/watch/heartbeat",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
+        // Identity first (see /watch/start): the contract says `user`, and the
+        // sample must never be scored for a caller we cannot name.
+        const userId = await requireAuth(request, env);
         if (!sessionsEnabled(env)) {
           return createResponse({ ok: true, enabled: false });
         }
-        const userId = await requireAuth(request, env);
-        const body = (await request.json().catch(() => ({}))) as any;
-        const { sessionToken, playerTime } = body as { sessionToken?: string; playerTime?: number };
-        if (!sessionToken || typeof playerTime !== "number") {
-          return createErrorResponse("VALIDATION_ERROR", "sessionToken and playerTime required", 400);
+        const parsed = watchHeartbeatSchema.safeParse(await request.json().catch(() => ({})));
+        if (!parsed.success) {
+          return createErrorResponse(
+            "VALIDATION_ERROR",
+            parsed.error.errors.map((issue) => issue.message).join(", "),
+            400,
+          );
         }
+        const { sessionToken, playerTime } = parsed.data;
 
         const db = new Database(env);
         const row = await db.querySingle(
           "SELECT id FROM watch_session_tokens WHERE token = ? AND user_id = ? AND expires_at > ?",
           [sessionToken, userId, Math.floor(Date.now() / 1000)],
         );
-        if (!row) return createErrorResponse("UNAUTHORIZED", "Invalid or expired session token", 401);
+        if (!row)
+          return createErrorResponse("UNAUTHORIZED", "Invalid or expired session token", 401);
 
-        await db.execute(
-          "INSERT INTO watch_heartbeats (id, session_token_id, player_time, received_at) VALUES (?,?,?,?)",
-          [crypto.randomUUID(), row.id, playerTime, Math.floor(Date.now() / 1000)],
+        // Score the sample against the last *accepted* one: rewind, fast-forward
+        // and long gaps are recorded but never credited (SEC-012).
+        const sessionId = (row as { id: string }).id;
+        const previous = await db.querySingle(
+          `SELECT player_time, received_at FROM watch_heartbeats
+           WHERE session_token_id = ? AND accepted = 1
+           ORDER BY received_at DESC, player_time DESC LIMIT 1`,
+          [sessionId],
+        );
+        const receivedAt = Math.floor(Date.now() / 1000);
+        const verdict = scoreHeartbeat(
+          previous
+            ? {
+                playerTime: Number((previous as { player_time: number }).player_time),
+                receivedAt: Number((previous as { received_at: number }).received_at),
+              }
+            : null,
+          { playerTime, receivedAt },
+          heartbeatConfig(env),
         );
 
-        return createResponse({ ok: true, enabled: true });
+        await db.execute(
+          `INSERT INTO watch_heartbeats
+             (id, session_token_id, player_time, received_at, delta_seconds, accepted, reject_reason)
+           VALUES (?,?,?,?,?,?,?)`,
+          [
+            db.uuid(),
+            sessionId,
+            playerTime,
+            receivedAt,
+            verdict.deltaSeconds,
+            verdict.accepted ? 1 : 0,
+            verdict.rejectReason ?? null,
+          ],
+        );
+
+        const verifiedSeconds = await verifiedSessionSeconds(db, sessionId);
+
+        return createResponse({
+          ok: true,
+          enabled: true,
+          accepted: verdict.accepted,
+          deltaSeconds: verdict.deltaSeconds,
+          verifiedSeconds,
+          rejectReason: verdict.rejectReason ?? null,
+        });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to record heartbeat", 500);
@@ -343,7 +442,11 @@ export const watchRoutes: RouteDefinition[] = [
           typeof video.duration_seconds === "number" && video.duration_seconds > 0
             ? video.duration_seconds
             : null;
-        const requiredWatchSec = resolveRequiredWatchSeconds(videoId, videoDuration, REQUIRED_WATCH_SEC);
+        const requiredWatchSec = resolveRequiredWatchSeconds(
+          videoId,
+          videoDuration,
+          REQUIRED_WATCH_SEC,
+        );
 
         const existing = await db.querySingle(
           "SELECT * FROM watch_sessions WHERE video_id = ? AND watcher_id = ?",
@@ -355,7 +458,6 @@ export const watchRoutes: RouteDefinition[] = [
         const {
           connected: youtubeConnected,
           subscribed: verifiedSubscribed,
-          watchVerified,
           watchSeconds: verifiedWatchSeconds,
           reason: subReason,
         } = await verifyYouTubeSubscription(
@@ -376,18 +478,35 @@ export const watchRoutes: RouteDefinition[] = [
             const svc = new YouTubeService(env);
             const accessToken = await svc.getValidAccessToken(watcherId);
             if (accessToken) {
-              verifiedCommented = await svc.verifyMagicWordComment(
-                accessToken,
-                videoId,
-                magicWord,
-              );
+              verifiedCommented = await svc.verifyMagicWordComment(accessToken, videoId, magicWord);
             }
           } catch {
             verifiedCommented = false;
           }
         }
 
-        const effectiveWatchSeconds = watchVerified ? verifiedWatchSeconds : watchSeconds;
+        // Evidence policy (SEC-010): decide what this claim is actually worth
+        // before anything is written. Server-observed evidence (YouTube API or
+        // server-scored heartbeats) always wins; self-reported seconds pay
+        // according to EVIDENCE_POLICY.
+        const policy = evidenceSettings(env, requiredWatchSec);
+        let sessionSeconds = 0;
+        if (validation.data.sessionToken) {
+          const session = await resolveWatchSession(
+            db,
+            validation.data.sessionToken,
+            watcherId,
+            videoId,
+          );
+          if (session) sessionSeconds = await verifiedSessionSeconds(db, session.id as string);
+        }
+        const evidence: EvidenceDecision = evaluateWatchEvidence({
+          youtubeVerifiedSeconds: verifiedWatchSeconds,
+          sessionVerifiedSeconds: sessionSeconds,
+          selfReportedSeconds: watchSeconds,
+          settings: policy,
+        });
+        const effectiveWatchSeconds = evidence.verifiedSeconds;
 
         // Attention check gate: a failed challenge voids this claim
         const failedChallenge = await db.querySingle(
@@ -404,7 +523,13 @@ export const watchRoutes: RouteDefinition[] = [
         // and nothing is compulsory. Subscribing is tracked as an optional,
         // unpaid trust signal — it never gates earning and never pays points.
         const rewards = getRewardSplit(env);
-        const watchDone = effectiveWatchSeconds >= requiredWatchSec;
+        // The watch component pays only when the evidence policy allows it and
+        // the share it allows is applied to both XP and credits.
+        const watchDone = evidence.meetsRequirement && evidence.pays;
+        const watchReward = {
+          xp: applyPayoutShare(rewards.watch.xp, evidence.payoutShare),
+          credits: applyPayoutShare(rewards.watch.credits, evidence.payoutShare),
+        };
         const subDone = effectiveSubscribed;
         const commentDone = verifiedCommented;
         const status = watchDone && commentDone ? "claimed" : watchDone ? "verified" : "started";
@@ -412,7 +537,8 @@ export const watchRoutes: RouteDefinition[] = [
         if (existing) {
           await db.execute(
             `UPDATE watch_sessions SET watch_seconds = ?, subscribed = ?, commented = ?,
-             status = ?, verified_at = ?, updated_at = ? WHERE id = ?`,
+             status = ?, verified_at = ?, updated_at = ?, evidence_level = ?, verified_seconds = ?
+             WHERE id = ?`,
             [
               watchSeconds,
               subDone ? 1 : 0,
@@ -420,14 +546,17 @@ export const watchRoutes: RouteDefinition[] = [
               status,
               watchDone ? now : existing.verified_at,
               now,
+              evidence.level,
+              evidence.verifiedSeconds,
               existing.id,
             ],
           );
         } else {
           await db.execute(
             `INSERT INTO watch_sessions (id, video_id, watcher_id, watch_seconds, status,
-             subscribed, commented, verified_at, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             subscribed, commented, verified_at, created_at, updated_at,
+             evidence_level, verified_seconds)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               db.uuid(),
               videoId,
@@ -439,6 +568,8 @@ export const watchRoutes: RouteDefinition[] = [
               watchDone ? now : null,
               now,
               now,
+              evidence.level,
+              evidence.verifiedSeconds,
             ],
           );
         }
@@ -454,11 +585,11 @@ export const watchRoutes: RouteDefinition[] = [
         const watchNewlyPaid = watchDone && alreadyXp < rewards.watch.xp;
         const newlySubscribed = subDone && ((existing?.subscribed as number) ?? 0) !== 1;
         const targetXp =
-          (watchDone ? rewards.watch.xp : 0) +
+          (watchDone ? watchReward.xp : 0) +
           (subDone ? rewards.subscribe.xp : 0) +
           (commentDone ? rewards.comment.xp : 0);
         const targetCredits =
-          (watchDone ? rewards.watch.credits : 0) +
+          (watchDone ? watchReward.credits : 0) +
           (subDone ? rewards.subscribe.credits : 0) +
           (commentDone ? rewards.comment.credits : 0);
         const xpDelta = Math.max(0, targetXp - alreadyXp);
@@ -543,7 +674,7 @@ export const watchRoutes: RouteDefinition[] = [
             "SELECT balance FROM credit_accounts WHERE user_id = ?",
             [watcherId],
           );
-          const balanceAfter = (creditAccount?.balance as number ?? 0) + creditsAwarded;
+          const balanceAfter = ((creditAccount?.balance as number) ?? 0) + creditsAwarded;
           batchStatements.push({
             sql: `INSERT INTO credit_accounts (id, user_id, balance, created_at, updated_at)
                  VALUES (?, ?, 0, ?, ?)
@@ -633,9 +764,17 @@ export const watchRoutes: RouteDefinition[] = [
           subscribed: subDone,
           commented: commentDone,
           rewardBreakdown: {
-            watch: rewards.watch,
+            watch: watchReward,
             subscribe: rewards.subscribe,
             comment: rewards.comment,
+          },
+          // Clients render this instead of re-implementing the policy: it says
+          // which evidence level paid and why it did or did not.
+          evidence: {
+            level: evidence.level,
+            paid: watchDone,
+            verifiedSeconds: evidence.verifiedSeconds,
+            reason: evidence.reason,
           },
           subReason,
           level: finalXpState.level,

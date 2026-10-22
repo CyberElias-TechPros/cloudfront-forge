@@ -1,12 +1,15 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, isAuthError } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { recordAudit } from "../lib/audit";
 import { generateInviteCode } from "../lib/utils";
 import { sanitize } from "../lib/sanitize";
 import { notifyUserPush } from "../lib/push";
-import { z } from "zod";
+import {
+  communityMemberRoleSchema,
+  communityJoinRequestSchema,
+} from "../contract/schemas/community";
 
 /**
  * Community lifecycle and member management.
@@ -23,13 +26,9 @@ import { z } from "zod";
  * - owners archive a community (soft delete — history stays auditable).
  */
 
-const roleSchema = z.object({
-  role: z.enum(["member", "moderator"]),
-});
-
-const joinRequestSchema = z.object({
-  message: z.string().max(300).optional(),
-});
+// Request schemas are shared with the contract (single definition, PLAT-002).
+const roleSchema = communityMemberRoleSchema;
+const joinRequestSchema = communityJoinRequestSchema;
 
 function communityIdFrom(pathname: string): string | undefined {
   // /api/v1/communities/:id[/...]
@@ -87,7 +86,7 @@ function isManager(role: string): boolean {
 }
 
 function authError(error: any): Response | null {
-  if (error.message === "AUTH_REQUIRED" || error.message === "AUTH_TOKEN_INVALID") {
+  if (isAuthError(error)) {
     return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
   }
   return null;

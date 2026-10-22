@@ -78,7 +78,7 @@ describe("admin suspension", () => {
 
   it("non-admins are refused", async () => {
     const env = createTestEnv();
-    const nobody = env.seedUser("nobody-s");
+    env.seedUser("nobody-s");
     const target = env.seedUser("target-s3");
 
     const response = await suspend.handler(
