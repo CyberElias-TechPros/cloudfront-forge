@@ -1,7 +1,7 @@
 import { shopPurchaseSchema } from "../contract/schemas/content";
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, isAuthError } from "../middleware/auth";
 import { Database } from "../lib/database";
 
 const BOOST_COST = 50;
@@ -34,7 +34,7 @@ export const shopRoutes: RouteDefinition[] = [
           ],
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch shop", 500);
@@ -172,7 +172,7 @@ export const shopRoutes: RouteDefinition[] = [
           balance: balanceRow?.balance ?? 0,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Purchase failed", 500);

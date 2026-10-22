@@ -1,6 +1,6 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, isAuthError } from "../middleware/auth";
 import { Database, sqlBool } from "../lib/database";
 import { sanitize } from "../lib/sanitize";
 import {
@@ -58,7 +58,7 @@ export const notificationRoutes: RouteDefinition[] = [
           offset,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch notifications", 500);
@@ -109,7 +109,7 @@ export const notificationRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Notification created" }, 201);
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to create notification", 500);
@@ -129,7 +129,7 @@ export const notificationRoutes: RouteDefinition[] = [
         ]);
         return createResponse({ message: "All notifications marked as read" });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to mark all as read", 500);
@@ -155,7 +155,7 @@ export const notificationRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Notification marked as read" });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to mark notification as read", 500);
@@ -181,7 +181,7 @@ export const notificationRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Notification deleted" });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to delete notification", 500);
@@ -273,7 +273,7 @@ export const notificationRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Preferences updated" });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to update preferences", 500);
@@ -320,7 +320,7 @@ export const notificationRoutes: RouteDefinition[] = [
           quietHoursEnd: preferences.quiet_hours_end ?? null,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch preferences", 500);
@@ -353,7 +353,7 @@ export const notificationRoutes: RouteDefinition[] = [
         );
         return createResponse({ message: "Push subscription saved" });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to save push subscription", 500);
@@ -382,7 +382,7 @@ export const notificationRoutes: RouteDefinition[] = [
         ]);
         return createResponse({ message: "Push subscription removed" });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to remove push subscription", 500);

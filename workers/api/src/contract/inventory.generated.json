@@ -362,7 +362,7 @@
       "key": "^\\/api\\/v1/videos/([^/]+)$",
       "matcher": "pattern",
       "documented": true,
-      "auth": "user",
+      "auth": "public",
       "tag": "Videos",
       "operationId": "getVideo",
       "path": "/api/v1/videos/{videoId}"
@@ -572,7 +572,7 @@
       "key": "/api/v1/leaderboards",
       "matcher": "path",
       "documented": true,
-      "auth": "user",
+      "auth": "public",
       "tag": "Gamification",
       "operationId": "getLeaderboard",
       "path": "/api/v1/leaderboards"

@@ -1,6 +1,6 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, isAuthError } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { YouTubeService } from "../services/youtube";
 import { createLogger } from "../lib/logger";
@@ -203,7 +203,7 @@ export const watchRoutes: RouteDefinition[] = [
         );
         return createResponse({ challengeId: id, question, ttlSec: 120 });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to create challenge", 500);
@@ -270,7 +270,7 @@ export const watchRoutes: RouteDefinition[] = [
         ]);
         return createResponse({ passed: false, voided: false, attempts });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to submit answer", 500);
@@ -284,10 +284,12 @@ export const watchRoutes: RouteDefinition[] = [
     path: "/api/v1/watch/start",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
+        // Identity first: the contract documents this endpoint as authenticated,
+        // and an anonymous caller should not learn the feature-flag state.
+        const userId = await requireAuth(request, env);
         if (!sessionsEnabled(env)) {
           return createResponse({ sessionToken: null, enabled: false });
         }
-        const userId = await requireAuth(request, env);
         const body = (await request.json().catch(() => ({}))) as any;
         const videoId = body.videoId as string | undefined;
         if (!videoId) return createErrorResponse("VALIDATION_ERROR", "videoId required", 400);
@@ -308,7 +310,7 @@ export const watchRoutes: RouteDefinition[] = [
 
         return createResponse({ sessionToken: token, enabled: true, startTs });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to start session", 500);
@@ -321,10 +323,12 @@ export const watchRoutes: RouteDefinition[] = [
     path: "/api/v1/watch/heartbeat",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
+        // Identity first (see /watch/start): the contract says `user`, and the
+        // sample must never be scored for a caller we cannot name.
+        const userId = await requireAuth(request, env);
         if (!sessionsEnabled(env)) {
           return createResponse({ ok: true, enabled: false });
         }
-        const userId = await requireAuth(request, env);
         const parsed = watchHeartbeatSchema.safeParse(await request.json().catch(() => ({})));
         if (!parsed.success) {
           return createErrorResponse(
@@ -390,7 +394,7 @@ export const watchRoutes: RouteDefinition[] = [
           rejectReason: verdict.rejectReason ?? null,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to record heartbeat", 500);

@@ -6476,12 +6476,9 @@
         ],
         "operationId": "getVideo",
         "summary": "Video detail",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-auth-tier": "user",
+        "description": "Public so a shared video link renders for a visitor who is not signed in. Review text is only included for the owner, an assigned reviewer or a moderator.",
+        "security": [],
+        "x-auth-tier": "public",
         "parameters": [
           {
             "name": "videoId",
@@ -6552,50 +6549,6 @@
                           "type": "string",
                           "enum": [
                             "VALIDATION_ERROR"
-                          ]
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      }
-                    },
-                    "meta": {
-                      "$ref": "#/components/schemas/ResponseMeta"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "AUTH_REQUIRED: A Firebase ID token is required (or it expired).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "success",
-                    "error",
-                    "meta"
-                  ],
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "error": {
-                      "type": "object",
-                      "required": [
-                        "code",
-                        "message"
-                      ],
-                      "properties": {
-                        "code": {
-                          "type": "string",
-                          "enum": [
-                            "AUTH_REQUIRED"
                           ]
                         },
                         "message": {
@@ -26041,12 +25994,9 @@
         ],
         "operationId": "getLeaderboard",
         "summary": "XP leaderboard, optionally by cohort",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-auth-tier": "user",
+        "description": "Public so the landing page can render it before sign-in.",
+        "security": [],
+        "x-auth-tier": "public",
         "parameters": [
           {
             "name": "timeframe",
@@ -26215,50 +26165,6 @@
                           "type": "string",
                           "enum": [
                             "VALIDATION_ERROR"
-                          ]
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      }
-                    },
-                    "meta": {
-                      "$ref": "#/components/schemas/ResponseMeta"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "AUTH_REQUIRED: A Firebase ID token is required (or it expired).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "success",
-                    "error",
-                    "meta"
-                  ],
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "error": {
-                      "type": "object",
-                      "required": [
-                        "code",
-                        "message"
-                      ],
-                      "properties": {
-                        "code": {
-                          "type": "string",
-                          "enum": [
-                            "AUTH_REQUIRED"
                           ]
                         },
                         "message": {

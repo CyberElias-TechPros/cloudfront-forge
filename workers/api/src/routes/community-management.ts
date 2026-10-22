@@ -1,6 +1,6 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, isAuthError } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { recordAudit } from "../lib/audit";
 import { generateInviteCode } from "../lib/utils";
@@ -86,7 +86,7 @@ function isManager(role: string): boolean {
 }
 
 function authError(error: any): Response | null {
-  if (error.message === "AUTH_REQUIRED" || error.message === "AUTH_TOKEN_INVALID") {
+  if (isAuthError(error)) {
     return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
   }
   return null;

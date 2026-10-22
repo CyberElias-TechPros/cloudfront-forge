@@ -1,6 +1,6 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth, requireModerator } from "../middleware/auth";
+import { requireAuth, requireModerator, isAuthError } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { recordAudit } from "../lib/audit";
 import { notify } from "../lib/notify";
@@ -74,7 +74,7 @@ export const supportRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Support request submitted", supportId: id }, 201);
       } catch (error: any) {
-        if (error.message === "AUTH_REQUIRED" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to submit support request", 500);
@@ -105,7 +105,7 @@ export const supportRoutes: RouteDefinition[] = [
         );
         return createResponse({ items: result.results });
       } catch (error: any) {
-        if (error.message === "AUTH_REQUIRED" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {
@@ -156,7 +156,7 @@ export const supportRoutes: RouteDefinition[] = [
         );
         return createResponse({ message: "Support request resolved" });
       } catch (error: any) {
-        if (error.message === "AUTH_REQUIRED" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {

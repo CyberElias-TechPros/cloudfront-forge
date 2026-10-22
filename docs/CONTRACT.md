@@ -111,6 +111,33 @@ CI regenerates the client and fails on drift, alongside the document and `docs/A
 - Media types are explicit: `multipart/form-data` for the receipt upload, `image/*` for the receipt
   download, `text/event-stream` for `/ai/chat/stream`.
 
+## Wire conformance
+
+`tests/contract/wire.test.ts` drives `worker.fetch` — the entry point Cloudflare
+runs — rather than calling handlers directly, and asserts for **every documented
+operation** that:
+
+- a `user`/`moderator`/`admin` endpoint answers `401 AUTH_REQUIRED` to an
+  anonymous caller, without leaking whether the resource exists;
+- an `admin`/`moderator` endpoint answers `403 FORBIDDEN` to an ordinary member;
+- a `public` endpoint never answers `401`;
+- unknown routes answer `404 NOT_FOUND` in the same envelope, CORS is limited to
+  the allow-list, and every failure carries a code from the registry.
+
+It found three real defects the first time it ran, all fixed:
+
+1. Roughly twenty handlers compared `error.message` against `"AUTH_REQUIRED"`
+   while `requireAuth` throws `"AUTH_required"`, so an anonymous or
+   expired-token request answered `500 INTERNAL_ERROR` instead of `401`. Auth
+   failures are now a typed `AuthError` and `isAuthError()` matches both
+   spellings — no handler compares message text any more.
+2. `requireAdmin`/`requireModerator` threw a plain `Error("FORBIDDEN")` that some
+   catches mapped to `500`. They now throw `ForbiddenError`, and the two handlers
+   that dropped it return `403 FORBIDDEN`.
+3. `GET /leaderboards` and `GET /videos/{videoId}` were documented as
+   authenticated but are intentionally public (landing page and shared links);
+   the registry now says `public`, so the document tells the truth.
+
 ## Evidence in the contract
 
 `POST /api/v1/watch` documents an `evidence` object in its response:

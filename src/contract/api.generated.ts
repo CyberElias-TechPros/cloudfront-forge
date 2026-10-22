@@ -855,7 +855,7 @@ export interface OperationRegistry {
   getLeaderboard: {
     method: "GET";
     path: "/api/v1/leaderboards";
-    auth: "user";
+    auth: "public";
     summary: "XP leaderboard, optionally by cohort";
     media: "application/json";
     query: {
@@ -1154,7 +1154,7 @@ export interface OperationRegistry {
   getVideo: {
     method: "GET";
     path: "/api/v1/videos/{videoId}";
-    auth: "user";
+    auth: "public";
     summary: "Video detail";
     media: "application/json";
     query: Record<string, never>;

@@ -1,6 +1,6 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth, requireAdmin } from "../middleware/auth";
+import { requireAuth, requireAdmin, isAuthError, isForbiddenError } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { awardXp } from "../lib/xp";
 import { recordAudit } from "../lib/audit";
@@ -60,7 +60,7 @@ export const missionRoutes: RouteDefinition[] = [
           offset,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch missions", 500);
@@ -121,7 +121,7 @@ export const missionRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Mission created", missionId }, 201);
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {
@@ -178,7 +178,7 @@ export const missionRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Mission assigned" });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to assign mission", 500);
@@ -219,7 +219,7 @@ export const missionRoutes: RouteDefinition[] = [
           offset,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch assignments", 500);
@@ -359,7 +359,7 @@ export const missionRoutes: RouteDefinition[] = [
           totalXp: xpState.totalXp,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to complete mission", 500);
@@ -397,7 +397,7 @@ export const missionRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Mission skipped" });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to skip mission", 500);
@@ -470,8 +470,11 @@ export const missionRoutes: RouteDefinition[] = [
           201,
         );
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        if (isForbiddenError(error)) {
+          return createErrorResponse("FORBIDDEN", "Admin access required", 403);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to create chain", 500);
       }

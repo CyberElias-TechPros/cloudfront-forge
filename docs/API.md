@@ -373,9 +373,11 @@ Statuses: `200`, `400`, `401`, `403`, `404`, `409`, `429`, `500`, `503`
 
 #### `GET /api/v1/videos/{videoId}`
 
-**Video detail** — auth: `user`
+**Video detail** — auth: `public`
 
-Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+Public so a shared video link renders for a visitor who is not signed in. Review text is only included for the owner, an assigned reviewer or a moderator.
+
+Statuses: `200`, `400`, `404`, `429`, `500`, `503`
 
 #### `POST /api/v1/videos/{videoId}/archive`
 
@@ -559,9 +561,11 @@ Statuses: `200`, `400`, `401`, `404`, `409`, `429`, `500`, `503`
 
 #### `GET /api/v1/leaderboards`
 
-**XP leaderboard, optionally by cohort** — auth: `user`
+**XP leaderboard, optionally by cohort** — auth: `public`
 
-Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+Public so the landing page can render it before sign-in.
+
+Statuses: `200`, `400`, `404`, `429`, `500`, `503`
 
 #### `GET /api/v1/reputation`
 

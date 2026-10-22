@@ -1,6 +1,6 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, isAuthError } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { notify } from "../lib/notify";
 import { progressQuest } from "../lib/quests";
@@ -94,7 +94,7 @@ export const videoRoutes: RouteDefinition[] = [
           offset,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch videos", 500);
@@ -299,7 +299,7 @@ export const videoRoutes: RouteDefinition[] = [
           channelId: metadata.channelId,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         logger.error("Video submission error", error);
@@ -408,7 +408,7 @@ export const videoRoutes: RouteDefinition[] = [
         );
         return createResponse({ message: "Video archived — it is out of the queue" });
       } catch (error: any) {
-        if (error.message === "AUTH_REQUIRED" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to archive video", 500);
@@ -463,7 +463,7 @@ export const reviewRoutes: RouteDefinition[] = [
           offset,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch reviews", 500);
@@ -558,7 +558,7 @@ export const reviewRoutes: RouteDefinition[] = [
           answers: answers,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to get review", 500);
@@ -600,7 +600,7 @@ export const reviewRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Review started" });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to start review", 500);
@@ -784,7 +784,7 @@ export const reviewRoutes: RouteDefinition[] = [
           totalXp: finalXpState.totalXp,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to complete review", 500);
@@ -862,7 +862,7 @@ export const reviewRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Answers submitted", saved: statements.length });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to submit answers", 500);
@@ -948,7 +948,7 @@ export const reviewRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Rating saved" });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to rate review", 500);

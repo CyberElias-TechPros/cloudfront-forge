@@ -1,6 +1,6 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth, requireModerator } from "../middleware/auth";
+import { requireAuth, requireModerator, isAuthError } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { notifyUserPush } from "../lib/push";
 import { notify } from "../lib/notify";
@@ -107,7 +107,7 @@ export const reportRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Report submitted", reportId }, 201);
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to submit report", 500);
@@ -135,7 +135,7 @@ export const reportRoutes: RouteDefinition[] = [
         );
         return createResponse({ items: result.results });
       } catch (error: any) {
-        if (error.message === "AUTH_REQUIRED" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch your reports", 500);
@@ -204,7 +204,7 @@ export const reportRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Appeal submitted" }, 201);
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to submit appeal", 500);
@@ -316,7 +316,7 @@ export const reportRoutes: RouteDefinition[] = [
 
         return createResponse({ message: `Appeal ${parsed.data.status}` });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {

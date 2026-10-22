@@ -1,7 +1,7 @@
 import { topupRequestSchema } from "../contract/schemas/content";
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth, requireAdmin } from "../middleware/auth";
+import { requireAuth, requireAdmin, isAuthError } from "../middleware/auth";
 import { recordAudit } from "../lib/audit";
 import { Database, DatabaseError } from "../lib/database";
 import { notify } from "../lib/notify";
@@ -65,7 +65,7 @@ export const topupRoutes: RouteDefinition[] = [
           pending: !!pending,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch top-up catalog", 500);
@@ -119,7 +119,7 @@ export const topupRoutes: RouteDefinition[] = [
 
         return createResponse({ path, name: file.name || path, type: file.type }, 201);
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to upload proof", 500);
@@ -240,7 +240,7 @@ export const topupRoutes: RouteDefinition[] = [
         const row = await db.querySingle("SELECT * FROM topup_requests WHERE id = ?", [id]);
         return createResponse({ message: "Top-up submitted for review", request: row }, 201);
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to submit top-up", 500);
@@ -262,7 +262,7 @@ export const topupRoutes: RouteDefinition[] = [
         );
         return createResponse({ items: result.results });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch top-ups", 500);
@@ -297,7 +297,7 @@ export const topupRoutes: RouteDefinition[] = [
         );
         return createResponse({ items: result.results });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {
@@ -337,7 +337,7 @@ export const topupRoutes: RouteDefinition[] = [
         headers.set("Cache-Control", "private, max-age=300");
         return new Response(object.body, { headers });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {
@@ -459,7 +459,7 @@ export const topupRoutes: RouteDefinition[] = [
           balance: balanceRowAfter?.balance ?? 0,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {
@@ -525,7 +525,7 @@ export const topupRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Top-up rejected" });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {

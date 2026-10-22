@@ -260,8 +260,10 @@ const coreEndpoints: EndpointContract[] = [
     path: "/api/v1/videos/{videoId}",
     operationId: "getVideo",
     summary: "Video detail",
+    description:
+      "Public so a shared video link renders for a visitor who is not signed in. Review text is only included for the owner, an assigned reviewer or a moderator.",
     tag: "Videos",
-    auth: AUTH_USER,
+    auth: "public",
     response: freeFormDataSchema,
   },
   {

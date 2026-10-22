@@ -1,6 +1,6 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, isAuthError } from "../middleware/auth";
 import { Database, sqlBool } from "../lib/database";
 import { sanitize } from "../lib/sanitize";
 import { profileUpdateSchema, youtubeChannelSchema } from "../contract/schemas/auth";
@@ -54,7 +54,7 @@ export const userRoutes: RouteDefinition[] = [
           profile: isPrivate ? null : profile,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         createLogger(env).error("Get user error", error);
@@ -121,7 +121,7 @@ export const userRoutes: RouteDefinition[] = [
           channels: allChannels,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch profile", 500);
@@ -217,7 +217,7 @@ export const userRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Profile updated successfully" });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to update profile", 500);
@@ -263,7 +263,7 @@ export const userRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "YouTube channel connected" });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to connect channel", 500);
@@ -353,7 +353,7 @@ export const userRoutes: RouteDefinition[] = [
           isAdmin,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch member", 500);
@@ -375,7 +375,7 @@ export const userRoutes: RouteDefinition[] = [
 
         return createResponse(result.results);
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch channels", 500);
@@ -517,7 +517,7 @@ export const userRoutes: RouteDefinition[] = [
           },
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch insights", 500);

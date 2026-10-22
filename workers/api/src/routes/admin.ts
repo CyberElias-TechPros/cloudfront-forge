@@ -1,6 +1,6 @@
 import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
-import { requireAdmin, requireModerator } from "../middleware/auth";
+import { requireAdmin, requireModerator, isAuthError, isForbiddenError } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { recordAudit } from "../lib/audit";
 import { notify } from "../lib/notify";
@@ -10,7 +10,7 @@ const suspendSchema = userSuspendSchema;
 const roleChangeSchema = userRoleChangeSchema;
 
 function adminCatch(error: any, what: string): Response {
-  if (error.message === "AUTH_REQUIRED" || error.message === "AUTH_TOKEN_INVALID") {
+  if (isAuthError(error)) {
     return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
   }
   if (error.message === "FORBIDDEN") {
@@ -61,7 +61,7 @@ export const adminRoutes: RouteDefinition[] = [
           dailyTrend: dailyTrend.results,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {
@@ -119,7 +119,7 @@ export const adminRoutes: RouteDefinition[] = [
 
         return createResponse(users);
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {
@@ -171,7 +171,7 @@ export const adminRoutes: RouteDefinition[] = [
           offset,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {
@@ -207,7 +207,7 @@ export const adminRoutes: RouteDefinition[] = [
 
         return createResponse(result.results);
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {
@@ -245,7 +245,7 @@ export const adminRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Report resolved" });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {
@@ -286,7 +286,7 @@ export const adminRoutes: RouteDefinition[] = [
           pendingReports: pendingReports?.count ?? 0,
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
         if (error.message === "FORBIDDEN") {
@@ -338,8 +338,11 @@ export const adminRoutes: RouteDefinition[] = [
           })),
         });
       } catch (error: any) {
-        if (error.message === "AUTH_required" || error.message === "AUTH_TOKEN_INVALID") {
+        if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
+        }
+        if (isForbiddenError(error)) {
+          return createErrorResponse("FORBIDDEN", "Admin access required", 403);
         }
         return createErrorResponse("INTERNAL_ERROR", "Failed to fetch retention", 500);
       }
