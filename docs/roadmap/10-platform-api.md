@@ -21,7 +21,7 @@ Kotlin client compiles from the same document; every error code is in one regist
 | ID       | Task                                                                                                                                                           | Status | Why                                                                                                                                | Done when                                                                                                                                        | Touches / integrates                                                                 | Effort (d) | Depends  |
 | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ---------- | -------- |
 | PLAT-001 | Inventory every route with method, path, auth tier, rate-limit tier and response codes into a generated table.                                                 | ✅     | You cannot contract what you haven't enumerated; README claims 110 routes, the table must be authoritative.                        | `npm run contract:inventory` prints 110 entries with tier + auth columns; output committed under `workers/api/contract/inventory.json`.          | `workers/api/src/routes/index.ts`, `src/lib/router.ts`                               | 1          | —        |
-| PLAT-002 | Create `workers/api/src/contract/` and move every request/response Zod schema there; handlers import them (no inline schemas left).                            | 🟡     | One schema definition → validation, docs and both clients. Today schemas are inline per handler and drift from client types.       | `grep` shows zero `z.object(` outside `src/contract/`; 303 worker tests still pass.                                                              | `routes/*.ts`, `lib/sanitize.ts`                                                     | 4          | PLAT-001 |
+| PLAT-002 | Create `workers/api/src/contract/` and move every request/response Zod schema there; handlers import them (no inline schemas left).                            | ✅     | One schema definition → validation, docs and both clients. Today schemas are inline per handler and drift from client types.       | `grep` shows zero `z.object(` outside `src/contract/`; 303 worker tests still pass.                                                              | `routes/*.ts`, `lib/sanitize.ts`                                                     | 4          | PLAT-001 |
 | PLAT-003 | Generate an OpenAPI 3.1 document from `src/contract` (`zod-to-json-schema` + envelope components).                                                             | ✅     | Single artefact replaces guesswork for web and Android and enables mock servers.                                                   | `npm run contract:build` writes `contract/openapi.json` with 63 paths, security schemes (`bearerAuth`), error envelope and examples; committed.  | `src/contract`, build scripts                                                        | 3          | PLAT-002 |
 | PLAT-004 | Serve the spec at `GET /openapi.json` (public, cached, rate-limited) and link it from `/docs` landing.                                                         | ✅     | Lets QA, partners and the Android team diff deployed reality against the repo.                                                     | Endpoint returns the spec with `Cache-Control: public, max-age=300`; contract test asserts it equals the committed file.                         | `index.ts`, KV cache                                                                 | 1          | PLAT-003 |
 | PLAT-005 | CI gate `contract:check`: regenerate and `git diff --exit-code`, plus a reachability test (every route in the spec is in the router, and vice versa).          | ✅     | Prevents the classic drift where docs describe removed routes.                                                                     | CI job fails on drift; test asserts 110 ↔ 110 both directions.                                                                                   | `.github/workflows/ci.yml`, `tests/routing.test.ts`                                  | 2          | PLAT-003 |
@@ -42,7 +42,7 @@ Kotlin client compiles from the same document; every error code is in one regist
 
 **Exit-gate checklist (PLAT-A)**
 
-- [x] Spec committed, served and diff-gated (45/110 routes, `/openapi.json`, CI `contract` job).
+- [x] Spec committed, served and diff-gated (**110/110 routes**, `/openapi.json`, CI `contract` job).
 - [ ] Web and Kotlin clients generated and compiling in CI (PLAT-006, PLAT-007).
 - [ ] Idempotency + request IDs + rate-limit v2 live behind flags (PLAT-010…PLAT-015).
 - [ ] Blocking shipped with per-surface tests (PLAT-013).
@@ -67,6 +67,21 @@ Kotlin client compiles from the same document; every error code is in one regist
   `CHANNEL_CONFLICT`, `AI_NOT_CONFIGURED`).
 
 ---
+
+**Delivered 2026-10-22 (PLAT-002: whole surface documented)**
+
+- Every one of the 110 router entries now has a registry entry, so coverage is **110/110 (100%)**
+  and the CI floor is 100%: a new route without a contract entry fails the suite.
+- Request schemas for communities, community management, moderation, admin actions, support,
+  notifications and AI moved out of the handlers into `src/contract/schemas/{community,moderation}.ts`.
+  A test scans `src/routes/*.ts` and fails on any inline `z.object(`/`z.enum(`.
+- Response schemas for the whole read model live in `src/contract/schemas/views.ts` — including the
+  snake_case row shapes the SQL actually returns, because a contract that "tidies up" would lie to
+  generated clients.
+- The document now publishes query parameters (`limit`, `offset`, `status`, `days`, `timeframe`,
+  `cohort`, `q`, `intent`, …) and real media types: `multipart/form-data` for the receipt upload,
+  `image/*` for the receipt download, `text/event-stream` for `/ai/chat/stream`.
+- `docs/API.md` regenerated: 104 paths, 1 463 lines, grouped by 19 tags.
 
 ## Phase PLAT-B — Native push & app lifecycle (M2)
 

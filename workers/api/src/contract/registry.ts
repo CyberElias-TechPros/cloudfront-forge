@@ -16,8 +16,7 @@
  * here. `tests/contract/openapi.test.ts` fails if an entry does not match a
  * real route.
  */
-import type { HttpMethod } from "../types";
-import type { z } from "zod";
+import type { EndpointContract, AuthTier } from "./contract-types";
 import {
   registerSchema,
   updateUserSchema,
@@ -54,55 +53,28 @@ import {
   shopListResponseSchema,
   freeFormDataSchema,
 } from "./schemas/responses";
-import type { ErrorCode } from "./errors";
+import { communityEndpoints } from "./endpoints/community";
+import { feedEndpoints } from "./endpoints/feed";
+import { gamificationEndpoints } from "./endpoints/gamification";
+import { adminEndpoints } from "./endpoints/admin";
+import { integrationsEndpoints } from "./endpoints/integrations";
+import { safetyEndpoints } from "./endpoints/safety";
+import { supportEndpoints } from "./endpoints/support";
+import { discoveryEndpoints } from "./endpoints/discovery";
+import { topupsadminEndpoints } from "./endpoints/topups-admin";
+import { missionsEndpoints } from "./endpoints/missions";
 
-/** Who may call an endpoint. Enforced by `requireAuth`/`requireAdmin` at runtime. */
-export type AuthTier = "public" | "user" | "moderator" | "admin";
-
-export interface EndpointContract {
-  /** Route key — must match a `RouteDefinition` in the router table exactly. */
-  route: { method: HttpMethod; path?: string; pattern?: string };
-  /** OpenAPI path template (`/api/v1/reviews/{reviewId}`). */
-  path: string;
-  operationId: string;
-  summary: string;
-  description?: string;
-  tag: string;
-  auth: AuthTier;
-  request?: z.ZodTypeAny;
-  response?: z.ZodTypeAny;
-  /** Codes this endpoint can return, in addition to the generic set. */
-  errors?: ErrorCode[];
-  deprecated?: boolean;
-}
-
-/** Codes every authenticated endpoint can produce. */
-export const COMMON_ERRORS: ErrorCode[] = [
-  "AUTH_REQUIRED",
-  "VALIDATION_ERROR",
-  "NOT_FOUND",
-  "RATE_LIMITED",
-  "INTERNAL_ERROR",
-  "SCHEMA_OUT_OF_DATE",
-];
-
-export const TAGS = [
-  { name: "Auth", description: "Identity bootstrap and profile." },
-  { name: "Users", description: "Member profiles, insights and channel links." },
-  { name: "Watch", description: "Verified watch sessions and payouts." },
-  { name: "Videos", description: "Submissions and archive." },
-  { name: "Reviews", description: "Structured peer reviews." },
-  { name: "Missions", description: "Missions, chains and assignments." },
-  { name: "Shop", description: "Credit sinks." },
-  { name: "Top-ups", description: "NGN top-ups (web only — not sold in the Play app)." },
-  { name: "Notifications", description: "Inbox, preferences and push registration." },
-  { name: "System", description: "Health, readiness and the API document." },
-] as const;
+export type {
+  AuthTier,
+  QueryParam,
+  EndpointContract,
+} from "./contract-types";
+export { COMMON_ERRORS, TAGS } from "./contract-types";
 
 const AUTH_USER: AuthTier = "user";
 const ADMIN: AuthTier = "admin";
 
-export const endpoints: EndpointContract[] = [
+const coreEndpoints: EndpointContract[] = [
   // --- Auth ---------------------------------------------------------------
   {
     route: { method: "POST", path: "/api/v1/auth/register" },
@@ -571,6 +543,25 @@ export const endpoints: EndpointContract[] = [
 ];
 
 /** Operations implemented outside the router table (handled in `index.ts`). */
+/**
+ * Every documented endpoint: the original core set plus the routes brought into
+ * the contract by PLAT-002 (communities, feed, gamification, admin, safety,
+ * support, AI, YouTube, discovery and the top-up admin actions).
+ */
+export const endpoints: EndpointContract[] = [
+  ...coreEndpoints,
+  ...communityEndpoints,
+  ...feedEndpoints,
+  ...gamificationEndpoints,
+  ...adminEndpoints,
+  ...integrationsEndpoints,
+  ...safetyEndpoints,
+  ...supportEndpoints,
+  ...discoveryEndpoints,
+  ...topupsadminEndpoints,
+  ...missionsEndpoints,
+];
+
 export const systemEndpoints: EndpointContract[] = [
   {
     route: { method: "GET", path: "/health" },

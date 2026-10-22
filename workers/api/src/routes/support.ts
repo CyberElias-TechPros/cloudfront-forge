@@ -5,13 +5,10 @@ import { Database } from "../lib/database";
 import { recordAudit } from "../lib/audit";
 import { notify } from "../lib/notify";
 import { sendEmail } from "../lib/email";
-import { z } from "zod";
 import { sanitize } from "../lib/sanitize";
+import { supportRequestSchema } from "../contract/schemas/moderation";
 
-const supportSchema = z.object({
-  topic: z.enum(["account", "credits", "community", "video", "moderation", "bug", "other"]),
-  message: z.string().min(10).max(2000),
-});
+const supportSchema = supportRequestSchema;
 
 /**
  * Member support channel.

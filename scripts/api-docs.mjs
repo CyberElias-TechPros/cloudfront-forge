@@ -68,10 +68,15 @@ lines.push("");
 
 lines.push("## Contract coverage");
 lines.push("");
+const undoc = meta.coverage.undocumented ?? [];
 lines.push(
   `${meta.coverage.documented}/${meta.coverage.routes} router entries are documented (${meta.coverage.percent}%). ` +
-    "Undocumented routes are listed in `workers/api/src/contract/inventory.generated.json` and are being " +
-    "migrated into the contract schema-by-schema (PLAT-002).",
+    (undoc.length === 0
+      ? "Every route in the router table is in the contract, and the CI coverage floor is 100% — adding a route " +
+        "without a registry entry fails the contract tests."
+      : `Undocumented routes (${undoc.length}) are listed in ` +
+        "`workers/api/src/contract/inventory.generated.json`: " +
+        undoc.map((r) => `\`${r.method} ${r.key}\``).join(", ")),
 );
 lines.push("");
 

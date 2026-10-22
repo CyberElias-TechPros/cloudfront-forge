@@ -6,7 +6,10 @@ import { recordAudit } from "../lib/audit";
 import { generateInviteCode } from "../lib/utils";
 import { sanitize } from "../lib/sanitize";
 import { notifyUserPush } from "../lib/push";
-import { z } from "zod";
+import {
+  communityMemberRoleSchema,
+  communityJoinRequestSchema,
+} from "../contract/schemas/community";
 
 /**
  * Community lifecycle and member management.
@@ -23,13 +26,9 @@ import { z } from "zod";
  * - owners archive a community (soft delete — history stays auditable).
  */
 
-const roleSchema = z.object({
-  role: z.enum(["member", "moderator"]),
-});
-
-const joinRequestSchema = z.object({
-  message: z.string().max(300).optional(),
-});
+// Request schemas are shared with the contract (single definition, PLAT-002).
+const roleSchema = communityMemberRoleSchema;
+const joinRequestSchema = communityJoinRequestSchema;
 
 function communityIdFrom(pathname: string): string | undefined {
   // /api/v1/communities/:id[/...]

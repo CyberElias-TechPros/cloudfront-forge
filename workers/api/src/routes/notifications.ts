@@ -3,12 +3,12 @@ import { createResponse, createErrorResponse } from "../middleware/errorHandler"
 import { requireAuth } from "../middleware/auth";
 import { Database, sqlBool } from "../lib/database";
 import { sanitize } from "../lib/sanitize";
-import { z } from "zod";
 import {
   notificationPreferencesSchema,
   pushSubscribeSchema,
   pushUnsubscribeSchema as pushUnsubscribeContractSchema,
 } from "../contract/schemas/content";
+import { notificationCreateSchema as notificationCreateContractSchema } from "../contract/schemas/moderation";
 import { notifyUserPush } from "../lib/push";
 
 function getPagination(request: Request): { limit: number; offset: number } {
@@ -18,12 +18,7 @@ function getPagination(request: Request): { limit: number; offset: number } {
   return { limit, offset };
 }
 
-const createNotificationSchema = z.object({
-  type: z.string().min(1),
-  title: z.string().min(1).max(200),
-  message: z.string().min(1).max(1000),
-  data: z.record(z.any()).optional(),
-});
+const createNotificationSchema = notificationCreateContractSchema;
 
 const updatePreferencesSchema = notificationPreferencesSchema;
 

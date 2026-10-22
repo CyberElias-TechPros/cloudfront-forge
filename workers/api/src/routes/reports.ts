@@ -4,20 +4,16 @@ import { requireAuth, requireModerator } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { notifyUserPush } from "../lib/push";
 import { notify } from "../lib/notify";
-import { z } from "zod";
 import { sanitize } from "../lib/sanitize";
+import {
+  reportCreateSchema as createReportContractSchema,
+  reportAppealSchema,
+  appealReviewSchema,
+} from "../contract/schemas/moderation";
 
-const createReportSchema = z.object({
-  reportedUserId: z.string().uuid().optional(),
-  resourceType: z.enum(["video", "review", "comment", "user", "community"]),
-  resourceId: z.string().min(1),
-  reason: z.enum(["spam", "inappropriate", "harassment", "cheating", "misleading", "other"]),
-  description: z.string().max(1000).optional(),
-});
-
-const appealSchema = z.object({
-  reason: z.string().min(10).max(2000),
-});
+// Request schemas are shared with the contract (single definition, PLAT-002).
+const createReportSchema = createReportContractSchema;
+const appealSchema = reportAppealSchema;
 
 /** Apply a trust-score penalty on report (soft enforcement, capped at 0). */
 async function applyTrustPenalty(db: Database, userId: string): Promise<void> {
@@ -39,11 +35,6 @@ async function applyTrustPenalty(db: Database, userId: string): Promise<void> {
     );
   }
 }
-
-const appealReviewSchema = z.object({
-  status: z.enum(["accepted", "rejected"]),
-  note: z.string().max(2000).optional(),
-});
 
 export const reportRoutes: RouteDefinition[] = [
   {

@@ -9,7 +9,7 @@
  *  - the committed JSON differs from what the generator produces now.
  */
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { routes } from "../../src/routes";
 import { endpoints, systemEndpoints, TAGS } from "../../src/contract/registry";
@@ -120,9 +120,77 @@ describe("generated OpenAPI document", () => {
 
   it("never lets documented coverage regress", () => {
     // Ratchet: raise this number whenever more endpoints are documented.
-    // PLAT-002 moves every remaining schema into `src/contract/schemas`, which
-    // brings the rest of the 110 routes into the contract.
-    const FLOOR = 40.9;
+    // PLAT-002 finished the job — every route in the router table is now in the
+    // contract — so the floor is 100% and the only way to fail is to add a route
+    // without documenting it.
+    const FLOOR = 100;
     expect(computeCoverage(routes).percent).toBeGreaterThanOrEqual(FLOOR);
+  });
+
+  it("documents every route, with nothing left over", () => {
+    const coverage = computeCoverage(routes);
+    expect(
+      coverage.undocumented.map((route) => `${route.method} ${route.key}`),
+      "routes missing a registry entry",
+    ).toEqual([]);
+    expect(coverage.documented).toBe(coverage.routes);
+  });
+
+  it("gives every operation a success schema", () => {
+    for (const endpoint of [...endpoints, ...systemEndpoints]) {
+      expect(endpoint.response, `${endpoint.operationId} has no response schema`).toBeDefined();
+    }
+  });
+
+  it("uses unique query parameter names per operation", () => {
+    for (const endpoint of endpoints) {
+      const names = (endpoint.query ?? []).map((param) => param.name);
+      expect(new Set(names).size, `${endpoint.operationId} repeats a query parameter`).toBe(
+        names.length,
+      );
+    }
+  });
+
+  it("publishes query parameters and media types in the document", () => {
+    const leaderboard = document.paths["/api/v1/leaderboards"].get;
+    const queryNames = (leaderboard.parameters ?? []).map((param: { name: string }) => param.name);
+    expect(queryNames).toEqual(expect.arrayContaining(["timeframe", "cohort"]));
+
+    // Multipart upload and binary/stream responses keep their real media types.
+    expect(
+      Object.keys(document.paths["/api/v1/topups/proof"].post.requestBody?.content ?? {}),
+    ).toEqual(["multipart/form-data"]);
+    expect(
+      Object.keys(document.paths["/api/v1/admin/topups/{topupId}/proof"].get.responses["200"].content),
+    ).toEqual(["image/*"]);
+    expect(
+      Object.keys(document.paths["/api/v1/ai/chat/stream"].post.responses["200"].content),
+    ).toEqual(["text/event-stream"]);
+  });
+
+  it("documents path parameters in the same order as the template", () => {
+    const operation = document.paths[
+      "/api/v1/communities/{communityId}/requests/{requestId}/approve"
+    ].post;
+    expect(operation.parameters.map((param: { name: string }) => param.name)).toEqual([
+      "communityId",
+      "requestId",
+    ]);
+  });
+
+  it("keeps handlers free of inline Zod schemas (PLAT-002)", () => {
+    // Every request/response shape must live in `src/contract/schemas` so the
+    // contract and the validation cannot diverge. Comments are ignored.
+    const routeDir = path.resolve(__dirname, "../../src/routes");
+    const offenders: string[] = [];
+    for (const file of readdirSync(routeDir)) {
+      if (!file.endsWith(".ts")) continue;
+      const source = readFileSync(path.join(routeDir, file), "utf8")
+        .split("\n")
+        .filter((line) => !line.trim().startsWith("//") && !line.trim().startsWith("*"))
+        .join("\n");
+      if (/\bz\.(object|enum|array|record)\(/.test(source)) offenders.push(file);
+    }
+    expect(offenders, "route files must import their schemas from src/contract/schemas").toEqual([]);
   });
 });

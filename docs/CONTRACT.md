@@ -44,7 +44,9 @@ CI regenerates them and fails if anything changed (`contract` job in `.github/wo
 | No duplicate route entries, operation ids or tags                                   | `tests/contract/openapi.test.ts` |
 | Path templates match route pattern groups                                           | `tests/contract/openapi.test.ts` |
 | Committed JSON equals a fresh build                                                 | `tests/contract/openapi.test.ts` |
-| Documented coverage never regresses (ratchet)                                       | `tests/contract/openapi.test.ts` |
+| Documented coverage never regresses (floor is now 100%)                             | `tests/contract/openapi.test.ts` |
+| No inline Zod schema survives in `src/routes/*` (all shapes come from the contract) | `tests/contract/openapi.test.ts` |
+| Every operation declares a success schema and unique query parameters               | `tests/contract/openapi.test.ts` |
 | Only registered error codes are returned, always as literals, with the registered status | `tests/contract/errors.test.ts`  |
 | `/openapi.json` is served, cached, CORS-aware and available during misconfiguration | `tests/contract/served.test.ts`  |
 
@@ -80,14 +82,19 @@ the response types for the watch loop already match the contract (`WatchClaimRes
 
 ## Coverage policy
 
-- 45 of 110 router entries are documented today (`x-contract.coverage` in the document).
-- The remainder are listed in `inventory.generated.json` with `auth: "undocumented"`.
-- **The ratchet only moves up.** `tests/contract/openapi.test.ts` fails if coverage drops; raise
-  the floor in that test as endpoints are added. `PLAT-002` progressively moves every remaining
-  schema into `src/contract/schemas/` until the whole surface is typed.
-- Response bodies can be declared `freeFormDataSchema` (`additionalProperties: true`) while their
-  payload is stabilised — visible honesty beats a wrong schema. Replace those with real schemas as
-  each endpoint's shape settles.
+- **110 of 110 router entries are documented** (`x-contract.coverage` in the document, PLAT-002).
+- `tests/contract/openapi.test.ts` keeps the floor at 100%: adding a route to the router table
+  without a registry entry fails the suite, and `inventory.generated.json` records the audit.
+- Request and response shapes live only in `src/contract/schemas/**`; a handler that writes
+  `z.object(...)` inline fails the same suite.
+- Where a handler's parser is deliberately lenient (AI chat trims strings, the top-up reject reason
+  is clamped), the schema documents the accepted shape even though validation is manual. The
+  contract test forces the *shape* into the contract; it does not pretend the handler rejects.
+- Response bodies that are still row-shaped are declared field-by-field with `.passthrough()`,
+  including the snake_case columns the SQL actually returns. Normalising those names is a breaking
+  change tracked separately — a contract that "tidies up" would lie to generated clients.
+- Media types are explicit: `multipart/form-data` for the receipt upload, `image/*` for the receipt
+  download, `text/event-stream` for `/ai/chat/stream`.
 
 ## Evidence in the contract
 

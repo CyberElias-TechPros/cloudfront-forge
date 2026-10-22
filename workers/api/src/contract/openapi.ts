@@ -66,6 +66,20 @@ function pathParameters(path: string) {
   }));
 }
 
+function queryParameters(endpoint: EndpointContract) {
+  return (endpoint.query ?? []).map((param) => ({
+    name: param.name,
+    in: "query",
+    required: param.required ?? false,
+    ...(param.description ? { description: param.description } : {}),
+    schema: {
+      type: param.type ?? "string",
+      ...(param.enum ? { enum: param.enum } : {}),
+      ...(param.default !== undefined ? { default: param.default } : {}),
+    },
+  }));
+}
+
 function errorStatuses(endpoint: EndpointContract): ErrorCode[] {
   const codes = new Set<ErrorCode>([...(endpoint.errors ?? []), ...COMMON_ERRORS]);
   if (endpoint.auth === "public") codes.delete("AUTH_REQUIRED");
@@ -73,14 +87,20 @@ function errorStatuses(endpoint: EndpointContract): ErrorCode[] {
   return [...codes].sort();
 }
 
+function successSchema(endpoint: EndpointContract) {
+  const mediaType = endpoint.responseContentType ?? "application/json";
+  if (mediaType === "text/event-stream") return { type: "string", description: "Server-sent events" };
+  if (mediaType === "image/*") return { type: "string", format: "binary" };
+  return envelope(endpoint.response ? toJsonSchema(endpoint.response) : FREE_FORM);
+}
+
 function responsesFor(endpoint: EndpointContract) {
+  const mediaType = endpoint.responseContentType ?? "application/json";
   const responses: Record<string, unknown> = {
     "200": {
       description: "Successful response",
       content: {
-        "application/json": {
-          schema: envelope(endpoint.response ? toJsonSchema(endpoint.response) : FREE_FORM),
-        },
+        [mediaType]: { schema: successSchema(endpoint) },
       },
     },
   };
@@ -120,9 +140,22 @@ function responsesFor(endpoint: EndpointContract) {
   return responses;
 }
 
+function requestBodyFor(endpoint: EndpointContract) {
+  if (!endpoint.request || endpoint.route.method === "GET") return {};
+  const mediaType = endpoint.contentType ?? "application/json";
+  const schema =
+    mediaType === "multipart/form-data"
+      ? {
+          type: "object",
+          required: ["file"],
+          properties: { file: { type: "string", format: "binary" } },
+        }
+      : toJsonSchema(endpoint.request);
+  return { requestBody: { required: true, content: { [mediaType]: { schema } } } };
+}
+
 function operationFor(endpoint: EndpointContract) {
-  const parameters = pathParameters(endpoint.path);
-  const hasBody = Boolean(endpoint.request) && endpoint.route.method !== "GET";
+  const parameters = [...pathParameters(endpoint.path), ...queryParameters(endpoint)];
 
   return {
     tags: [endpoint.tag],
@@ -133,16 +166,7 @@ function operationFor(endpoint: EndpointContract) {
     security: endpoint.auth === "public" ? [] : [{ bearerAuth: [] }],
     "x-auth-tier": endpoint.auth,
     ...(parameters.length > 0 ? { parameters } : {}),
-    ...(hasBody && endpoint.request
-      ? {
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": { schema: toJsonSchema(endpoint.request) },
-            },
-          },
-        }
-      : {}),
+    ...requestBodyFor(endpoint),
     responses: responsesFor(endpoint),
   };
 }

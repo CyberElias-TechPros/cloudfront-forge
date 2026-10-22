@@ -4,15 +4,10 @@ import { requireAdmin, requireModerator } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { recordAudit } from "../lib/audit";
 import { notify } from "../lib/notify";
-import { z } from "zod";
+import { userSuspendSchema, userRoleChangeSchema } from "../contract/schemas/moderation";
 
-const suspendSchema = z.object({
-  reason: z.string().max(500).optional(),
-});
-
-const roleChangeSchema = z.object({
-  role: z.enum(["moderator", "admin"]).nullable(),
-});
+const suspendSchema = userSuspendSchema;
+const roleChangeSchema = userRoleChangeSchema;
 
 function adminCatch(error: any, what: string): Response {
   if (error.message === "AUTH_REQUIRED" || error.message === "AUTH_TOKEN_INVALID") {
