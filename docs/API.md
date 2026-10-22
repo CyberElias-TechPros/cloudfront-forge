@@ -50,6 +50,7 @@ Clients branch on `error.code`, never on `error.message`.
 | `AI_NOT_CONFIGURED` | 503 | yes | `none` | The AI coach is not configured on this deployment. |
 | `NOT_FOUND` | 404 | no | `none` | The requested resource does not exist (or is not visible to this member). |
 | `CONFLICT` | 409 | no | `none` | The request conflicts with the current state of the resource. |
+| `IDEMPOTENCY_CONFLICT` | 409 | no | `fix_input` | The Idempotency-Key was already used with a different request body. Use a new key for a new operation. |
 | `INSUFFICIENT_CREDITS` | 400 | no | `upgrade` | The member does not have enough credits for this purchase. |
 | `DAILY_LIMIT` | 429 | yes | `wait` | A per-day allowance (e.g. claimable watches) is exhausted. |
 | `RATE_LIMITED` | 429 | yes | `wait` | Too many requests from this client in the current window. |
@@ -63,6 +64,26 @@ Clients branch on `error.code`, never on `error.message`.
 | `NOT_READY` | 503 | yes | `retry` | A readiness dependency failed (`/ready` gate). |
 
 Retryable codes return `Retry-After` where applicable; clients should back off with jitter.
+
+## Rate limits and retries
+
+Every response carries the caller's budget:
+
+| Header | Meaning |
+| --- | --- |
+| `X-RateLimit-Limit` | Requests allowed in the current window. |
+| `X-RateLimit-Remaining` | Requests left before the window resets. |
+| `X-RateLimit-Reset` | Epoch **seconds** at which the window resets. |
+| `Retry-After` | Present on `429` and `503`: seconds to wait. |
+
+Budgets are per member (a hash of the bearer token) with a wider per-IP ceiling, so carrier NAT does not punish a whole neighbourhood and one address cannot run an unlimited number of free accounts.
+
+The reference client policy (`src/lib/retry.ts`):
+
+1. Retry **reads only** (`GET`/`HEAD`). A write may be replayed only when it carries an `Idempotency-Key`.
+2. Retry on `408`, `429`, `500`, `502`, `503`, `504` and on network failures.
+3. Honour `Retry-After` when present; otherwise back off from 300 ms with up to 50 % jitter, capped at 8 s.
+4. At most **3 attempts**, then surface the error with its `X-Request-Id`.
 
 ## Contract coverage
 
@@ -355,8 +376,12 @@ _Submissions and archive._
 
 Response `data` fields:
 
-- `videos`: array of object { id, youtubeVideoId, youtubeUrl, title, thumbnailUrl, durationSeconds, status, createdAt }
-- `pagination`: object { limit, offset, total }
+- `items`: array of object { id, youtubeVideoId, youtubeUrl, title, thumbnailUrl, durationSeconds, status, createdAt }
+- `total`: number
+- `limit`: number
+- `offset`: number
+- `nextCursor`: string
+- `hasMore`: boolean
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
@@ -620,6 +645,8 @@ Response `data` fields:
 - `total`: number
 - `limit`: number
 - `offset`: number
+- `nextCursor`: string
+- `hasMore`: boolean
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
@@ -633,6 +660,8 @@ Response `data` fields:
 - `total`: number
 - `limit`: number
 - `offset`: number
+- `nextCursor`: string
+- `hasMore`: boolean
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
@@ -646,6 +675,8 @@ Response `data` fields:
 - `total`: number
 - `limit`: number
 - `offset`: number
+- `nextCursor`: string
+- `hasMore`: boolean
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
@@ -663,6 +694,8 @@ Response `data` fields:
 - `total`: number
 - `limit`: number
 - `offset`: number
+- `nextCursor`: string
+- `hasMore`: boolean
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
@@ -975,6 +1008,8 @@ Response `data` fields:
 
 - `notifications`: array of object { id, type, title, message, isRead, createdAt }
 - `unreadCount`: number
+- `nextCursor`: string
+- `hasMore`: boolean
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
@@ -1197,6 +1232,8 @@ Response `data` fields:
 - `total`: number
 - `limit`: number
 - `offset`: number
+- `nextCursor`: string
+- `hasMore`: boolean
 
 Statuses: `200`, `400`, `401`, `403`, `404`, `429`, `500`, `503`
 
@@ -1259,6 +1296,8 @@ Response `data` fields:
 - `total`: number
 - `limit`: number
 - `offset`: number
+- `nextCursor`: string
+- `hasMore`: boolean
 
 Statuses: `200`, `400`, `401`, `403`, `404`, `429`, `500`, `503`
 

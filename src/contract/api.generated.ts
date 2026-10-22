@@ -25,6 +25,7 @@ export type ErrorCode =
   | "AI_NOT_CONFIGURED"
   | "NOT_FOUND"
   | "CONFLICT"
+  | "IDEMPOTENCY_CONFLICT"
   | "INSUFFICIENT_CREDITS"
   | "DAILY_LIMIT"
   | "RATE_LIMITED"
@@ -68,6 +69,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -88,6 +90,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -111,6 +114,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -132,6 +136,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -155,6 +160,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -176,6 +182,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -194,6 +201,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -212,6 +220,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -242,6 +251,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -265,6 +275,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -322,6 +333,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -342,6 +354,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -368,6 +381,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -389,6 +403,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -407,6 +422,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -436,6 +452,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -463,6 +480,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -491,6 +509,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -517,6 +536,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -545,6 +565,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -570,6 +591,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -591,6 +613,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -613,6 +636,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -631,6 +655,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -652,6 +677,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -664,6 +690,7 @@ export interface OperationRegistry {
     media: "application/json";
     query: {
       limit?: number;
+      cursor?: string;
       offset?: number;
     };
     request: never;
@@ -681,10 +708,13 @@ export interface OperationRegistry {
         total: number;
         limit?: number;
         offset?: number;
+        nextCursor?: string;
+        hasMore?: boolean;
       };
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -726,6 +756,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -779,6 +810,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -813,6 +845,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -848,6 +881,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -880,6 +914,8 @@ export interface OperationRegistry {
         total: number;
         limit?: number;
         offset?: number;
+        nextCursor?: string;
+        hasMore?: boolean;
       } & {
         timeframe?: string;
         cohort?: string;
@@ -888,6 +924,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -906,6 +943,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -924,6 +962,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -959,6 +998,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -977,6 +1017,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -995,6 +1036,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1013,6 +1055,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1038,6 +1081,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1068,6 +1112,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1095,6 +1140,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1113,6 +1159,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1136,6 +1183,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1165,6 +1213,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1178,6 +1227,7 @@ export interface OperationRegistry {
     query: {
       communityId?: string;
       limit?: number;
+      cursor?: string;
       offset?: number;
     };
     request: never;
@@ -1205,10 +1255,13 @@ export interface OperationRegistry {
         total: number;
         limit?: number;
         offset?: number;
+        nextCursor?: string;
+        hasMore?: boolean;
       };
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1241,6 +1294,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1263,6 +1317,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1281,6 +1336,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1308,6 +1364,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1329,6 +1386,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1350,6 +1408,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1384,10 +1443,13 @@ export interface OperationRegistry {
         total: number;
         limit?: number;
         offset?: number;
+        nextCursor?: string;
+        hasMore?: boolean;
       };
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1421,10 +1483,13 @@ export interface OperationRegistry {
         total: number;
         limit?: number;
         offset?: number;
+        nextCursor?: string;
+        hasMore?: boolean;
       };
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1452,6 +1517,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1479,6 +1545,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1513,6 +1580,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1538,6 +1606,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1585,6 +1654,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1615,6 +1685,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1647,6 +1718,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1677,6 +1749,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1695,6 +1768,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1724,6 +1798,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1736,6 +1811,7 @@ export interface OperationRegistry {
     media: "application/json";
     query: {
       limit?: number;
+      cursor?: string;
       offset?: number;
     };
     request: never;
@@ -1763,10 +1839,13 @@ export interface OperationRegistry {
         total: number;
         limit?: number;
         offset?: number;
+        nextCursor?: string;
+        hasMore?: boolean;
       };
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1798,6 +1877,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1810,6 +1890,7 @@ export interface OperationRegistry {
     media: "application/json";
     query: {
       limit?: number;
+      cursor?: string;
       offset?: number;
     };
     request: never;
@@ -1830,10 +1911,13 @@ export interface OperationRegistry {
         total: number;
         limit?: number;
         offset?: number;
+        nextCursor?: string;
+        hasMore?: boolean;
       };
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1852,6 +1936,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1874,6 +1959,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1884,7 +1970,11 @@ export interface OperationRegistry {
     auth: "user";
     summary: "Inbox for the caller";
     media: "application/json";
-    query: Record<string, never>;
+    query: {
+      limit?: number;
+      cursor?: string;
+      offset?: number;
+    };
     request: never;
     response: {
       success: true;
@@ -1899,10 +1989,13 @@ export interface OperationRegistry {
           [key: string]: unknown;
         }[];
         unreadCount?: number;
+        nextCursor?: string;
+        hasMore?: boolean;
       };
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1937,6 +2030,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1947,7 +2041,11 @@ export interface OperationRegistry {
     auth: "user";
     summary: "Reviews assigned to or submitted by the caller";
     media: "application/json";
-    query: Record<string, never>;
+    query: {
+      limit?: number;
+      cursor?: string;
+      offset?: number;
+    };
     request: never;
     response: {
       success: true;
@@ -1955,6 +2053,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -1983,6 +2082,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2016,6 +2116,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2034,6 +2135,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2044,12 +2146,16 @@ export interface OperationRegistry {
     auth: "user";
     summary: "List videos visible to the caller";
     media: "application/json";
-    query: Record<string, never>;
+    query: {
+      limit?: number;
+      cursor?: string;
+      offset?: number;
+    };
     request: never;
     response: {
       success: true;
       data: {
-        videos: Array<{
+        items: Array<{
           id: string;
           youtubeVideoId?: string;
           youtubeUrl?: string;
@@ -2060,16 +2166,16 @@ export interface OperationRegistry {
           createdAt?: string;
           [key: string]: unknown;
         }>;
-        pagination?: {
-          limit: number;
-          offset: number;
-          total?: number;
-          [key: string]: unknown;
-        };
+        total: number;
+        limit?: number;
+        offset?: number;
+        nextCursor?: string;
+        hasMore?: boolean;
       };
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2088,6 +2194,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2106,6 +2213,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2124,6 +2232,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2145,6 +2254,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2165,6 +2275,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2183,6 +2294,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2204,6 +2316,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2226,6 +2339,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2266,6 +2380,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2287,6 +2402,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2308,6 +2424,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2331,6 +2448,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2352,6 +2470,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2379,6 +2498,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2403,6 +2523,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2427,6 +2548,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2448,6 +2570,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2469,6 +2592,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2493,6 +2617,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2517,6 +2642,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2575,6 +2701,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2598,6 +2725,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2621,6 +2749,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2642,6 +2771,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2660,6 +2790,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2684,6 +2815,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2705,6 +2837,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2743,6 +2876,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2767,6 +2901,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2790,6 +2925,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2810,6 +2946,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2848,6 +2985,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2875,6 +3013,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2904,6 +3043,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2932,6 +3072,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2957,6 +3098,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };
@@ -2979,6 +3121,7 @@ export interface OperationRegistry {
       meta: {
         timestamp: string;
         version: string;
+        requestId?: string;
       };
     };
   };

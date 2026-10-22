@@ -92,6 +92,27 @@ describe("X-Request-Id", () => {
     expect(document.info.description).toContain("X-Request-Id");
   });
 
+  it("is inside the failure envelope, matching the header", async () => {
+    const response = await call("/api/v1/nope");
+    const payload = (await response.json()) as { meta: { requestId?: string; version?: string } };
+    expect(payload.meta.requestId).toBe(response.headers.get("X-Request-Id"));
+    expect(payload.meta.version).toBe("v1");
+  });
+
+  it("is inside auth failures too, not only 404s", async () => {
+    const response = await call("/api/v1/auth/me");
+    expect(response.status).toBe(401);
+    const payload = (await response.json()) as { meta: { requestId?: string } };
+    expect(payload.meta.requestId).toBe(response.headers.get("X-Request-Id"));
+  });
+
+  it("leaves success bodies untouched (the header carries the id)", async () => {
+    const response = await call("/health");
+    const payload = (await response.json()) as { status: string; meta?: unknown };
+    expect(payload.status).toBe("ok");
+    expect(response.headers.get("X-Request-Id")).toBeTruthy();
+  });
+
   it("logs one structured line per request with the id", async () => {
     const info = vi.spyOn(console, "info").mockImplementation(() => {});
     const env = createTestEnv();

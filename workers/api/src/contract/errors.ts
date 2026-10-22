@@ -112,6 +112,13 @@ export const ERROR_CODES = {
     description: "The request conflicts with the current state of the resource.",
     action: "none",
   },
+  IDEMPOTENCY_CONFLICT: {
+    status: 409,
+    retryable: false,
+    description:
+      "The Idempotency-Key was already used with a different request body. Use a new key for a new operation.",
+    action: "fix_input",
+  },
   INSUFFICIENT_CREDITS: {
     status: 400,
     retryable: false,

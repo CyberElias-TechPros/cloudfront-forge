@@ -4,6 +4,7 @@ import { requireAuth, isAuthError } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { getRewardSplit } from "../lib/rewards";
 import { resolveRequiredWatchSeconds } from "../lib/utils";
+import { buildPage, cursorErrorResponse, paginate } from "../lib/pagination";
 
 /** Fallback watch target when a video row predates the column default. */
 const DEFAULT_WATCH_TARGET = 20;
@@ -31,13 +32,6 @@ function hueFromId(id: string): number {
   return hash;
 }
 
-function getPagination(request: Request): { limit: number; offset: number } {
-  const { searchParams } = new URL(request.url);
-  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)));
-  const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10));
-  return { limit, offset };
-}
-
 function extractVideoId(url: string | null): string | null {
   if (!url) return null;
   const patterns = [
@@ -59,10 +53,16 @@ export const feedRoutes: RouteDefinition[] = [
       try {
         const userId = await requireAuth(request, env);
         const db = new Database(env);
-        const { limit, offset } = getPagination(request);
         const nowIso = new Date().toISOString();
         const { searchParams } = new URL(request.url);
         const communityId = searchParams.get("communityId");
+
+        // Boosted videos sort first, so the cursor carries all three sort keys
+        // (PLAT-016). `is_boosted` is materialised in a subquery: a keyset
+        // comparison cannot repeat a parameterised expression.
+        const page = paginate(request, {
+          columns: ["v.is_boosted", "v.created_at", "v.id"],
+        });
 
         const communityFilter = communityId
           ? "AND v.user_id IN (SELECT user_id FROM community_members WHERE community_id = ? AND status = 'active')"
@@ -74,25 +74,31 @@ export const feedRoutes: RouteDefinition[] = [
           countParams,
         );
 
-        const params = communityId
-          ? [userId, userId, communityId, nowIso, limit, offset]
-          : [userId, userId, nowIso, limit, offset];
+        const params: Array<string | number> = [nowIso, userId, userId];
+        if (communityId) params.push(communityId);
+        params.push(...page.params, page.fetchLimit, page.offset);
         const result = await db.query(
           `SELECT v.id, v.title, v.duration_seconds, v.status, v.created_at, v.user_id,
                   v.youtube_video_id, v.youtube_url, v.channel_id, v.magic_word,
+                  v.is_boosted,
                   u.display_name, u.photo_url,
                   ws.status AS watch_status, ws.xp_awarded, ws.credits_awarded
-           FROM videos v
+           FROM (SELECT *, (boosted_until IS NOT NULL AND boosted_until > ?) AS is_boosted
+                   FROM videos) v
            LEFT JOIN users u ON v.user_id = u.id
            LEFT JOIN watch_sessions ws ON ws.video_id = v.id AND ws.watcher_id = ?
-           WHERE v.status = 'active' AND v.user_id != ? ${communityFilter}
-           ORDER BY (v.boosted_until IS NOT NULL AND v.boosted_until > ?) DESC,
-                    v.created_at DESC
+           WHERE v.status = 'active' AND v.user_id != ? ${communityFilter} ${page.clause}
+           ORDER BY v.is_boosted DESC, v.created_at DESC, v.id DESC
            LIMIT ? OFFSET ?`,
           params,
         );
 
-        const items = result.results.map((v: any) => {
+        const paged = buildPage(result.results as Array<Record<string, any>>, page.limit, (row) => [
+          Number(row.is_boosted ?? 0),
+          String(row.created_at),
+          String(row.id),
+        ]);
+        const items = paged.items.map((v: any) => {
           const owner = v.display_name ?? "Creator";
           const status: "pending" | "watching" | "verified" | "expired" =
             v.watch_status === "claimed"
@@ -101,7 +107,10 @@ export const feedRoutes: RouteDefinition[] = [
                 ? "watching"
                 : "pending";
           const REQUIRED_WATCH_SEC = parseInt(env.REQUIRED_WATCH_SEC || "180", 10);
-          const duration = typeof v.duration_seconds === "number" && v.duration_seconds > 0 ? v.duration_seconds : null;
+          const duration =
+            typeof v.duration_seconds === "number" && v.duration_seconds > 0
+              ? v.duration_seconds
+              : null;
           const requiredSec = resolveRequiredWatchSeconds(v.id, duration, REQUIRED_WATCH_SEC);
           const rewards = getRewardSplit(env);
           return {
@@ -132,13 +141,21 @@ export const feedRoutes: RouteDefinition[] = [
           };
         });
 
-        return createResponse({
-          items,
-          total: totalResult.results[0]?.count ?? 0,
-          limit,
-          offset,
-        });
+        return createResponse(
+          {
+            items,
+            total: totalResult.results[0]?.count ?? 0,
+            limit: page.limit,
+            offset: page.offset,
+            nextCursor: paged.pagination.nextCursor,
+            hasMore: paged.pagination.hasMore,
+          },
+          200,
+          new Headers(page.headers),
+        );
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -154,7 +171,7 @@ export const feedRoutes: RouteDefinition[] = [
       try {
         const userId = await requireAuth(request, env);
         const db = new Database(env);
-        const { limit, offset } = getPagination(request);
+        const page = paginate(request, { columns: ["v.created_at", "v.id"] });
 
         const totalResult = await db.query(
           "SELECT COUNT(*) as count FROM videos v WHERE v.user_id = ?",
@@ -167,13 +184,17 @@ export const feedRoutes: RouteDefinition[] = [
                   (SELECT COUNT(*) FROM watch_sessions w WHERE w.video_id = v.id AND w.status = 'claimed') AS watcher_count,
                   (SELECT COUNT(*) FROM watch_sessions w WHERE w.video_id = v.id AND w.subscribed = 1) AS subs_count
            FROM videos v
-           WHERE v.user_id = ?
-           ORDER BY v.created_at DESC
+           WHERE v.user_id = ? ${page.clause}
+           ORDER BY v.created_at DESC, v.id DESC
            LIMIT ? OFFSET ?`,
-          [userId, limit, offset],
+          [userId, ...page.params, page.fetchLimit, page.offset],
         );
 
-        const items = result.results.map((v: any) => {
+        const paged = buildPage(result.results as Array<Record<string, any>>, page.limit, (row) => [
+          String(row.created_at),
+          String(row.id),
+        ]);
+        const items = paged.items.map((v: any) => {
           const status =
             v.status === "completed" ? "completed" : v.status === "pending" ? "queued" : "active";
           return {
@@ -188,13 +209,21 @@ export const feedRoutes: RouteDefinition[] = [
           };
         });
 
-        return createResponse({
-          items,
-          total: totalResult.results[0]?.count ?? 0,
-          limit,
-          offset,
-        });
+        return createResponse(
+          {
+            items,
+            total: totalResult.results[0]?.count ?? 0,
+            limit: page.limit,
+            offset: page.offset,
+            nextCursor: paged.pagination.nextCursor,
+            hasMore: paged.pagination.hasMore,
+          },
+          200,
+          new Headers(page.headers),
+        );
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -210,7 +239,7 @@ export const feedRoutes: RouteDefinition[] = [
       try {
         const userId = await requireAuth(request, env);
         const db = new Database(env);
-        const { limit, offset } = getPagination(request);
+        const page = paginate(request, { columns: ["created_at", "id"] });
 
         const totalResult = await db.query(
           "SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0",
@@ -220,29 +249,41 @@ export const feedRoutes: RouteDefinition[] = [
         const result = await db.query(
           `SELECT id, type, title, message, created_at
            FROM notifications
-           WHERE user_id = ? AND is_read = 0
-           ORDER BY created_at DESC
+           WHERE user_id = ? AND is_read = 0 ${page.clause}
+           ORDER BY created_at DESC, id DESC
            LIMIT ? OFFSET ?`,
-          [userId, limit, offset],
+          [userId, ...page.params, page.fetchLimit, page.offset],
         );
 
         // `who` is intentionally absent: the notifications table does not
         // record an actor, and inventing one rendered as a fabricated
         // "<someone> did X" line in the activity feed.
-        const items = result.results.map((n: any) => ({
+        const paged = buildPage(result.results as Array<Record<string, any>>, page.limit, (row) => [
+          String(row.created_at),
+          String(row.id),
+        ]);
+        const items = paged.items.map((n: any) => ({
           id: n.id,
           what: n.title ?? n.message ?? "New activity",
           when: timeAgo(n.created_at),
           points: "",
         }));
 
-        return createResponse({
-          items,
-          total: totalResult.results[0]?.count ?? 0,
-          limit,
-          offset,
-        });
+        return createResponse(
+          {
+            items,
+            total: totalResult.results[0]?.count ?? 0,
+            limit: page.limit,
+            offset: page.offset,
+            nextCursor: paged.pagination.nextCursor,
+            hasMore: paged.pagination.hasMore,
+          },
+          200,
+          new Headers(page.headers),
+        );
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }

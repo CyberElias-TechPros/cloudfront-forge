@@ -69,11 +69,26 @@ function pathParameters(path: string) {
   }));
 }
 
+function headerParameters(endpoint: EndpointContract) {
+  return (endpoint.headers ?? []).map((header) => ({
+    name: header.name,
+    in: "header",
+    required: header.required ?? false,
+    ...(header.description ? { description: header.description } : {}),
+    schema: {
+      type: "string",
+      ...(header.enum ? { enum: header.enum } : {}),
+      ...(header.default !== undefined ? { default: header.default } : {}),
+    },
+  }));
+}
+
 function queryParameters(endpoint: EndpointContract) {
   return (endpoint.query ?? []).map((param) => ({
     name: param.name,
     in: "query",
     required: param.required ?? false,
+    ...(param.deprecated ? { deprecated: true } : {}),
     ...(param.description ? { description: param.description } : {}),
     schema: {
       type: param.type ?? "string",
@@ -92,10 +107,32 @@ function errorStatuses(endpoint: EndpointContract): ErrorCode[] {
 
 function successSchema(endpoint: EndpointContract) {
   const mediaType = endpoint.responseContentType ?? "application/json";
-  if (mediaType === "text/event-stream") return { type: "string", description: "Server-sent events" };
+  if (mediaType === "text/event-stream")
+    return { type: "string", description: "Server-sent events" };
   if (mediaType === "image/*") return { type: "string", format: "binary" };
   return envelope(endpoint.response ? toJsonSchema(endpoint.response) : FREE_FORM);
 }
+
+/**
+ * Response headers the platform adds, by status (PLAT-011 / PLAT-012).
+ *
+ * Documented once here instead of on every operation, so an SDK generator sees
+ * them structurally rather than having to parse prose.
+ */
+const RETRY_AFTER_HEADER = { $ref: "#/components/headers/RetryAfter" };
+const RATE_LIMIT_HEADERS = { $ref: "#/components/headers/RateLimit" };
+
+const RESPONSE_HEADERS: Record<number, Record<string, unknown>> = {
+  429: {
+    "Retry-After": RETRY_AFTER_HEADER,
+    "X-RateLimit-Limit": RATE_LIMIT_HEADERS,
+    "X-RateLimit-Remaining": RATE_LIMIT_HEADERS,
+    "X-RateLimit-Reset": RATE_LIMIT_HEADERS,
+  },
+  503: {
+    "Retry-After": RETRY_AFTER_HEADER,
+  },
+};
 
 function responsesFor(endpoint: EndpointContract) {
   const mediaType = endpoint.responseContentType ?? "application/json";
@@ -117,6 +154,7 @@ function responsesFor(endpoint: EndpointContract) {
   for (const [status, codes] of [...byStatus.entries()].sort((a, b) => a[0] - b[0])) {
     responses[String(status)] = {
       description: codes.map((code) => `${code}: ${ERROR_CODES[code].description}`).join(" · "),
+      ...(RESPONSE_HEADERS[status] ? { headers: RESPONSE_HEADERS[status] } : {}),
       content: {
         "application/json": {
           schema: {
@@ -158,7 +196,11 @@ function requestBodyFor(endpoint: EndpointContract) {
 }
 
 function operationFor(endpoint: EndpointContract) {
-  const parameters = [...pathParameters(endpoint.path), ...queryParameters(endpoint)];
+  const parameters = [
+    ...pathParameters(endpoint.path),
+    ...queryParameters(endpoint),
+    ...headerParameters(endpoint),
+  ];
 
   return {
     tags: [endpoint.tag],
@@ -166,6 +208,7 @@ function operationFor(endpoint: EndpointContract) {
     summary: endpoint.summary,
     ...(endpoint.description ? { description: endpoint.description } : {}),
     ...(endpoint.deprecated ? { deprecated: true } : {}),
+    ...(endpoint.sunset ? { "x-sunset": endpoint.sunset } : {}),
     security: endpoint.auth === "public" ? [] : [{ bearerAuth: [] }],
     "x-auth-tier": endpoint.auth,
     ...(parameters.length > 0 ? { parameters } : {}),
@@ -238,6 +281,21 @@ export function buildOpenApiDocument() {
     tags: TAGS.map((tag) => ({ ...tag })),
     paths,
     components: {
+      /**
+       * Shared response headers. Defined once and referenced, so the generated
+       * document stays readable instead of repeating the same four headers on
+       * ~100 operations.
+       */
+      headers: {
+        RetryAfter: {
+          description: "Seconds to wait before retrying.",
+          schema: { type: "integer", minimum: 1 },
+        },
+        RateLimit: {
+          description: "Remaining request budget for the current window.",
+          schema: { type: "integer", minimum: 0 },
+        },
+      },
       securitySchemes: {
         bearerAuth: {
           type: "http",
@@ -254,6 +312,11 @@ export function buildOpenApiDocument() {
           properties: {
             timestamp: { type: "string", format: "date-time" },
             version: { type: "string", example: "v1" },
+            requestId: {
+              type: "string",
+              description:
+                "Correlation id, also returned as the `X-Request-Id` header. Present on every failure envelope.",
+            },
           },
         },
         ErrorCode: {

@@ -15,6 +15,13 @@ export type AuthTier = "public" | "user" | "moderator" | "admin";
 /** A documented query parameter. */
 export interface QueryParam {
   name: string;
+  /** Marks the parameter as deprecated in the generated OpenAPI document. */
+  deprecated?: boolean;
+  /**
+   * ISO date at which the endpoint stops working. Required for a deprecated
+   * endpoint: a deprecation without a date is just a rumour (RFC 8594 `Sunset`).
+   */
+  sunset?: string;
   /** OpenAPI type; `string` by default. */
   type?: "string" | "integer" | "boolean" | "number";
   required?: boolean;
@@ -37,6 +44,8 @@ export interface EndpointContract {
   response?: z.ZodTypeAny;
   /** Query parameters, documented in order. */
   query?: QueryParam[];
+  /** Request headers the endpoint reads (e.g. `Idempotency-Key`, `If-None-Match`). */
+  headers?: QueryParam[];
   /**
    * Request body media type. Defaults to `application/json`; proof uploads are
    * `multipart/form-data` and are documented with a single `file` field.
@@ -50,6 +59,11 @@ export interface EndpointContract {
   /** Codes this endpoint can return, in addition to the generic set. */
   errors?: ErrorCode[];
   deprecated?: boolean;
+  /**
+   * ISO date at which the endpoint stops working. Required for a deprecated
+   * endpoint: a deprecation without a date is just a rumour (RFC 8594 `Sunset`).
+   */
+  sunset?: string;
 }
 
 /** Codes every authenticated endpoint can produce. */
@@ -69,7 +83,10 @@ export const TAGS = [
   { name: "Videos", description: "Submissions and archive." },
   { name: "Reviews", description: "Structured peer reviews." },
   { name: "Missions", description: "Missions, chains and assignments." },
-  { name: "Gamification", description: "XP, credits, reputation, streaks, quests and leaderboards." },
+  {
+    name: "Gamification",
+    description: "XP, credits, reputation, streaks, quests and leaderboards.",
+  },
   { name: "Feed", description: "The watch queue, the caller's submissions and their activity." },
   { name: "Communities", description: "Squads: roster, join requests, settings and invites." },
   { name: "Shop", description: "Credit sinks." },
@@ -77,15 +94,48 @@ export const TAGS = [
   { name: "Notifications", description: "Inbox, preferences and push registration." },
   { name: "Safety", description: "Reports, appeals and the enforcement trail." },
   { name: "Support", description: "Member support requests and the operator queue." },
-  { name: "Admin", description: "Operator console: analytics, metrics, retention, moderation actions." },
+  {
+    name: "Admin",
+    description: "Operator console: analytics, metrics, retention, moderation actions.",
+  },
   { name: "AI", description: "The platform-aware coach." },
   { name: "YouTube", description: "Channel linking and OAuth." },
   { name: "Discovery", description: "Search and collaborator matching." },
   { name: "System", description: "Health, readiness and the API document." },
 ] as const;
 
-/** Pagination parameters shared by every list endpoint. */
+const LIMIT_PARAM: QueryParam = {
+  name: "limit",
+  type: "integer",
+  description: "Page size (1–100, default 20).",
+};
+
+const OFFSET_PARAM: QueryParam = {
+  name: "offset",
+  type: "integer",
+  description: "Rows to skip (default 0).",
+};
+
+/**
+ * Pagination for endpoints that support keyset paging (PLAT-016).
+ *
+ * `offset` stays accepted for one release and is marked deprecated in the
+ * generated document, so SDK generators can warn at compile time.
+ */
 export const PAGINATION: QueryParam[] = [
-  { name: "limit", type: "integer", description: "Page size (1–100, default 20)." },
-  { name: "offset", type: "integer", description: "Rows to skip (default 0)." },
+  LIMIT_PARAM,
+  {
+    name: "cursor",
+    description:
+      "Opaque cursor from the previous page's `nextCursor`. Preferred over `offset`: offset paging repeats or skips rows when new rows are inserted mid-scroll.",
+  },
+  {
+    ...OFFSET_PARAM,
+    description:
+      "Deprecated: rows to skip (default 0). Kept for one release; cursor requests are stable under concurrent writes. Responses that use it carry `Deprecation`, `Sunset` and `Warning` headers.",
+    deprecated: true,
+  },
 ];
+
+/** Pagination for list endpoints that still page by offset only. */
+export const OFFSET_PAGINATION: QueryParam[] = [LIMIT_PARAM, OFFSET_PARAM];

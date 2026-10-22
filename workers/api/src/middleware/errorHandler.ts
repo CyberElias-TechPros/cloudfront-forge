@@ -80,7 +80,7 @@ export function errorHandler(
         headers: withSecurityHeaders(
           new Headers({
             "Content-Type": "application/json",
-            "Retry-After": "60",
+            "Retry-After": String(SERVICE_RETRY_AFTER_SECONDS),
             ...(corsHeaders ? Object.fromEntries(corsHeaders.entries()) : {}),
           }),
         ),
@@ -123,6 +123,7 @@ export function errorHandler(
         headers: withSecurityHeaders(
           new Headers({
             "Content-Type": "application/json",
+            "Retry-After": String(SERVICE_RETRY_AFTER_SECONDS),
             ...(corsHeaders ? Object.fromEntries(corsHeaders.entries()) : {}),
           }),
         ),
@@ -192,6 +193,7 @@ export function createResponse<T>(data: T, status = 200, corsHeaders?: Headers):
   const headers = withSecurityHeaders(
     new Headers({
       "Content-Type": "application/json",
+      ...(status === 503 ? { "Retry-After": String(SERVICE_RETRY_AFTER_SECONDS) } : {}),
       ...(corsHeaders ? Object.fromEntries(corsHeaders.entries()) : {}),
     }),
   );
@@ -201,6 +203,17 @@ export function createResponse<T>(data: T, status = 200, corsHeaders?: Headers):
     headers,
   });
 }
+
+/**
+ * `Retry-After` for every 503 (PLAT-011).
+ *
+ * A 503 means "not now, but probably soon" — a deploy is mid-flight, a binding
+ * is missing, D1 is catching up. Without `Retry-After` a mobile client retries
+ * immediately, burns battery, and hammers an already unwell deployment. 60 s is
+ * deliberately longer than a typical cold start and shorter than a client's
+ * patience.
+ */
+export const SERVICE_RETRY_AFTER_SECONDS = 60;
 
 export function createErrorResponse(
   code: string,

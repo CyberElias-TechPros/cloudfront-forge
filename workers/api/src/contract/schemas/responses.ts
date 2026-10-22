@@ -7,6 +7,7 @@
  * is visible instead of implied.
  */
 import { z } from "zod";
+import { paginated } from "./views";
 
 const iso = z.string();
 const nullableIso = iso.nullable();
@@ -86,17 +87,12 @@ export const videoSummarySchema = z
   })
   .passthrough();
 
-export const videoListResponseSchema = z.object({
-  videos: z.array(videoSummarySchema),
-  pagination: z
-    .object({
-      limit: z.number(),
-      offset: z.number(),
-      total: z.number().optional(),
-    })
-    .passthrough()
-    .optional(),
-});
+/**
+ * `GET /videos` — the handler has always answered `{ items, total, limit,
+ * offset }`; the old schema advertised `{ videos, pagination }`, which no client
+ * could have used. Documented here as the paginated envelope it really is.
+ */
+export const videoListResponseSchema = paginated(videoSummarySchema);
 
 export const notificationSchema = z
   .object({
@@ -112,6 +108,9 @@ export const notificationSchema = z
 export const notificationListResponseSchema = z.object({
   notifications: z.array(notificationSchema),
   unreadCount: z.number().optional(),
+  /** Keyset cursor for the next page (PLAT-016); `null` on the last page. */
+  nextCursor: z.string().nullable().optional(),
+  hasMore: z.boolean().optional(),
 });
 
 export const missionSchema = z

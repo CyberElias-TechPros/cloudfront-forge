@@ -2,6 +2,7 @@ import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth, isAuthError } from "../middleware/auth";
 import { Database } from "../lib/database";
+import { buildPage, cursorErrorResponse, paginate } from "../lib/pagination";
 import { notify } from "../lib/notify";
 import { progressQuest } from "../lib/quests";
 import { trackEvent } from "../lib/analytics";
@@ -17,13 +18,6 @@ import { createLogger } from "../lib/logger";
 import { sanitize } from "../lib/sanitize";
 
 const db = (env: Env) => new Database(env);
-
-function getPagination(request: Request): { limit: number; offset: number } {
-  const { searchParams } = new URL(request.url);
-  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)));
-  const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10));
-  return { limit, offset };
-}
 
 // Schemas are shared with the contract (single definition, PLAT-002).
 const helpfulSchema = reviewHelpfulSchema;
@@ -62,7 +56,7 @@ export const videoRoutes: RouteDefinition[] = [
         const userId = await requireAuth(request, env);
         const { searchParams } = new URL(request.url);
         const communityId = searchParams.get("communityId");
-        const { limit, offset } = getPagination(request);
+        const page = paginate(request, { columns: ["v.created_at", "v.id"] });
 
         const db = new Database(env);
 
@@ -82,18 +76,31 @@ export const videoRoutes: RouteDefinition[] = [
         }
 
         const totalResult = await db.query(countQuery, params);
-        dataQuery += " ORDER BY v.created_at DESC LIMIT ? OFFSET ?";
-        params.push(limit, offset);
+        // Keyset clause and its bounds come before LIMIT in the statement.
+        dataQuery += ` ${page.clause} ORDER BY v.created_at DESC, v.id DESC LIMIT ? OFFSET ?`;
+        params.push(...page.params, page.fetchLimit, page.offset);
 
         const result = await db.query(dataQuery, params);
+        const paged = buildPage(result.results as Array<Record<string, any>>, page.limit, (row) => [
+          String(row.created_at),
+          String(row.id),
+        ]);
 
-        return createResponse({
-          items: result.results,
-          total: totalResult.results[0]?.count ?? 0,
-          limit,
-          offset,
-        });
+        return createResponse(
+          {
+            items: paged.items,
+            total: totalResult.results[0]?.count ?? 0,
+            limit: page.limit,
+            offset: page.offset,
+            nextCursor: paged.pagination.nextCursor,
+            hasMore: paged.pagination.hasMore,
+          },
+          200,
+          new Headers(page.headers),
+        );
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -299,6 +306,8 @@ export const videoRoutes: RouteDefinition[] = [
           channelId: metadata.channelId,
         });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -408,6 +417,8 @@ export const videoRoutes: RouteDefinition[] = [
         );
         return createResponse({ message: "Video archived — it is out of the queue" });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -425,7 +436,7 @@ export const reviewRoutes: RouteDefinition[] = [
       try {
         const userId = await requireAuth(request, env);
         const db = new Database(env);
-        const { limit, offset } = getPagination(request);
+        const page = paginate(request, { columns: ["r.assigned_at", "r.id"] });
 
         const totalResult = await db.query(
           "SELECT COUNT(*) as count FROM reviews WHERE reviewer_id = ? AND status IN ('assigned', 'in_progress', 'overdue')",
@@ -451,18 +462,31 @@ export const reviewRoutes: RouteDefinition[] = [
            FROM reviews r
            JOIN videos v ON r.video_id = v.id
            JOIN users u ON r.submitter_id = u.id
-           WHERE r.reviewer_id = ? AND r.status IN ('assigned', 'in_progress', 'overdue')
-           ORDER BY r.assigned_at DESC LIMIT ? OFFSET ?`,
-          [userId, limit, offset],
+           WHERE r.reviewer_id = ? AND r.status IN ('assigned', 'in_progress', 'overdue') ${page.clause}
+           ORDER BY r.assigned_at DESC, r.id DESC LIMIT ? OFFSET ?`,
+          [userId, ...page.params, page.fetchLimit, page.offset],
         );
 
-        return createResponse({
-          items: result.results,
-          total: totalResult.results[0]?.count ?? 0,
-          limit,
-          offset,
-        });
+        const paged = buildPage(result.results as Array<Record<string, any>>, page.limit, (row) => [
+          String(row.assignedAt ?? row.assigned_at),
+          String(row.id),
+        ]);
+
+        return createResponse(
+          {
+            items: paged.items,
+            total: totalResult.results[0]?.count ?? 0,
+            limit: page.limit,
+            offset: page.offset,
+            nextCursor: paged.pagination.nextCursor,
+            hasMore: paged.pagination.hasMore,
+          },
+          200,
+          new Headers(page.headers),
+        );
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -558,6 +582,8 @@ export const reviewRoutes: RouteDefinition[] = [
           answers: answers,
         });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -600,6 +626,8 @@ export const reviewRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Review started" });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -784,6 +812,8 @@ export const reviewRoutes: RouteDefinition[] = [
           totalXp: finalXpState.totalXp,
         });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -862,6 +892,8 @@ export const reviewRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Answers submitted", saved: statements.length });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }
@@ -948,6 +980,8 @@ export const reviewRoutes: RouteDefinition[] = [
 
         return createResponse({ message: "Rating saved" });
       } catch (error: any) {
+        const cursorError = cursorErrorResponse(error);
+        if (cursorError) return cursorError;
         if (isAuthError(error)) {
           return createErrorResponse("AUTH_REQUIRED", "Authentication required", 401);
         }

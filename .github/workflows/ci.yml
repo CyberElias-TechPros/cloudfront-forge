@@ -66,6 +66,11 @@ jobs:
   # Android clients silently drift from the server.
   contract:
     runs-on: ubuntu-latest
+    # `contents: read` for checkout, `pull-requests: write` so the spec diff can
+    # be posted as a PR comment (PLAT-018).
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -91,6 +96,23 @@ jobs:
           }
       - name: Contract tests
         run: npm --prefix workers/api run test -- tests/contract
+      # Two clients ship on independent schedules (web + Android). A removed
+      # field or a narrowed enum must be visible in review, not discovered in
+      # production, so every PR gets a classified spec diff (PLAT-018).
+      - name: Fetch the base branch for the spec diff
+        if: github.event_name == 'pull_request'
+        run: git fetch --no-tags --depth=50 origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+      - name: API spec diff
+        if: github.event_name == 'pull_request'
+        run: |
+          node scripts/api-diff.mjs --base "origin/${{ github.base_ref }}" | tee api-diff.md
+          cat api-diff.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Post the spec diff on the pull request
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr comment "${{ github.event.number }}" --repo "$GITHUB_REPOSITORY" --body-file api-diff.md
 
   # Cloudflare Workers Builds installs with `bun install --frozen-lockfile`
   # (bun 1.2.15 by default). Dependency changes made through npm used to leave

@@ -15,6 +15,8 @@
     "contract:build": "npm --prefix workers/api run contract:build",
     "contract:check": "npm --prefix workers/api run contract:check && node scripts/api-client.mjs --check",
     "contract:client": "node scripts/api-client.mjs",
+    "api:diff": "node scripts/api-diff.mjs",
+    "api:changelog": "node scripts/api-diff.mjs --write-changelog",
     "docs:api": "node scripts/api-docs.mjs",
     "lint": "eslint . && npm --prefix workers/api run lint",
     "lint:workers": "cd workers/api && npm run lint",

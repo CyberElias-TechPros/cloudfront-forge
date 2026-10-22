@@ -26,6 +26,9 @@ export function paginated<T extends z.ZodTypeAny>(item: T) {
     total: z.number(),
     limit: z.number().optional(),
     offset: z.number().optional(),
+    /** Opaque cursor for the next page; `null` on the last page (PLAT-016). */
+    nextCursor: z.string().nullable().optional(),
+    hasMore: z.boolean().optional(),
   });
 }
 
@@ -455,9 +458,7 @@ export const appealSchema = z
   })
   .passthrough();
 
-export const appealListResponseSchema = z
-  .object({ items: z.array(appealSchema) })
-  .passthrough();
+export const appealListResponseSchema = z.object({ items: z.array(appealSchema) }).passthrough();
 
 // --- Reports & support ----------------------------------------------------
 
@@ -560,7 +561,12 @@ export const proofUploadResponseSchema = z
 // --- AI -------------------------------------------------------------------
 
 export const aiConversationSchema = z
-  .object({ id, title: nullableString.optional(), created_at: iso.optional(), updated_at: iso.optional() })
+  .object({
+    id,
+    title: nullableString.optional(),
+    created_at: iso.optional(),
+    updated_at: iso.optional(),
+  })
   .passthrough();
 
 export const aiConversationListResponseSchema = z
@@ -627,7 +633,10 @@ export const searchResponseSchema = z
   .passthrough();
 
 export const discoverResponseSchema = z
-  .object({ items: z.array(communityMemberSchema.or(adminUserSchema)), intent: z.string().optional() })
+  .object({
+    items: z.array(communityMemberSchema.or(adminUserSchema)),
+    intent: z.string().optional(),
+  })
   .passthrough();
 
 // --- Member views ---------------------------------------------------------

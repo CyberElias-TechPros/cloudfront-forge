@@ -1,4 +1,5 @@
 import type { RouteDefinition } from "../types";
+import { withIdempotency } from "../middleware/idempotency";
 import { authRoutes } from "./auth";
 import { userRoutes } from "./users";
 import { accountRoutes } from "./account";
@@ -27,6 +28,29 @@ import { discoverRoutes } from "./discover";
  * this list and the routing tests assert every entry is reachable, so a route
  * can never be declared but unroutable again.
  */
+/**
+ * Writes where a lost response costs something real if it is retried blindly:
+ * a duplicate submission, a duplicated payout, a second credit spend or a
+ * second transfer claim. They accept `Idempotency-Key` and replay the first
+ * successful outcome for 24 hours (PLAT-010). Requests without the header
+ * behave exactly as before.
+ */
+const IDEMPOTENT_WRITES: Array<{ method: "POST"; path: string; scope: string }> = [
+  { method: "POST", path: "/api/v1/videos", scope: "videos.submit" },
+  { method: "POST", path: "/api/v1/watch", scope: "watch.claim" },
+  { method: "POST", path: "/api/v1/shop/purchase", scope: "shop.purchase" },
+  { method: "POST", path: "/api/v1/topups", scope: "topups.request" },
+];
+
+function idempotent(routeList: RouteDefinition[]): RouteDefinition[] {
+  return routeList.map((route) => {
+    const spec = IDEMPOTENT_WRITES.find(
+      (candidate) => candidate.method === route.method && candidate.path === route.path,
+    );
+    return spec ? withIdempotency(route, spec.scope) : route;
+  });
+}
+
 export const routes: RouteDefinition[] = [
   ...authRoutes,
   ...userRoutes,
@@ -34,19 +58,19 @@ export const routes: RouteDefinition[] = [
   ...communityRoutes,
   ...communityManagementRoutes,
   ...supportRoutes,
-  ...videoRoutes,
+  ...idempotent(videoRoutes),
   ...reviewRoutes,
   ...missionRoutes,
   ...gamificationRoutes,
   ...adminRoutes,
   ...notificationRoutes,
   ...feedRoutes,
-  ...watchRoutes,
+  ...idempotent(watchRoutes),
   ...aiRoutes,
   ...youtubeRoutes,
   ...searchRoutes,
   ...reportRoutes,
-  ...shopRoutes,
-  ...topupRoutes,
+  ...idempotent(shopRoutes),
+  ...idempotent(topupRoutes),
   ...discoverRoutes,
 ];

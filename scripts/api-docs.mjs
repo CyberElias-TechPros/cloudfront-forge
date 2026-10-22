@@ -65,6 +65,33 @@ lines.push(
   "Retryable codes return `Retry-After` where applicable; clients should back off with jitter.",
 );
 lines.push("");
+lines.push("## Rate limits and retries");
+lines.push("");
+lines.push("Every response carries the caller's budget:");
+lines.push("");
+lines.push("| Header | Meaning |");
+lines.push("| --- | --- |");
+lines.push("| `X-RateLimit-Limit` | Requests allowed in the current window. |");
+lines.push("| `X-RateLimit-Remaining` | Requests left before the window resets. |");
+lines.push("| `X-RateLimit-Reset` | Epoch **seconds** at which the window resets. |");
+lines.push("| `Retry-After` | Present on `429` and `503`: seconds to wait. |");
+lines.push("");
+lines.push(
+  "Budgets are per member (a hash of the bearer token) with a wider per-IP ceiling, so carrier NAT " +
+    "does not punish a whole neighbourhood and one address cannot run an unlimited number of free accounts.",
+);
+lines.push("");
+lines.push("The reference client policy (`src/lib/retry.ts`):");
+lines.push("");
+lines.push(
+  "1. Retry **reads only** (`GET`/`HEAD`). A write may be replayed only when it carries an `Idempotency-Key`.",
+);
+lines.push("2. Retry on `408`, `429`, `500`, `502`, `503`, `504` and on network failures.");
+lines.push(
+  "3. Honour `Retry-After` when present; otherwise back off from 300 ms with up to 50 % jitter, capped at 8 s.",
+);
+lines.push("4. At most **3 attempts**, then surface the error with its `X-Request-Id`.");
+lines.push("");
 
 lines.push("## Contract coverage");
 lines.push("");

@@ -11,6 +11,11 @@ export interface Env {
   AI_MODEL: string;
   ENVIRONMENT: string;
   CORS_ORIGINS: string;
+  /**
+   * Comma-separated regular expressions for deployment previews (unpredictable
+   * hostnames). Wildcards in `CORS_ORIGINS` are ignored — see `matchCorsOrigin`.
+   */
+  CORS_PREVIEW_PATTERNS?: string;
   YOUTUBE_OAUTH_CLIENT_ID?: string;
   YOUTUBE_OAUTH_CLIENT_SECRET?: string;
   YOUTUBE_OAUTH_REDIRECT_URI?: string;
