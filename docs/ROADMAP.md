@@ -65,6 +65,7 @@ groups"):
 | Web tests                           | 4 files / 26 tests                                           | Hooks and API client are covered; UI is not                     |
 | Worker tests                        | 43 files / 374 tests over real SQLite + all 38 migrations    | Strong asset — the safety net for this plan                     |
 | API surface                         | 110 routes over 104 OpenAPI paths; **110/110 documented**    | Contract is complete, CI-gated at a 100% floor                  |
+| Generated web client                | `src/contract/api.generated.ts` (113 operations, types only) | Watch DTOs come from the contract; zero bundle cost             |
 | Android                             | **nothing**                                                  | Greenfield, and its prerequisites are missing                   |
 | Verified watching                   | **policy shipped, enforcement staged** (`F-01`)              | `EVIDENCE_POLICY` decides payout: prod `legacy`, staging capped |
 | Product analytics / crash reporting | none (`F-36`)                                                | Cannot measure activation, retention or quality                 |

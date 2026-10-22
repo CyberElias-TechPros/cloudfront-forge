@@ -38,17 +38,17 @@ CI regenerates them and fails if anything changed (`contract` job in `.github/wo
 
 ## Enforced by tests
 
-| Guarantee                                                                           | Test                             |
-| ----------------------------------------------------------------------------------- | -------------------------------- |
-| Every registry entry matches a real route                                           | `tests/contract/openapi.test.ts` |
-| No duplicate route entries, operation ids or tags                                   | `tests/contract/openapi.test.ts` |
-| Path templates match route pattern groups                                           | `tests/contract/openapi.test.ts` |
-| Committed JSON equals a fresh build                                                 | `tests/contract/openapi.test.ts` |
-| Documented coverage never regresses (floor is now 100%)                             | `tests/contract/openapi.test.ts` |
-| No inline Zod schema survives in `src/routes/*` (all shapes come from the contract) | `tests/contract/openapi.test.ts` |
-| Every operation declares a success schema and unique query parameters               | `tests/contract/openapi.test.ts` |
+| Guarantee                                                                                | Test                             |
+| ---------------------------------------------------------------------------------------- | -------------------------------- |
+| Every registry entry matches a real route                                                | `tests/contract/openapi.test.ts` |
+| No duplicate route entries, operation ids or tags                                        | `tests/contract/openapi.test.ts` |
+| Path templates match route pattern groups                                                | `tests/contract/openapi.test.ts` |
+| Committed JSON equals a fresh build                                                      | `tests/contract/openapi.test.ts` |
+| Documented coverage never regresses (floor is now 100%)                                  | `tests/contract/openapi.test.ts` |
+| No inline Zod schema survives in `src/routes/*` (all shapes come from the contract)      | `tests/contract/openapi.test.ts` |
+| Every operation declares a success schema and unique query parameters                    | `tests/contract/openapi.test.ts` |
 | Only registered error codes are returned, always as literals, with the registered status | `tests/contract/errors.test.ts`  |
-| `/openapi.json` is served, cached, CORS-aware and available during misconfiguration | `tests/contract/served.test.ts`  |
+| `/openapi.json` is served, cached, CORS-aware and available during misconfiguration      | `tests/contract/served.test.ts`  |
 
 ## Changing an endpoint
 
@@ -63,7 +63,7 @@ CI regenerates them and fails if anything changed (`contract` job in `.github/wo
 4. **Regenerate and commit**:
 
    ```sh
-   npm run contract:build && npm run docs:api
+   npm run contract:build && npm run docs:api && npm run contract:client
    ```
 
 5. **Run the gates**: `npm --prefix workers/api test` (includes contract tests) and
@@ -72,13 +72,28 @@ CI regenerates them and fails if anything changed (`contract` job in `.github/wo
 ## Consuming the contract
 
 - **Live document:** `GET https://<worker>/openapi.json` (`Cache-Control: public, max-age=300`).
-- **Web:** generate types with `openapi-typescript` from the committed document (part of `PLAT-006`).
-- **Android:** generate the Kotlin client with `openapi-generator` (`kotlin` + `kotlinx.serialization`)
-  into `android/core/network-api` (part of `PLAT-007`). The generated module is never hand-edited.
+- **Web (PLAT-006, shipped):** `npm run contract:client` writes `src/contract/api.generated.ts`
+  — 113 operations, ~66 kB of types, no runtime cost (types only). Each entry carries the HTTP
+  method, the literal path template, the auth tier, query parameters, `request` and the success
+  envelope. Read them through the helpers:
 
-Until the generated clients land, `src/lib/api-client.ts` mirrors the documented payloads by hand;
-the response types for the watch loop already match the contract (`WatchClaimResultDTO`,
-`WatchEvidenceDTO`).
+  ```ts
+  import type { DataOf, RequestOf, QueryOf } from "@/contract/api.generated";
+
+  type Claim = DataOf<"claimWatch">; // the `data` half of the 200 envelope
+  type Submit = RequestOf<"submitVideo">; // request body
+  type QueueQuery = QueryOf<"getWatchQueue">;
+  ```
+
+  `src/lib/api-client.ts` already derives `WatchClaimResultDTO`, `WatchEvidenceDTO` and
+  `WatchHeartbeatDTO` from it, so a change to those handlers breaks `npm run typecheck` instead of
+  the UI. Migrating the remaining hand-written DTOs in that file is the rest of PLAT-006.
+
+- **Android (PLAT-007, next):** generate the Kotlin client with `openapi-generator`
+  (`kotlin` + `kotlinx.serialization`) into `android/core/network-api`. Generated clients are never
+  hand-edited, and the same drift gate applies.
+
+CI regenerates the client and fails on drift, alongside the document and `docs/API.md`.
 
 ## Coverage policy
 
@@ -89,7 +104,7 @@ the response types for the watch loop already match the contract (`WatchClaimRes
   `z.object(...)` inline fails the same suite.
 - Where a handler's parser is deliberately lenient (AI chat trims strings, the top-up reject reason
   is clamped), the schema documents the accepted shape even though validation is manual. The
-  contract test forces the *shape* into the contract; it does not pretend the handler rejects.
+  contract test forces the _shape_ into the contract; it does not pretend the handler rejects.
 - Response bodies that are still row-shaped are declared field-by-field with `.passthrough()`,
   including the snake_case columns the SQL actually returns. Normalising those names is a breaking
   change tracked separately — a contract that "tidies up" would lie to generated clients.

@@ -1,4 +1,5 @@
 import apiClient from "./api";
+import type { DataOf } from "../contract/api.generated";
 
 export interface CreatorProfile {
   userId?: string;
@@ -302,32 +303,14 @@ export interface QueueTask {
  * verification-enforced deployment means the watch was recorded but earned
  * nothing, and `reason` explains what to do about it.
  */
-export interface WatchEvidenceDTO {
-  level: "youtube_api" | "signed_session" | "self_report" | "none";
-  paid: boolean;
-  verifiedSeconds: number;
-  reason: string;
-}
-
-export interface WatchClaimResultDTO {
-  status: string;
-  claimable: boolean;
-  attentionBlocked?: boolean;
-  xpAwarded: number;
-  creditsAwarded: number;
-  watchVerified: boolean;
-  subscribed: boolean;
-  commented: boolean;
-  evidence?: WatchEvidenceDTO;
-  subReason?: string;
-  level?: number;
-  totalXp?: number;
-  rewardBreakdown?: {
-    watch: RewardComponent;
-    subscribe: RewardComponent;
-    comment: RewardComponent;
-  };
-}
+/**
+ * Watch payout shapes come straight from the contract (PLAT-006): if the claim
+ * handler changes what it returns, this file stops compiling instead of the UI
+ * silently reading `undefined`.
+ */
+export type WatchClaimResultDTO = DataOf<"claimWatch">;
+export type WatchEvidenceDTO = NonNullable<WatchClaimResultDTO["evidence"]>;
+export type WatchHeartbeatDTO = DataOf<"recordWatchHeartbeat">;
 
 export interface SubmissionDTO {
   id: string;
@@ -747,13 +730,7 @@ export const apiClientService = {
      * has so far (`verifiedSeconds`).
      */
     heartbeat: (sessionToken: string, playerTime: number) =>
-      postData<{
-        ok: boolean;
-        accepted?: boolean;
-        deltaSeconds?: number;
-        verifiedSeconds?: number;
-        rejectReason?: string | null;
-      }>("/api/v1/watch/heartbeat", { sessionToken, playerTime }),
+      postData<WatchHeartbeatDTO>("/api/v1/watch/heartbeat", { sessionToken, playerTime }),
     challenge: (videoId: string) =>
       postData<{ challengeId: string; question: string; ttlSec: number }>(
         "/api/v1/watch/challenge",

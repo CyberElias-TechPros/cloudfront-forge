@@ -81,10 +81,12 @@ jobs:
         run: npm run contract:build
       - name: Regenerate the API reference
         run: npm run docs:api
+      - name: Regenerate the web client types
+        run: npm run contract:client
       - name: Fail on drift
         run: |
-          git diff --exit-code -- workers/api/src/contract docs/API.md || {
-            echo "::error title=Contract is stale::Run 'npm run contract:build && npm run docs:api' and commit the result."
+          git diff --exit-code -- workers/api/src/contract docs/API.md src/contract/api.generated.ts || {
+            echo "::error title=Contract is stale::Run 'npm run contract:build && npm run docs:api && npm run contract:client' and commit the result."
             exit 1
           }
       - name: Contract tests
