@@ -24,7 +24,7 @@ describe("worker entry point", () => {
 
   beforeEach(() => {
     env = createTestEnv();
-    env.CORS_ORIGINS = "https://loop.vercel.app,*.preview.vercel.app";
+    env.CORS_ORIGINS = "https://loop.vercel.app";
   });
 
   afterEach(() => {
@@ -87,14 +87,44 @@ describe("worker entry point", () => {
     expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
   });
 
-  it("matches *. subdomain entries in the allow-list", async () => {
+  it("ignores wildcard entries in the exact-match allow-list", async () => {
+    // `*.vercel.app` allow-lists every site on a shared hosting domain, so a
+    // wildcard in CORS_ORIGINS must not open the API to the whole world.
+    env.CORS_ORIGINS = "https://loop.vercel.app,*.vercel.app";
     const response = await call(env, "/api/v1/auth/me", {
       method: "OPTIONS",
-      headers: { Origin: "https://pr-123.preview.vercel.app" },
+      headers: { Origin: "https://someone-else.vercel.app" },
     });
-    expect(response.headers.get("Access-Control-Allow-Origin")).toBe(
-      "https://pr-123.preview.vercel.app",
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
+  });
+
+  it("allows preview deployments through an anchored regex pattern", async () => {
+    env.CORS_PREVIEW_PATTERNS = "^https://cloudfront-forge-[a-z0-9-]+\\.vercel\\.app$";
+    const allowed = await call(env, "/api/v1/auth/me", {
+      method: "OPTIONS",
+      headers: { Origin: "https://cloudfront-forge-pr-7.vercel.app" },
+    });
+    expect(allowed.headers.get("Access-Control-Allow-Origin")).toBe(
+      "https://cloudfront-forge-pr-7.vercel.app",
     );
+
+    // A lookalike host that merely contains the slug must not match a pattern
+    // that is anchored at both ends.
+    const lookalike = await call(env, "/api/v1/auth/me", {
+      method: "OPTIONS",
+      headers: { Origin: "https://cloudfront-forge-pr-7.vercel.app.evil.example" },
+    });
+    expect(lookalike.headers.get("Access-Control-Allow-Origin")).toBeNull();
+  });
+
+  it("survives a malformed preview pattern instead of failing every request", async () => {
+    env.CORS_PREVIEW_PATTERNS = "^https://broken([unclosed$";
+    const response = await call(env, "/api/v1/auth/me", {
+      method: "OPTIONS",
+      headers: { Origin: "https://loop.vercel.app" },
+    });
+    expect(response.status).toBe(204);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("https://loop.vercel.app");
   });
 
   it("returns 404 JSON for unknown routes", async () => {

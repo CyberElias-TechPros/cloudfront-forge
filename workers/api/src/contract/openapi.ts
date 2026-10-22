@@ -106,10 +106,32 @@ function errorStatuses(endpoint: EndpointContract): ErrorCode[] {
 
 function successSchema(endpoint: EndpointContract) {
   const mediaType = endpoint.responseContentType ?? "application/json";
-  if (mediaType === "text/event-stream") return { type: "string", description: "Server-sent events" };
+  if (mediaType === "text/event-stream")
+    return { type: "string", description: "Server-sent events" };
   if (mediaType === "image/*") return { type: "string", format: "binary" };
   return envelope(endpoint.response ? toJsonSchema(endpoint.response) : FREE_FORM);
 }
+
+/**
+ * Response headers the platform adds, by status (PLAT-011 / PLAT-012).
+ *
+ * Documented once here instead of on every operation, so an SDK generator sees
+ * them structurally rather than having to parse prose.
+ */
+const RETRY_AFTER_HEADER = { $ref: "#/components/headers/RetryAfter" };
+const RATE_LIMIT_HEADERS = { $ref: "#/components/headers/RateLimit" };
+
+const RESPONSE_HEADERS: Record<number, Record<string, unknown>> = {
+  429: {
+    "Retry-After": RETRY_AFTER_HEADER,
+    "X-RateLimit-Limit": RATE_LIMIT_HEADERS,
+    "X-RateLimit-Remaining": RATE_LIMIT_HEADERS,
+    "X-RateLimit-Reset": RATE_LIMIT_HEADERS,
+  },
+  503: {
+    "Retry-After": RETRY_AFTER_HEADER,
+  },
+};
 
 function responsesFor(endpoint: EndpointContract) {
   const mediaType = endpoint.responseContentType ?? "application/json";
@@ -131,6 +153,7 @@ function responsesFor(endpoint: EndpointContract) {
   for (const [status, codes] of [...byStatus.entries()].sort((a, b) => a[0] - b[0])) {
     responses[String(status)] = {
       description: codes.map((code) => `${code}: ${ERROR_CODES[code].description}`).join(" · "),
+      ...(RESPONSE_HEADERS[status] ? { headers: RESPONSE_HEADERS[status] } : {}),
       content: {
         "application/json": {
           schema: {
@@ -256,6 +279,21 @@ export function buildOpenApiDocument() {
     tags: TAGS.map((tag) => ({ ...tag })),
     paths,
     components: {
+      /**
+       * Shared response headers. Defined once and referenced, so the generated
+       * document stays readable instead of repeating the same four headers on
+       * ~100 operations.
+       */
+      headers: {
+        RetryAfter: {
+          description: "Seconds to wait before retrying.",
+          schema: { type: "integer", minimum: 1 },
+        },
+        RateLimit: {
+          description: "Remaining request budget for the current window.",
+          schema: { type: "integer", minimum: 0 },
+        },
+      },
       securitySchemes: {
         bearerAuth: {
           type: "http",

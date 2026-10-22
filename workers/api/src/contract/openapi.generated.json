@@ -457,6 +457,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -545,6 +559,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -827,6 +846,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -915,6 +948,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1219,6 +1257,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1307,6 +1359,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1530,6 +1587,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1618,6 +1689,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1851,6 +1927,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1939,6 +2029,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -2162,6 +2257,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -2250,6 +2359,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -2533,6 +2647,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -2621,6 +2749,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -2903,6 +3036,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -2991,6 +3138,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -3281,6 +3433,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -3369,6 +3535,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -3592,6 +3763,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -3680,6 +3865,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -3940,6 +4130,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -4028,6 +4232,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -4279,6 +4488,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -4367,6 +4590,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -4871,6 +5099,20 @@
           },
           "429": {
             "description": "DAILY_LIMIT: A per-day allowance (e.g. claimable watches) is exhausted. · RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -4960,6 +5202,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -5183,6 +5430,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -5271,6 +5532,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -5532,6 +5798,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -5620,6 +5900,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -5913,6 +6198,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -6001,6 +6300,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -6360,6 +6664,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -6448,6 +6766,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -6634,6 +6957,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -6722,6 +7059,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -6955,6 +7297,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -7043,6 +7399,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -7266,6 +7627,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -7354,6 +7729,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -7587,6 +7967,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -7675,6 +8069,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -7952,6 +8351,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -8040,6 +8453,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -8363,6 +8781,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -8451,6 +8883,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -8725,6 +9162,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -8813,6 +9264,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -9109,6 +9565,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -9197,6 +9667,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -9465,6 +9940,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -9553,6 +10042,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -9878,6 +10372,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -9966,6 +10474,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -10304,6 +10817,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -10392,6 +10919,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -10669,6 +11201,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -10757,6 +11303,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -10980,6 +11531,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -11068,6 +11633,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -11362,6 +11932,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -11450,6 +12034,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -11712,6 +12301,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -11800,6 +12403,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -12106,6 +12714,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -12194,6 +12816,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -12417,6 +13044,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -12505,6 +13146,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -12823,6 +13469,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -12911,6 +13571,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -13134,6 +13799,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -13222,6 +13901,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -13489,6 +14173,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -13577,6 +14275,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -13841,6 +14544,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -13929,6 +14646,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -14238,6 +14960,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -14326,6 +15062,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -14549,6 +15290,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -14637,6 +15392,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -14870,6 +15630,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -14958,6 +15732,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -15191,6 +15970,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -15279,6 +16072,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -15502,6 +16300,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -15590,6 +16402,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -15857,6 +16674,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -15945,6 +16776,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -16212,6 +17048,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -16300,6 +17150,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -16544,6 +17399,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -16632,6 +17501,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -16951,6 +17825,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -17039,6 +17927,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -17357,6 +18250,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -17445,6 +18352,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -17799,6 +18711,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -17887,6 +18813,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -18170,6 +19101,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -18258,6 +19203,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -18610,6 +19560,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -18698,6 +19662,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -19021,6 +19990,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -19109,6 +20092,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -19427,6 +20415,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -19515,6 +20517,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -19757,6 +20764,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -19845,6 +20866,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -20204,6 +21230,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -20292,6 +21332,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -20610,6 +21655,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -20698,6 +21757,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -21035,6 +22099,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -21123,6 +22201,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -21460,6 +22543,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -21548,6 +22645,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -21865,6 +22967,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -21953,6 +23069,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -22247,6 +23368,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -22335,6 +23470,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -22624,6 +23764,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -22712,6 +23866,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -23045,6 +24204,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -23133,6 +24306,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -23429,6 +24607,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -23517,6 +24709,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -23805,6 +25002,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -23893,6 +25104,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -24162,6 +25378,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -24250,6 +25480,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -24526,6 +25761,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -24614,6 +25863,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -24886,6 +26140,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -24974,6 +26242,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -25237,6 +26510,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -25325,6 +26612,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -25565,6 +26857,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -25653,6 +26959,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -25902,6 +27213,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -25990,6 +27315,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -26274,6 +27604,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -26362,6 +27706,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -26645,6 +27994,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -26733,6 +28096,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -27089,6 +28457,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -27177,6 +28559,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -27530,6 +28917,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -27618,6 +29019,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -27972,6 +29378,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -28060,6 +29480,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -28390,6 +29815,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -28478,6 +29917,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -28790,6 +30234,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -28878,6 +30336,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -29169,6 +30632,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -29257,6 +30734,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -29556,6 +31038,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -29644,6 +31140,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -29974,6 +31475,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -30062,6 +31577,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -30408,6 +31928,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -30496,6 +32030,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -30825,6 +32364,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -30913,6 +32466,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -31266,6 +32824,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -31354,6 +32926,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -31683,6 +33260,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -31771,6 +33362,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -32009,6 +33605,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -32097,6 +33707,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -32375,6 +33990,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -32463,6 +34092,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -32738,6 +34372,20 @@
           },
           "429": {
             "description": "QUOTA_EXCEEDED: A member- or platform-level quota (e.g. AI messages) is exhausted. · RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -32827,6 +34475,11 @@
           },
           "503": {
             "description": "AI_NOT_CONFIGURED: The AI coach is not configured on this deployment. · AI_UNAVAILABLE: The AI provider is not configured or is failing. · SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -33057,6 +34710,20 @@
           },
           "429": {
             "description": "QUOTA_EXCEEDED: A member- or platform-level quota (e.g. AI messages) is exhausted. · RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -33146,6 +34813,11 @@
           },
           "503": {
             "description": "AI_UNAVAILABLE: The AI provider is not configured or is failing. · SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -33400,6 +35072,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -33488,6 +35174,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -33756,6 +35447,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -33844,6 +35549,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -34085,6 +35795,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -34173,6 +35897,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -34404,6 +36133,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -34492,6 +36235,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated. · SERVICE_UNAVAILABLE: A dependency is unavailable. Respect `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -34695,6 +36443,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -34783,6 +36545,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -34965,6 +36732,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -35053,6 +36834,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated. · SERVICE_UNAVAILABLE: A dependency is unavailable. Respect `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -35289,6 +37075,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -35377,6 +37177,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -35608,6 +37413,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -35696,6 +37515,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -36026,6 +37850,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -36114,6 +37952,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -36379,6 +38222,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -36467,6 +38324,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -36818,6 +38680,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -36906,6 +38782,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -37262,6 +39143,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -37350,6 +39245,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -37619,6 +39519,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -37707,6 +39621,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -38033,6 +39952,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -38121,6 +40054,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -38450,6 +40388,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -38538,6 +40490,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -38905,6 +40862,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -38993,6 +40964,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -39330,6 +41306,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -39418,6 +41408,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -39677,6 +41672,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -39765,6 +41774,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -40024,6 +42038,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -40112,6 +42140,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -40449,6 +42482,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -40537,6 +42584,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -40883,6 +42935,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -40971,6 +43037,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -41212,6 +43283,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -41300,6 +43385,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -41475,6 +43565,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -41563,6 +43667,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -41738,6 +43847,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -41826,6 +43949,11 @@
           },
           "503": {
             "description": "MISSING_ENV: The deployment is missing a required binding or secret. · NOT_READY: A readiness dependency failed (`/ready` gate). · SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -42003,6 +44131,20 @@
           },
           "429": {
             "description": "RATE_LIMITED: Too many requests from this client in the current window.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              },
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -42091,6 +44233,11 @@
           },
           "503": {
             "description": "SCHEMA_OUT_OF_DATE: Migrations have not been applied yet; the service is being updated.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -42138,6 +44285,22 @@
     }
   },
   "components": {
+    "headers": {
+      "RetryAfter": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "RateLimit": {
+        "description": "Remaining request budget for the current window.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
     "securitySchemes": {
       "bearerAuth": {
         "type": "http",

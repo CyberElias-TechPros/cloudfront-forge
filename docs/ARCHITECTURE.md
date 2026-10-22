@@ -103,9 +103,17 @@ migrations/         001…036, applied in filename order
   audience/project checks. A dev token is accepted **only** when
   `ENVIRONMENT !== "production"`.
 - **AuthZ**: `requireAuth` for members, `requireAdmin` for `admin`/`super_admin`.
-- **CORS**: comma-separated allow-list in `CORS_ORIGINS`; `*.example.com` matches
-  one subdomain level. Unknown origins get **no** CORS header (the origin is
-  never echoed back).
+- **CORS**: two mechanisms, deliberately different. `CORS_ORIGINS` is an
+  **exact-match** list of origins we own — wildcards in it are ignored (a
+  `*.vercel.app` entry allow-lists every site on a shared hosting domain).
+  Deployment previews, whose hostnames are unpredictable, are matched by
+  anchored regular expressions in `CORS_PREVIEW_PATTERNS`. Unknown origins get
+  **no** CORS header (the origin is never echoed back). A native client sends no
+  `Origin` header and is unaffected: it is authorised by its bearer token alone.
+- **Rate limiting**: two buckets per caller — a hashed bearer token (the member's
+  own budget) and the coarse IP (a ceiling so unlimited free accounts behind one
+  NAT cannot bypass it). Every response carries `X-RateLimit-Limit`,
+  `X-RateLimit-Remaining` and `X-RateLimit-Reset`; a 429 adds `Retry-After`.
 - **Input**: Zod schemas; validated data (not the raw body) is what gets written.
   Text is passed through `sanitize()` (strips markup and control characters) —
   never HTML-escaped, because React escapes at render time and escaping twice

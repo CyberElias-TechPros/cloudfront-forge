@@ -65,6 +65,26 @@ Clients branch on `error.code`, never on `error.message`.
 
 Retryable codes return `Retry-After` where applicable; clients should back off with jitter.
 
+## Rate limits and retries
+
+Every response carries the caller's budget:
+
+| Header | Meaning |
+| --- | --- |
+| `X-RateLimit-Limit` | Requests allowed in the current window. |
+| `X-RateLimit-Remaining` | Requests left before the window resets. |
+| `X-RateLimit-Reset` | Epoch **seconds** at which the window resets. |
+| `Retry-After` | Present on `429` and `503`: seconds to wait. |
+
+Budgets are per member (a hash of the bearer token) with a wider per-IP ceiling, so carrier NAT does not punish a whole neighbourhood and one address cannot run an unlimited number of free accounts.
+
+The reference client policy (`src/lib/retry.ts`):
+
+1. Retry **reads only** (`GET`/`HEAD`). A write may be replayed only when it carries an `Idempotency-Key`.
+2. Retry on `408`, `429`, `500`, `502`, `503`, `504` and on network failures.
+3. Honour `Retry-After` when present; otherwise back off from 300 ms with up to 50 % jitter, capped at 8 s.
+4. At most **3 attempts**, then surface the error with its `X-Request-Id`.
+
 ## Contract coverage
 
 110/110 router entries are documented (100%). Every route in the router table is in the contract, and the CI coverage floor is 100% — adding a route without a registry entry fails the contract tests.

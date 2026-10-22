@@ -138,6 +138,22 @@ It found three real defects the first time it ran, all fixed:
    authenticated but are intentionally public (landing page and shared links);
    the registry now says `public`, so the document tells the truth.
 
+## Rate limits
+
+Two buckets per caller, deliberately different:
+
+- a **hashed bearer token** — the member's own budget (a SHA-256 prefix, not the
+  token, so a leaked counter reveals nothing);
+- the **coarse IP** — a wider ceiling so one address cannot aggregate an
+  unlimited number of free accounts. Carrier NAT puts a whole neighbourhood
+  behind one address, so this is a backstop, never the primary limit.
+
+Anonymous callers get the plain per-window budget on their IP. Every response
+carries `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`;
+the binding bucket is the one reported, so `Retry-After` never comes as a
+surprise. `429` and every `503` include `Retry-After` (documented in the spec as
+response headers, so generated SDKs expose them).
+
 ## Idempotent writes
 
 Four writes can cost money or duplicate content, so a lost response must be

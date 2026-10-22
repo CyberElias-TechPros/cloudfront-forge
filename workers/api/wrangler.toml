@@ -30,9 +30,14 @@ FIREBASE_PROJECT_ID = "creator-loop-ring"
 AI_PROVIDER = "nvidia"
 AI_MODEL = "meta/llama-3.1-8b-instruct"
 
-# Comma-separated allow-list. Entries may start with "*." to allow every
-# subdomain (used for Vercel preview deployments).
-CORS_ORIGINS = "https://loop.freegameplay.site,https://cloudfront-forge.vercel.app,*.vercel.app"
+# Exact-match allow-list of origins we own. Wildcards are NOT honoured here:
+# `*.vercel.app` would allow-list every site on a shared hosting domain.
+CORS_ORIGINS = "https://loop.freegameplay.site,https://cloudfront-forge.vercel.app"
+
+# Deployment previews (unpredictable hostnames) are allow-listed by regular
+# expression, one per line, comma-separated. Anchored so a lookalike host cannot
+# match. Update the project slug when the Vercel project is renamed.
+CORS_PREVIEW_PATTERNS = "^https://cloudfront-forge-[a-z0-9-]+-cybereliastkgmailcoms-projects\\.vercel\\.app$"
 
 # Deployed SPA origin: transactional emails build their call-to-action links
 # against it (email clients cannot resolve relative links).
@@ -137,7 +142,8 @@ ENVIRONMENT = "staging"
 FIREBASE_PROJECT_ID = "creator-loop-ring"
 AI_PROVIDER = "nvidia"
 AI_MODEL = "meta/llama-3.1-8b-instruct"
-CORS_ORIGINS = "https://cloudfront-forge.vercel.app,*.vercel.app"
+CORS_ORIGINS = "https://cloudfront-forge.vercel.app"
+CORS_PREVIEW_PATTERNS = "^https://cloudfront-forge-[a-z0-9-]+-cybereliastkgmailcoms-projects\\.vercel\\.app$"
 YOUTUBE_OAUTH_CLIENT_ID = "365634472671-dvmns559uga32703kf2l9vpgbmts38tl.apps.googleusercontent.com"
 YOUTUBE_OAUTH_REDIRECT_URI = "https://creatorloop-api-staging.autumn-surf-21ec.workers.dev/api/v1/youtube/oauth/callback"
 VAPID_PUBLIC_KEY = "BIfvnJ6Mp68dCFCkywGZlFpPo-hkg6-LeyE0Uz5pZGxOWYejjQFJg_JMxvcRB288LDcK7vAyRMymGJqVEBNpYvk"

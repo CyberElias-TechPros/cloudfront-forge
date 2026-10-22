@@ -92,14 +92,23 @@ Mandatory in production: `FIREBASE_PROJECT_ID`, `ENVIRONMENT` (a var), and
 `WATCH_SESSION_SECRET`. A request to a route other than `/health` with a binding
 missing returns `503 MISSING_ENV` rather than failing later in a confusing way.
 
-`CORS_ORIGINS` must contain the exact Vercel origin(s), e.g.
+`CORS_ORIGINS` must contain the **exact** production origin(s):
 
 ```
-CORS_ORIGINS = "https://loop.example.com,*.vercel.app"
+CORS_ORIGINS = "https://loop.example.com,https://cloudfront-forge.vercel.app"
 ```
 
-`*.vercel.app` matches preview deployments (one subdomain level only). Origins
-outside the list receive no `Access-Control-Allow-Origin` header at all.
+Wildcards are **ignored** here — `*.vercel.app` would allow-list every site on a
+shared hosting domain. Preview deployments are matched separately by anchored
+regular expressions in `CORS_PREVIEW_PATTERNS`:
+
+```
+CORS_PREVIEW_PATTERNS = "^https://my-app-[a-z0-9-]+-my-team\\.vercel\\.app$"
+```
+
+Origins outside both receive no `Access-Control-Allow-Origin` header at all, and
+a wildcard entry is logged once as a warning. The Android client sends no
+`Origin` header, so it needs no CORS entry.
 
 ---
 

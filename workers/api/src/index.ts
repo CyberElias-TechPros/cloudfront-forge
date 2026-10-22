@@ -7,7 +7,7 @@ import {
   isSchemaDriftError,
   SECURITY_HEADERS,
 } from "./middleware/errorHandler";
-import { rateLimitMiddleware } from "./middleware/rateLimit";
+import { rateLimitMiddleware, rateLimitHeaders } from "./middleware/rateLimit";
 import { authMiddleware } from "./middleware/auth";
 import { routes } from "./routes";
 import { findRoute } from "./lib/router";
@@ -19,24 +19,56 @@ import { createLogger } from "./lib/logger";
 import openApiDocument from "./contract/openapi.generated.json";
 
 /**
- * Resolve the CORS response for an incoming origin.
+ * Resolve the CORS response for an incoming origin (PLAT-017).
  *
- * `CORS_ORIGINS` is a comma-separated allow-list. Entries may start with `*.`
- * to allow every subdomain of a host (e.g. `*.vercel.app` for preview
- * deployments). When the origin is not allow-listed we return nothing at all
- * rather than echoing the first configured origin — echoing made the allow-list
- * meaningless for credentialed browser requests.
+ * Two mechanisms, deliberately different:
+ *
+ * - `CORS_ORIGINS` is an exact-match allow-list of origins we own.
+ * - `CORS_PREVIEW_PATTERNS` is a comma-separated list of *regular expressions*
+ *   for deployment previews, which have unpredictable hostnames.
+ *
+ * Wildcards used to be accepted inside `CORS_ORIGINS` — and production shipped
+ * `*.vercel.app`, which allow-lists every site on a shared hosting domain. That
+ * is not an allow-list, so wildcard entries are now ignored (and logged once).
+ *
+ * A native client (Android) sends no `Origin` header and is unaffected by CORS;
+ * it is authorised by its bearer token alone.
  */
-function resolveCorsOrigin(origin: string, env: Env): string | null {
+const warnedWildcards = new Set<string>();
+
+function matchCorsOrigin(origin: string, env: Env): string | null {
   if (!origin) return null;
+
   const allowed = (env.CORS_ORIGINS || "")
     .split(",")
-    .map((o) => o.trim())
+    .map((entry) => entry.trim())
     .filter(Boolean);
 
   for (const entry of allowed) {
+    if (entry.includes("*")) {
+      if (!warnedWildcards.has(entry)) {
+        warnedWildcards.add(entry);
+        console.warn(
+          JSON.stringify({
+            level: "WARN",
+            message: "CORS_ORIGINS entry ignored: wildcards belong in CORS_PREVIEW_PATTERNS",
+            entry,
+            environment: env.ENVIRONMENT,
+          }),
+        );
+      }
+      continue;
+    }
     if (entry === origin) return origin;
-    if (entry.startsWith("*.") && origin.endsWith(entry.slice(1))) return origin;
+  }
+
+  for (const pattern of (env.CORS_PREVIEW_PATTERNS || "").split(",").map((p) => p.trim())) {
+    if (!pattern) continue;
+    try {
+      if (new RegExp(pattern).test(origin)) return origin;
+    } catch {
+      // A malformed pattern must not crash every request; ignore it.
+    }
   }
 
   // Local development: the Vite dev server proxies /api/*, but `wrangler dev`
@@ -193,13 +225,14 @@ async function handleRequest(
   }
 
   const origin = request.headers.get("Origin") || "";
-  const corsOrigin = resolveCorsOrigin(origin, env);
+  const corsOrigin = matchCorsOrigin(origin, env);
   const corsHeaders = new Headers({
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-Id",
     // Browsers only expose allow-listed headers to client code: without this,
     // the web app cannot surface the id in its error UI.
-    "Access-Control-Expose-Headers": "X-Request-Id, Retry-After",
+    "Access-Control-Expose-Headers":
+      "X-Request-Id, Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset",
     "X-Request-Id": requestId,
     Vary: "Origin",
   });
@@ -262,7 +295,7 @@ async function handleRequest(
       request.method === "PATCH" ||
       request.method === "DELETE";
 
-    const rateLimited = await rateLimitMiddleware(request, env, {
+    const limit = await rateLimitMiddleware(request, env, {
       maxRequests: isAuthEndpoint
         ? parseInt(env.AUTH_RATE_LIMIT_MAX_REQUESTS || "30", 10)
         : isExpensiveEndpoint
@@ -282,7 +315,18 @@ async function handleRequest(
             ? "write"
             : "read",
     });
-    if (!rateLimited) {
+    // Publish the budget on every response, not just the refusal, so a client
+    // can slow down before it is blocked.
+    for (const [name, value] of Object.entries(rateLimitHeaders(limit))) {
+      corsHeaders.set(name, value);
+    }
+    if (!limit.allowed) {
+      createLogger(env).warn("rate limit exceeded", {
+        requestId,
+        bucket: limit.bucket,
+        limit: limit.limit,
+        path,
+      });
       return createErrorResponse("RATE_LIMITED", "Too many requests", 429, corsHeaders);
     }
 
