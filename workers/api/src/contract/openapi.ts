@@ -254,6 +254,11 @@ export function buildOpenApiDocument() {
           properties: {
             timestamp: { type: "string", format: "date-time" },
             version: { type: "string", example: "v1" },
+            requestId: {
+              type: "string",
+              description:
+                "Correlation id, also returned as the `X-Request-Id` header. Present on every failure envelope.",
+            },
           },
         },
         ErrorCode: {

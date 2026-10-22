@@ -128,6 +128,46 @@ function requestIdFor(request: Request): string {
   return crypto.randomUUID();
 }
 
+/**
+ * Put the id inside the failure envelope as well as the header.
+ *
+ * A browser cannot read a header the API forgot to expose, and a mobile crash
+ * reporter often captures only the body. Failures are therefore rewritten so
+ * `meta.requestId` is always present; success bodies are left untouched (they
+ * are the hot path and the header is enough).
+ */
+async function withRequestIdInEnvelope(response: Response, requestId: string): Promise<Response> {
+  if (response.status < 400) return response;
+  const contentType = response.headers.get("Content-Type") ?? "";
+  if (!contentType.includes("application/json")) return response;
+  if (!response.body) return response;
+
+  const text = await response.text();
+  let payload: unknown;
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    return new Response(text, response);
+  }
+  if (typeof payload !== "object" || payload === null) return new Response(text, response);
+
+  const envelope = payload as { meta?: Record<string, unknown> };
+  envelope.meta = {
+    ...(envelope.meta ?? {}),
+    timestamp: envelope.meta?.timestamp ?? new Date().toISOString(),
+    version: envelope.meta?.version ?? "v1",
+    requestId,
+  };
+
+  const headers = new Headers(response.headers);
+  headers.delete("Content-Length");
+  return new Response(JSON.stringify(envelope), {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 async function handleRequest(
   request: Request,
   env: Env,
@@ -324,8 +364,9 @@ export default {
       response = errorHandler(error as Error, request, undefined, env, ctx);
     }
 
-    const wrapped = new Response(response.body, response);
+    let wrapped = new Response(response.body, response);
     wrapped.headers.set("X-Request-Id", requestId);
+    wrapped = await withRequestIdInEnvelope(wrapped, requestId);
 
     const url = new URL(request.url);
     createLogger(env).info("request", {
