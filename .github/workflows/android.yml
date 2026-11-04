@@ -12,7 +12,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 concurrency:
   group: android-${{ github.workflow }}-${{ github.ref }}
@@ -45,28 +44,7 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"
       - uses: gradle/actions/setup-gradle@v4
       - name: Compile, unit test and assemble dev debug
-        id: gradle
-        run: |
-          set -o pipefail
-          ./gradlew --no-daemon --stacktrace --console=plain :core:network-api:testDebugUnitTest :app:testDevDebugUnitTest :app:assembleDevDebug 2>&1 | tee build.log
-      - name: Report build failure to PR
-        if: failure() && steps.gradle.outcome == 'failure' && github.event.pull_request
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const path = 'android/build.log';
-            const log = fs.existsSync(path) ? fs.readFileSync(path, 'utf8') : 'No build log found';
-            const lines = log.split('\n');
-            const errors = lines.filter(l => /^e:|error:|FAILED|What went wrong|Execution failed/.test(l)).slice(0, 120).join('\n');
-            const tail = lines.slice(-80).join('\n');
-            const body = (errors ? 'Errors:\n' + errors + '\n\n' : '') + 'Tail:\n' + tail;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body: 'Android build failure:\n```\n' + body.slice(-60000) + '\n```'
-            });
+        run: ./gradlew --no-daemon --stacktrace --console=plain :core:network-api:testDebugUnitTest :app:testDevDebugUnitTest :app:assembleDevDebug
       - name: Upload dev APK
         uses: actions/upload-artifact@v4
         with:

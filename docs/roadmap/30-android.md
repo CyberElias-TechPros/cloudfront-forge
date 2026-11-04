@@ -1,5 +1,10 @@
 # 30 — Android workstream (AND)
 
+> **Implementation status (2026-11-04):** the native client is implemented in [`android/`](../../android/)
+> and builds in Android CI (`devDebug` APK + JVM unit tests). Backend migration `039` and contract-driven
+> Kotlin client generation are in place. Release signing, Play/Firebase configuration, and device QA
+> remain before store release. See [`android/README.md`](../../android/README.md).
+
 **Purpose:** ship a **fully native Android app** — Kotlin + Jetpack Compose, native navigation,
 native notifications, native billing, native performance — that is the primary daily surface for
 the audience the product is built for.

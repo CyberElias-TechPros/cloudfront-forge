@@ -176,7 +176,9 @@ for (const [route, methods] of Object.entries(spec.paths)) {
       params.push("@Part image: MultipartBody.Part");
     } else if (requestSchema || ["post", "put", "patch", "delete"].includes(method)) {
       bodyType = requestSchema ? typeOf(requestSchema, name + "Request").type : "JsonObject";
-      params.push(`@Body body: ${bodyType}${bodyType === "JsonObject" ? " = JsonObject(emptyMap())" : ""}`);
+      params.push(
+        `@Body body: ${bodyType}${bodyType === "JsonObject" ? " = JsonObject(emptyMap())" : ""}`,
+      );
     }
     operations.push({
       id,
