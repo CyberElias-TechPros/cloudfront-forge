@@ -216,6 +216,29 @@ export interface OperationRegistry {
     };
   };
 
+  blockMember: {
+    method: "POST";
+    path: "/api/v1/users/me/blocks";
+    auth: "user";
+    summary: "Hide a member's content in both directions";
+    media: "application/json";
+    query: Record<string, never>;
+    request: {
+      userId: string;
+    };
+    response: {
+      success: true;
+      data: {
+        message: string;
+        [key: string]: unknown;
+      };
+      meta: {
+        timestamp: string;
+        version: string;
+      };
+    };
+  };
+
   chatWithCoach: {
     method: "POST";
     path: "/api/v1/ai/chat";
@@ -676,6 +699,8 @@ export interface OperationRegistry {
           title?: string;
           message?: string;
           created_at?: string;
+          what?: string;
+          when?: string;
           [key: string]: unknown;
         }[];
         total: number;
@@ -774,6 +799,8 @@ export interface OperationRegistry {
         isOwner?: boolean;
         isMember?: boolean;
         role?: string;
+        myRole?: string;
+        rules?: string;
         [key: string]: unknown;
       };
       meta: {
@@ -875,6 +902,11 @@ export interface OperationRegistry {
           total_xp?: number;
           credits?: number;
           reputation?: number;
+          displayName?: string;
+          photoUrl?: string;
+          totalXp?: number;
+          weightedScore?: number;
+          rank?: number;
           [key: string]: unknown;
         }[];
         total: number;
@@ -903,6 +935,34 @@ export interface OperationRegistry {
     response: {
       success: true;
       data: Record<string, unknown>;
+      meta: {
+        timestamp: string;
+        version: string;
+      };
+    };
+  };
+
+  getMobileConfig: {
+    method: "GET";
+    path: "/api/v1/mobile/config";
+    auth: "public";
+    summary: "Native client capability and compatibility flags";
+    media: "application/json";
+    query: Record<string, never>;
+    request: never;
+    response: {
+      success: true;
+      data: {
+        apiVersion: string;
+        minAndroidVersionCode: number;
+        maintenance: boolean;
+        watchSessionsEnabled: boolean;
+        billingEnabled: boolean;
+        pushEnabled: boolean;
+        coachEnabled: boolean;
+        youtubeEnabled: boolean;
+        policyVersion: string;
+      };
       meta: {
         timestamp: string;
         version: string;
@@ -1192,6 +1252,22 @@ export interface OperationRegistry {
           created_at?: string;
           user_id?: string;
           youtube_video_id?: string;
+          youtubeVideoId?: string;
+          creatorId?: string;
+          owner?: string;
+          avatar?: string;
+          durationSec?: number;
+          requiredSec?: number;
+          reward?: number;
+          niche?: string;
+          postedAgo?: string;
+          youtubeUrl?: string;
+          creatorChannelId?: string;
+          magicWord?: string;
+          rewardedXp?: number;
+          rewardedCredits?: number;
+          thumbnailUrl?: string;
+          creatorName?: string;
           youtube_url?: string;
           channel_id?: string;
           magic_word?: string;
@@ -1407,21 +1483,16 @@ export interface OperationRegistry {
     response: {
       success: true;
       data: {
-        items: {
-          id: string;
-          email?: string;
-          display_name?: string;
-          photo_url?: string;
-          status?: string;
-          created_at?: string;
-          trust_score?: number;
-          platform_role?: string;
-          [key: string]: unknown;
-        }[];
-        total: number;
-        limit?: number;
-        offset?: number;
-      };
+        id: string;
+        email?: string;
+        display_name?: string;
+        photo_url?: string;
+        status?: string;
+        created_at?: string;
+        trust_score?: number;
+        platform_role?: string;
+        [key: string]: unknown;
+      }[];
       meta: {
         timestamp: string;
         version: string;
@@ -1542,6 +1613,30 @@ export interface OperationRegistry {
     };
   };
 
+  listBlockedMembers: {
+    method: "GET";
+    path: "/api/v1/users/me/blocks";
+    auth: "user";
+    summary: "Members blocked by the caller";
+    media: "application/json";
+    query: Record<string, never>;
+    request: never;
+    response: {
+      success: true;
+      data: {
+        items: {
+          id: string;
+          displayName?: string;
+          createdAt: string;
+        }[];
+      };
+      meta: {
+        timestamp: string;
+        version: string;
+      };
+    };
+  };
+
   listCollaborators: {
     method: "GET";
     path: "/api/v1/discover/collaborators";
@@ -1619,6 +1714,31 @@ export interface OperationRegistry {
     };
   };
 
+  listCreditProducts: {
+    method: "GET";
+    path: "/api/v1/billing/products";
+    auth: "user";
+    summary: "Server-authoritative Play credit products; prices come from Play";
+    media: "application/json";
+    query: Record<string, never>;
+    request: never;
+    response: {
+      success: true;
+      data: {
+        enabled: boolean;
+        products: {
+          productId: string;
+          label: string;
+          credits: number;
+        }[];
+      };
+      meta: {
+        timestamp: string;
+        version: string;
+      };
+    };
+  };
+
   listDailyQuests: {
     method: "GET";
     path: "/api/v1/daily-quests";
@@ -1639,6 +1759,11 @@ export interface OperationRegistry {
           completed?: boolean;
           xpReward?: number;
           creditReward?: number;
+          questType?: string;
+          targetCount?: number;
+          rewardXp?: number;
+          rewardCredits?: number;
+          status?: string;
           [key: string]: unknown;
         }[];
         date: string;
@@ -1705,21 +1830,34 @@ export interface OperationRegistry {
     auth: "user";
     summary: "Missions available to the caller";
     media: "application/json";
-    query: Record<string, never>;
+    query: {
+      communityId?: string;
+      difficulty?: string;
+      chainId?: string;
+      page?: number;
+      pageSize?: number;
+    };
     request: never;
     response: {
       success: true;
       data: {
-        missions: Array<{
+        items: {
           id: string;
           title: string;
           description?: string;
-          difficulty?: "easy" | "medium" | "hard";
+          difficulty?: string;
+          xp_reward?: number;
           xpReward?: number;
+          credit_reward?: number;
           creditReward?: number;
-          status?: string;
+          isAssigned?: boolean;
+          isCompleted?: boolean;
+          assignment_status?: string;
           [key: string]: unknown;
-        }>;
+        }[];
+        total: number;
+        limit?: number;
+        offset?: number;
       };
       meta: {
         timestamp: string;
@@ -1825,11 +1963,47 @@ export interface OperationRegistry {
           comment_count?: number;
           watcher_count?: number;
           subs_count?: number;
+          postedAgo?: string;
+          watchers?: number;
+          target?: number;
+          subs?: number;
+          comments?: number;
           [key: string]: unknown;
         }[];
         total: number;
         limit?: number;
         offset?: number;
+      };
+      meta: {
+        timestamp: string;
+        version: string;
+      };
+    };
+  };
+
+  listMySupportRequests: {
+    method: "GET";
+    path: "/api/v1/support/mine";
+    auth: "user";
+    summary: "The caller's support requests and resolution status";
+    media: "application/json";
+    query: Record<string, never>;
+    request: never;
+    response: {
+      success: true;
+      data: {
+        items: {
+          id: string;
+          topic?: string;
+          message?: string;
+          status?: string;
+          createdAt?: string;
+          resolvedAt?: string;
+          displayName?: string;
+          email?: string;
+          [key: string]: unknown;
+        }[];
+        [key: string]: unknown;
       };
       meta: {
         timestamp: string;
@@ -1884,12 +2058,15 @@ export interface OperationRegistry {
     auth: "user";
     summary: "Inbox for the caller";
     media: "application/json";
-    query: Record<string, never>;
+    query: {
+      limit?: number;
+      unreadOnly?: boolean;
+    };
     request: never;
     response: {
       success: true;
       data: {
-        notifications: {
+        items: {
           id: string;
           type: string;
           title?: string;
@@ -1898,7 +2075,35 @@ export interface OperationRegistry {
           createdAt?: string;
           [key: string]: unknown;
         }[];
-        unreadCount?: number;
+        total: number;
+        limit?: number;
+        offset?: number;
+      };
+      meta: {
+        timestamp: string;
+        version: string;
+      };
+    };
+  };
+
+  listPlayPurchases: {
+    method: "GET";
+    path: "/api/v1/billing/purchases";
+    auth: "user";
+    summary: "The caller's verified Play purchase history";
+    media: "application/json";
+    query: Record<string, never>;
+    request: never;
+    response: {
+      success: true;
+      data: {
+        items: {
+          orderId: string;
+          productId: string;
+          credits: number;
+          status: string;
+          createdAt: string;
+        }[];
       };
       meta: {
         timestamp: string;
@@ -1920,20 +2125,21 @@ export interface OperationRegistry {
     response: {
       success: true;
       data: {
-        items: {
-          id: string;
-          reason?: string;
-          resource_type?: string;
-          resource_id?: string;
-          status?: string;
-          created_at?: string;
-          reporter_name?: string;
-          reported_name?: string;
-          description?: string;
-          [key: string]: unknown;
-        }[];
+        id: string;
+        reason?: string;
+        resource_type?: string;
+        resource_id?: string;
+        status?: string;
+        created_at?: string;
+        reporter_name?: string;
+        reported_name?: string;
+        reportedUserName?: string;
+        reporterName?: string;
+        resourceType?: string;
+        resourceId?: string;
+        description?: string;
         [key: string]: unknown;
-      };
+      }[];
       meta: {
         timestamp: string;
         version: string;
@@ -1947,7 +2153,12 @@ export interface OperationRegistry {
     auth: "user";
     summary: "Reviews assigned to or submitted by the caller";
     media: "application/json";
-    query: Record<string, never>;
+    query: {
+      status?: string;
+      videoId?: string;
+      limit?: number;
+      offset?: number;
+    };
     request: never;
     response: {
       success: true;
@@ -1975,7 +2186,7 @@ export interface OperationRegistry {
           name: string;
           description?: string;
           cost: number;
-          itemType: string;
+          itemType?: string;
           [key: string]: unknown;
         }[];
         balance?: number;
@@ -2044,12 +2255,17 @@ export interface OperationRegistry {
     auth: "user";
     summary: "List videos visible to the caller";
     media: "application/json";
-    query: Record<string, never>;
+    query: {
+      status?: string;
+      communityId?: string;
+      page?: number;
+      pageSize?: number;
+    };
     request: never;
     response: {
       success: true;
       data: {
-        videos: Array<{
+        items: Array<{
           id: string;
           youtubeVideoId?: string;
           youtubeUrl?: string;
@@ -2060,12 +2276,9 @@ export interface OperationRegistry {
           createdAt?: string;
           [key: string]: unknown;
         }>;
-        pagination?: {
-          limit: number;
-          offset: number;
-          total?: number;
-          [key: string]: unknown;
-        };
+        total: number;
+        limit?: number;
+        offset?: number;
       };
       meta: {
         timestamp: string;
@@ -2187,6 +2400,32 @@ export interface OperationRegistry {
     };
   };
 
+  recordMobileConsent: {
+    method: "POST";
+    path: "/api/v1/mobile/consent";
+    auth: "user";
+    summary: "Record acceptance of the current terms and privacy notice";
+    media: "application/json";
+    query: Record<string, never>;
+    request: {
+      policyVersion: string;
+      termsAccepted: true;
+      privacyAccepted: true;
+      ageConfirmed: true;
+    };
+    response: {
+      success: true;
+      data: {
+        message: string;
+        policyVersion: string;
+      };
+      meta: {
+        timestamp: string;
+        version: string;
+      };
+    };
+  };
+
   recordWatchHeartbeat: {
     method: "POST";
     path: "/api/v1/watch/heartbeat";
@@ -2196,6 +2435,7 @@ export interface OperationRegistry {
     query: Record<string, never>;
     request: {
       sessionToken: string;
+      videoId?: string;
       playerTime: number;
     };
     response: {
@@ -2261,6 +2501,30 @@ export interface OperationRegistry {
         createdAt?: string;
         updatedAt?: string;
         lastActive?: string;
+        [key: string]: unknown;
+      };
+      meta: {
+        timestamp: string;
+        version: string;
+      };
+    };
+  };
+
+  registerMobileDevice: {
+    method: "POST";
+    path: "/api/v1/mobile/devices";
+    auth: "user";
+    summary: "Register an FCM token for this account and installation";
+    media: "application/json";
+    query: Record<string, never>;
+    request: {
+      token: string;
+      installationId: string;
+    };
+    response: {
+      success: true;
+      data: {
+        message: string;
         [key: string]: unknown;
       };
       meta: {
@@ -2343,6 +2607,29 @@ export interface OperationRegistry {
     media: "application/json";
     query: Record<string, never>;
     request: never;
+    response: {
+      success: true;
+      data: {
+        message: string;
+        [key: string]: unknown;
+      };
+      meta: {
+        timestamp: string;
+        version: string;
+      };
+    };
+  };
+
+  removeMobileDevice: {
+    method: "DELETE";
+    path: "/api/v1/mobile/devices";
+    auth: "user";
+    summary: "Remove this installation's push token";
+    media: "application/json";
+    query: Record<string, never>;
+    request: {
+      installationId: string;
+    };
     response: {
       success: true;
       data: {
@@ -2560,6 +2847,22 @@ export interface OperationRegistry {
           created_at?: string;
           user_id?: string;
           youtube_video_id?: string;
+          youtubeVideoId?: string;
+          creatorId?: string;
+          owner?: string;
+          avatar?: string;
+          durationSec?: number;
+          requiredSec?: number;
+          reward?: number;
+          niche?: string;
+          postedAgo?: string;
+          youtubeUrl?: string;
+          creatorChannelId?: string;
+          magicWord?: string;
+          rewardedXp?: number;
+          rewardedCredits?: number;
+          thumbnailUrl?: string;
+          creatorName?: string;
           youtube_url?: string;
           channel_id?: string;
           magic_word?: string;
@@ -2694,7 +2997,9 @@ export interface OperationRegistry {
     auth: "user";
     summary: "Begin the YouTube OAuth flow";
     media: "application/json";
-    query: Record<string, never>;
+    query: {
+      client?: "web" | "android";
+    };
     request: never;
     response: {
       success: true;
@@ -2781,6 +3086,27 @@ export interface OperationRegistry {
     request: {
       reason?: string;
     };
+    response: {
+      success: true;
+      data: {
+        message: string;
+        [key: string]: unknown;
+      };
+      meta: {
+        timestamp: string;
+        version: string;
+      };
+    };
+  };
+
+  unblockMember: {
+    method: "DELETE";
+    path: "/api/v1/users/me/blocks/{userId}";
+    auth: "user";
+    summary: "Unblock a member";
+    media: "application/json";
+    query: Record<string, never>;
+    request: never;
     response: {
       success: true;
       data: {
@@ -2953,6 +3279,34 @@ export interface OperationRegistry {
         name: string;
         type: string;
         [key: string]: unknown;
+      };
+      meta: {
+        timestamp: string;
+        version: string;
+      };
+    };
+  };
+
+  verifyPlayPurchase: {
+    method: "POST";
+    path: "/api/v1/billing/verify";
+    auth: "user";
+    summary: "Verify, grant once and consume a Play purchase";
+    media: "application/json";
+    query: Record<string, never>;
+    request: {
+      productId: string;
+      purchaseToken: string;
+    };
+    response: {
+      success: true;
+      data: {
+        orderId: string;
+        productId: string;
+        credits: number;
+        balance: number;
+        alreadyGranted: boolean;
+        consumed: boolean;
       };
       meta: {
         timestamp: string;

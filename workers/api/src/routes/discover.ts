@@ -2,6 +2,7 @@ import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth, isAuthError } from "../middleware/auth";
 import { Database } from "../lib/database";
+import { notBlockedSql } from "../lib/blocks";
 
 const VALID_INTENTS = new Set(["collaboration", "feedback", "support", "mentorship"]);
 
@@ -17,7 +18,7 @@ export const discoverRoutes: RouteDefinition[] = [
     path: "/api/v1/discover/collaborators",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
-        await requireAuth(request, env);
+        const userId = await requireAuth(request, env);
         const { searchParams } = new URL(request.url);
         const requested = searchParams.get("intent") ?? "collaboration";
         const intent = VALID_INTENTS.has(requested) ? requested : "collaboration";
@@ -28,9 +29,9 @@ export const discoverRoutes: RouteDefinition[] = [
           `SELECT u.id, u.display_name, u.photo_url, cp.niche, cp.experience_level, cp.goals, cp.looking_for
            FROM creator_profiles cp
            JOIN users u ON u.id = cp.user_id
-           WHERE cp.public_profile = 1 AND cp.looking_for = ? AND u.deleted_at IS NULL
+           WHERE cp.public_profile = 1 AND cp.looking_for = ? AND u.deleted_at IS NULL AND u.id != ? ${notBlockedSql("u.id")}
            ORDER BY u.created_at DESC LIMIT ?`,
-          [intent, limit],
+          [intent, userId, userId, userId, limit],
         );
 
         const members = result.results.map((m: any) => ({

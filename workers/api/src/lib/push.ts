@@ -1,6 +1,7 @@
 import type { Env } from "../types";
 import { Database } from "./database";
 import { createLogger } from "./logger";
+import { notifyUserMobilePush } from "./mobile-push";
 
 /**
  * Minimal Web Push (VAPID) sender for Cloudflare Workers.
@@ -125,7 +126,7 @@ export async function generateVapidHeader(
  * Fire-and-forget push to every device registered for a user.
  * Best-effort: removes dead endpoints (404/410 responses).
  */
-export async function notifyUserPush(env: Env, userId: string, title: string, body: string): Promise<void> {
+async function notifyUserWebPush(env: Env, userId: string, title: string, body: string): Promise<void> {
   try {
     if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return;
     const db = new Database(env);
@@ -305,4 +306,13 @@ async function hmac(key: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(
     await crypto.subtle.sign("HMAC", cryptoKey, data as BufferSource),
   );
+}
+
+/** Fan out to both web and native devices; neither provider can block the other. */
+export async function notifyUserPush(env: Env, userId: string, title: string, body: string,
+  data: Record<string, string> = {}): Promise<void> {
+  await Promise.allSettled([
+    notifyUserWebPush(env, userId, title, body),
+    notifyUserMobilePush(env, userId, title, body, data),
+  ]);
 }

@@ -81,6 +81,8 @@ export const TAGS = [
   { name: "AI", description: "The platform-aware coach." },
   { name: "YouTube", description: "Channel linking and OAuth." },
   { name: "Discovery", description: "Search and collaborator matching." },
+  { name: "Mobile", description: "Android configuration, consent and device push." },
+  { name: "Billing", description: "Server-verified Google Play credit purchases." },
   { name: "System", description: "Health, readiness and the API document." },
 ] as const;
 

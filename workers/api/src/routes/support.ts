@@ -83,6 +83,21 @@ export const supportRoutes: RouteDefinition[] = [
   },
 
   {
+    method: "GET", path: "/api/v1/support/mine",
+    handler: async (request, env) => {
+      try {
+        const userId = await requireAuth(request, env);
+        const result = await new Database(env).query(
+          `SELECT id, topic, message, status, created_at, resolved_at FROM support_requests
+           WHERE user_id = ? ORDER BY created_at DESC LIMIT 100`, [userId]);
+        return createResponse({ items: result.results });
+      } catch (error) {
+        if (isAuthError(error)) return createErrorResponse("AUTH_REQUIRED", "Please sign in again", 401);
+        return createErrorResponse("INTERNAL_ERROR", "Could not load your requests", 500);
+      }
+    },
+  },
+  {
     method: "GET",
     path: "/api/v1/admin/support",
     handler: async (request: Request, env: Env): Promise<Response> => {

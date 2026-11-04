@@ -4,6 +4,7 @@ import { requireAuth, isAuthError } from "../middleware/auth";
 import { Database } from "../lib/database";
 import { getRewardSplit } from "../lib/rewards";
 import { resolveRequiredWatchSeconds } from "../lib/utils";
+import { notBlockedSql } from "../lib/blocks";
 
 /** Fallback watch target when a video row predates the column default. */
 const DEFAULT_WATCH_TARGET = 20;
@@ -67,16 +68,16 @@ export const feedRoutes: RouteDefinition[] = [
         const communityFilter = communityId
           ? "AND v.user_id IN (SELECT user_id FROM community_members WHERE community_id = ? AND status = 'active')"
           : "";
-        const countParams = communityId ? [userId, communityId] : [userId];
+        const countParams = communityId ? [userId, userId, userId, communityId] : [userId, userId, userId];
         const totalResult = await db.query(
           `SELECT COUNT(*) as count FROM videos v
-            WHERE v.status = 'active' AND v.user_id != ? ${communityFilter}`,
+            WHERE v.status = 'active' AND v.user_id != ? ${notBlockedSql("v.user_id")} ${communityFilter}`,
           countParams,
         );
 
         const params = communityId
-          ? [userId, userId, communityId, nowIso, limit, offset]
-          : [userId, userId, nowIso, limit, offset];
+          ? [userId, userId, userId, userId, communityId, nowIso, limit, offset]
+          : [userId, userId, userId, userId, nowIso, limit, offset];
         const result = await db.query(
           `SELECT v.id, v.title, v.duration_seconds, v.status, v.created_at, v.user_id,
                   v.youtube_video_id, v.youtube_url, v.channel_id, v.magic_word,
@@ -85,7 +86,7 @@ export const feedRoutes: RouteDefinition[] = [
            FROM videos v
            LEFT JOIN users u ON v.user_id = u.id
            LEFT JOIN watch_sessions ws ON ws.video_id = v.id AND ws.watcher_id = ?
-           WHERE v.status = 'active' AND v.user_id != ? ${communityFilter}
+           WHERE v.status = 'active' AND v.user_id != ? ${notBlockedSql("v.user_id")} ${communityFilter}
            ORDER BY (v.boosted_until IS NOT NULL AND v.boosted_until > ?) DESC,
                     v.created_at DESC
            LIMIT ? OFFSET ?`,

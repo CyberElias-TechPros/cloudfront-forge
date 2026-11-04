@@ -19,6 +19,7 @@ import { reportRoutes } from "./reports";
 import { shopRoutes } from "./shop";
 import { topupRoutes } from "./topups";
 import { discoverRoutes } from "./discover";
+import { mobileRoutes } from "./mobile";
 
 /**
  * Every route in the API.
@@ -49,4 +50,5 @@ export const routes: RouteDefinition[] = [
   ...shopRoutes,
   ...topupRoutes,
   ...discoverRoutes,
+  ...mobileRoutes,
 ];

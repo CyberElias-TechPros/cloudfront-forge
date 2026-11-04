@@ -49,10 +49,10 @@ import {
   watchSessionResponseSchema,
   videoListResponseSchema,
   notificationListResponseSchema,
-  missionListResponseSchema,
   shopListResponseSchema,
   freeFormDataSchema,
 } from "./schemas/responses";
+import { missionListResponseSchema as paginatedMissionListResponseSchema } from "./schemas/views";
 import { communityEndpoints } from "./endpoints/community";
 import { feedEndpoints } from "./endpoints/feed";
 import { gamificationEndpoints } from "./endpoints/gamification";
@@ -63,6 +63,7 @@ import { supportEndpoints } from "./endpoints/support";
 import { discoveryEndpoints } from "./endpoints/discovery";
 import { topupsadminEndpoints } from "./endpoints/topups-admin";
 import { missionsEndpoints } from "./endpoints/missions";
+import { mobileEndpoints } from "./endpoints/mobile";
 
 export type {
   AuthTier,
@@ -242,6 +243,7 @@ const coreEndpoints: EndpointContract[] = [
     summary: "List videos visible to the caller",
     tag: "Videos",
     auth: AUTH_USER,
+    query: [{ name: "status", type: "string" }, { name: "communityId", type: "string" }, { name: "page", type: "integer" }, { name: "pageSize", type: "integer" }],
     response: videoListResponseSchema,
   },
   {
@@ -284,6 +286,7 @@ const coreEndpoints: EndpointContract[] = [
     summary: "Reviews assigned to or submitted by the caller",
     tag: "Reviews",
     auth: AUTH_USER,
+    query: [{ name: "status", type: "string" }, { name: "videoId", type: "string" }, { name: "limit", type: "integer" }, { name: "offset", type: "integer" }],
     response: freeFormDataSchema,
   },
   {
@@ -346,7 +349,8 @@ const coreEndpoints: EndpointContract[] = [
     summary: "Missions available to the caller",
     tag: "Missions",
     auth: AUTH_USER,
-    response: missionListResponseSchema,
+    query: [{ name: "communityId", type: "string" }, { name: "difficulty", type: "string" }, { name: "chainId", type: "string" }, { name: "page", type: "integer" }, { name: "pageSize", type: "integer" }],
+    response: paginatedMissionListResponseSchema,
   },
   {
     route: { method: "POST", path: "/api/v1/missions" },
@@ -474,6 +478,7 @@ const coreEndpoints: EndpointContract[] = [
     summary: "Inbox for the caller",
     tag: "Notifications",
     auth: AUTH_USER,
+    query: [{ name: "limit", type: "integer" }, { name: "unreadOnly", type: "boolean" }],
     response: notificationListResponseSchema,
   },
   {
@@ -562,6 +567,7 @@ export const endpoints: EndpointContract[] = [
   ...discoveryEndpoints,
   ...topupsadminEndpoints,
   ...missionsEndpoints,
+  ...mobileEndpoints,
 ];
 
 export const systemEndpoints: EndpointContract[] = [

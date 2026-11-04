@@ -50,6 +50,14 @@ export interface Env {
   EMAIL_FROM?: string;
   /** Deployed SPA origin (https://…) used to absolutise email links. Optional. */
   SITE_URL?: string;
+  FCM_SERVICE_ACCOUNT_JSON?: string;
+  DEVICE_TOKEN_SECRET?: string;
+  GOOGLE_PLAY_SERVICE_ACCOUNT_JSON?: string;
+  GOOGLE_PLAY_PACKAGE_NAME?: string;
+  PLAY_CREDIT_PRODUCTS_JSON?: string;
+  ANDROID_MIN_VERSION_CODE?: string;
+  ANDROID_MAINTENANCE?: string;
+  ANDROID_OAUTH_REDIRECT_URI?: string;
 }
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";

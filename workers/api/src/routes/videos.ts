@@ -15,6 +15,7 @@ import {
 } from "../contract/schemas/content";
 import { createLogger } from "../lib/logger";
 import { sanitize } from "../lib/sanitize";
+import { notBlockedSql } from "../lib/blocks";
 
 const db = (env: Env) => new Database(env);
 
@@ -69,8 +70,10 @@ export const videoRoutes: RouteDefinition[] = [
         let countQuery = "SELECT COUNT(*) as count FROM videos v WHERE v.status = 'active'";
         let dataQuery =
           "SELECT v.*, c.name as community_name FROM videos v LEFT JOIN communities c ON v.community_id = c.id WHERE v.status = 'active'";
-        const params: any[] = [];
+        const params: any[] = [userId, userId];
 
+        countQuery += ` ${notBlockedSql("v.user_id")}`;
+        dataQuery += ` ${notBlockedSql("v.user_id")}`;
         if (communityId) {
           countQuery += " AND v.community_id = ?";
           dataQuery += " AND v.community_id = ?";
@@ -428,8 +431,8 @@ export const reviewRoutes: RouteDefinition[] = [
         const { limit, offset } = getPagination(request);
 
         const totalResult = await db.query(
-          "SELECT COUNT(*) as count FROM reviews WHERE reviewer_id = ? AND status IN ('assigned', 'in_progress', 'overdue')",
-          [userId],
+          "SELECT COUNT(*) as count FROM reviews r WHERE r.reviewer_id = ? AND r.status IN ('assigned', 'in_progress', 'overdue') ${notBlockedSql('r.submitter_id')}",
+          [userId, userId, userId],
         );
 
         const result = await db.query(
@@ -451,9 +454,9 @@ export const reviewRoutes: RouteDefinition[] = [
            FROM reviews r
            JOIN videos v ON r.video_id = v.id
            JOIN users u ON r.submitter_id = u.id
-           WHERE r.reviewer_id = ? AND r.status IN ('assigned', 'in_progress', 'overdue')
+           WHERE r.reviewer_id = ? AND r.status IN ('assigned', 'in_progress', 'overdue') ${notBlockedSql("r.submitter_id")}
            ORDER BY r.assigned_at DESC LIMIT ? OFFSET ?`,
-          [userId, limit, offset],
+          [userId, userId, userId, limit, offset],
         );
 
         return createResponse({

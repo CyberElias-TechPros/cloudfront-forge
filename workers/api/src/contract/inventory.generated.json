@@ -1,8 +1,8 @@
 {
   "generatedBy": "npm run contract:build",
   "coverage": {
-    "routes": 110,
-    "documented": 110,
+    "routes": 121,
+    "documented": 121,
     "percent": 100,
     "undocumented": []
   },
@@ -316,6 +316,16 @@
       "tag": "Support",
       "operationId": "createSupportRequest",
       "path": "/api/v1/support"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/support/mine",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Support",
+      "operationId": "listMySupportRequests",
+      "path": "/api/v1/support/mine"
     },
     {
       "method": "GET",
@@ -1136,6 +1146,106 @@
       "tag": "Discovery",
       "operationId": "listCollaborators",
       "path": "/api/v1/discover/collaborators"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/mobile/config",
+      "matcher": "path",
+      "documented": true,
+      "auth": "public",
+      "tag": "Mobile",
+      "operationId": "getMobileConfig",
+      "path": "/api/v1/mobile/config"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/mobile/devices",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Mobile",
+      "operationId": "registerMobileDevice",
+      "path": "/api/v1/mobile/devices"
+    },
+    {
+      "method": "DELETE",
+      "key": "/api/v1/mobile/devices",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Mobile",
+      "operationId": "removeMobileDevice",
+      "path": "/api/v1/mobile/devices"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/mobile/consent",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Mobile",
+      "operationId": "recordMobileConsent",
+      "path": "/api/v1/mobile/consent"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/users/me/blocks",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Safety",
+      "operationId": "listBlockedMembers",
+      "path": "/api/v1/users/me/blocks"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/users/me/blocks",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Safety",
+      "operationId": "blockMember",
+      "path": "/api/v1/users/me/blocks"
+    },
+    {
+      "method": "DELETE",
+      "key": "^\\/api\\/v1/users/me/blocks/([^/]+)$",
+      "matcher": "pattern",
+      "documented": true,
+      "auth": "user",
+      "tag": "Safety",
+      "operationId": "unblockMember",
+      "path": "/api/v1/users/me/blocks/{userId}"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/billing/products",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Billing",
+      "operationId": "listCreditProducts",
+      "path": "/api/v1/billing/products"
+    },
+    {
+      "method": "GET",
+      "key": "/api/v1/billing/purchases",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Billing",
+      "operationId": "listPlayPurchases",
+      "path": "/api/v1/billing/purchases"
+    },
+    {
+      "method": "POST",
+      "key": "/api/v1/billing/verify",
+      "matcher": "path",
+      "documented": true,
+      "auth": "user",
+      "tag": "Billing",
+      "operationId": "verifyPlayPurchase",
+      "path": "/api/v1/billing/verify"
     }
   ]
 }

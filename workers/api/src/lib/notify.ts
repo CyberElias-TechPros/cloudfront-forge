@@ -156,7 +156,7 @@ export async function notify(env: Env, userId: string, options: NotifyOptions): 
     }
 
     if (prefs.push) {
-      await notifyUserPush(env, userId, options.title, options.message);
+      await notifyUserPush(env, userId, options.title, options.message, { type: options.type, url: options.url ?? "/notifications" });
     }
 
     if (prefs.email && EMAIL_CATEGORIES.has(options.category)) {

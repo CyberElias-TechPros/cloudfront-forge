@@ -178,7 +178,7 @@ curl https://<worker-host>/health
 # {"status":"ok","environment":"production","timestamp":"..."}
 
 curl --fail https://<worker-host>/ready
-# {"success":true,"data":{"status":"ready","schemaVersion":"037",...}}
+# {"success":true,"data":{"status":"ready","schemaVersion":"039",...}}
 ```
 
 `/health` deliberately stays healthy during a bad configuration so uptime

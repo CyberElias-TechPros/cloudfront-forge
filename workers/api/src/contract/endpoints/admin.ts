@@ -66,7 +66,7 @@ export const adminEndpoints: EndpointContract[] = [
     auth: "moderator",
     request: reportResolveSchema,
     response: actionMessageSchema,
-    errors: ["FORBIDDEN"],
+    errors: ["CONFLICT", "FORBIDDEN"],
   },
   {
     route: { method: "GET", path: "/api/v1/admin/metrics" },

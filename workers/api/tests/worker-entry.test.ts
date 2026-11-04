@@ -58,7 +58,7 @@ describe("worker entry point", () => {
     const body = (await response.json()) as {
       data: { status: string; schemaVersion: string };
     };
-    expect(body.data).toMatchObject({ status: "ready", schemaVersion: "037" });
+    expect(body.data).toMatchObject({ status: "ready", schemaVersion: "039" });
   });
 
   it("fails readiness when a required migration object is missing", async () => {

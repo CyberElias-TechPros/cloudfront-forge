@@ -18,6 +18,7 @@ import {
   type EvidenceDecision,
 } from "../lib/verification/policy";
 import { scoreHeartbeat } from "../lib/verification/heartbeat";
+import { acquireOperationLock, releaseOperationLock } from "../lib/operation-lock";
 import { watchClaimSchema, watchHeartbeatSchema } from "../contract/schemas/watch";
 
 async function sha256Hex(input: string): Promise<string> {
@@ -341,18 +342,21 @@ export const watchRoutes: RouteDefinition[] = [
 
         const db = new Database(env);
         const row = await db.querySingle(
-          "SELECT id FROM watch_session_tokens WHERE token = ? AND user_id = ? AND expires_at > ?",
+          "SELECT id, video_id FROM watch_session_tokens WHERE token = ? AND user_id = ? AND expires_at > ?",
           [sessionToken, userId, Math.floor(Date.now() / 1000)],
         );
         if (!row)
           return createErrorResponse("UNAUTHORIZED", "Invalid or expired session token", 401);
 
-        // Score the sample against the last *accepted* one: rewind, fast-forward
+        if (parsed.data.videoId && parsed.data.videoId !== (row as { video_id: string }).video_id) {
+          return createErrorResponse("VALIDATION_ERROR", "The sample does not belong to this session's video", 400);
+        }
+        // Score the sample against the last baseline: rewind, fast-forward
         // and long gaps are recorded but never credited (SEC-012).
         const sessionId = (row as { id: string }).id;
         const previous = await db.querySingle(
           `SELECT player_time, received_at FROM watch_heartbeats
-           WHERE session_token_id = ? AND accepted = 1
+           WHERE session_token_id = ? AND (accepted = 1 OR reject_reason = 'gap_too_large')
            ORDER BY received_at DESC, player_time DESC LIMIT 1`,
           [sessionId],
         );
@@ -435,6 +439,12 @@ export const watchRoutes: RouteDefinition[] = [
           return createErrorResponse("FORBIDDEN", "You cannot watch your own video", 403);
         }
 
+        // Serialise this member's claims across videos as well as retries. This
+        // protects both the delta payout and the daily ceiling from concurrent reads.
+        if (!await acquireOperationLock(db, watcherId, "watch")) {
+          return createErrorResponse("CONFLICT", "A watch claim is already processing. Refresh before retrying.", 409);
+        }
+        try {
         // Short videos: require at most the full length, capped at REQUIRED_WATCH_SEC.
         // The target is a deterministic per-video value so requirements vary
         // naturally across videos instead of being uniformly 180s.
@@ -780,6 +790,9 @@ export const watchRoutes: RouteDefinition[] = [
           level: finalXpState.level,
           totalXp: finalXpState.totalXp,
         });
+        } finally {
+          await releaseOperationLock(db, watcherId, "watch");
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
         if (message === "AUTH_required" || message === "AUTH_TOKEN_INVALID") {

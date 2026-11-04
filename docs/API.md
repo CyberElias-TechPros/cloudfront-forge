@@ -66,7 +66,7 @@ Retryable codes return `Retry-After` where applicable; clients should back off w
 
 ## Contract coverage
 
-110/110 router entries are documented (100%). Every route in the router table is in the contract, and the CI coverage floor is 100% — adding a route without a registry entry fails the contract tests.
+121/121 router entries are documented (100%). Every route in the router table is in the contract, and the CI coverage floor is 100% — adding a route without a registry entry fails the contract tests.
 
 ## Endpoints
 
@@ -323,6 +323,7 @@ Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 Body fields:
 
 - `sessionToken` (required): string (min 1, max 512)
+- `videoId`: string (min 1, max 100)
 - `playerTime` (required): number (min 0, max 86400)
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
@@ -355,8 +356,10 @@ _Submissions and archive._
 
 Response `data` fields:
 
-- `videos`: array of object { id, youtubeVideoId, youtubeUrl, title, thumbnailUrl, durationSeconds, status, createdAt }
-- `pagination`: object { limit, offset, total }
+- `items`: array of object { id, youtubeVideoId, youtubeUrl, title, thumbnailUrl, durationSeconds, status, createdAt }
+- `total`: number
+- `limit`: number
+- `offset`: number
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
@@ -452,7 +455,10 @@ _Missions, chains and assignments._
 
 Response `data` fields:
 
-- `missions`: array of object { id, title, description, difficulty, xpReward, creditReward, status }
+- `items`: array of object { id, title, description, difficulty, xp_reward, xpReward, credit_reward, creditReward, isAssigned, isCompleted, assignment_status }
+- `total`: number
+- `limit`: number
+- `offset`: number
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
@@ -545,7 +551,7 @@ Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
 Response `data` fields:
 
-- `items`: array of object { id, title, description, progress, target, completed, xpReward, creditReward }
+- `items`: array of object { id, title, description, progress, target, completed, xpReward, creditReward, questType, targetCount, rewardXp, rewardCredits, status }
 - `date`: string
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
@@ -616,7 +622,7 @@ _The watch queue, the caller's submissions and their activity._
 
 Response `data` fields:
 
-- `items`: array of object { id, type, title, message, created_at }
+- `items`: array of object { id, type, title, message, created_at, what, when }
 - `total`: number
 - `limit`: number
 - `offset`: number
@@ -629,7 +635,7 @@ Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
 Response `data` fields:
 
-- `items`: array of object { id, title, duration_seconds, status, created_at, user_id, youtube_video_id, youtube_url, channel_id, magic_word, display_name, photo_url, watch_status, xp_awarded, credits_awarded }
+- `items`: array of object { id, title, duration_seconds, status, created_at, user_id, youtube_video_id, youtubeVideoId, creatorId, owner, avatar, durationSec, requiredSec, reward, niche, postedAgo, youtubeUrl, creatorChannelId, magicWord, rewardedXp, rewardedCredits, thumbnailUrl, creatorName, youtube_url, channel_id, magic_word, display_name, photo_url, watch_status, xp_awarded, credits_awarded }
 - `total`: number
 - `limit`: number
 - `offset`: number
@@ -642,7 +648,7 @@ Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
 Response `data` fields:
 
-- `items`: array of object { id, title, status, created_at, watch_target, comment_count, watcher_count, subs_count }
+- `items`: array of object { id, title, status, created_at, watch_target, comment_count, watcher_count, subs_count, postedAgo, watchers, target, subs, comments }
 - `total`: number
 - `limit`: number
 - `offset`: number
@@ -699,6 +705,8 @@ Response `data` fields:
 - `isOwner`: boolean
 - `isMember`: boolean
 - `role`: string
+- `myRole`: string
+- `rules`: string
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
@@ -973,8 +981,10 @@ _Inbox, preferences and push registration._
 
 Response `data` fields:
 
-- `notifications`: array of object { id, type, title, message, isRead, createdAt }
-- `unreadCount`: number
+- `items`: array of object { id, type, title, message, isRead, createdAt }
+- `total`: number
+- `limit`: number
+- `offset`: number
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
@@ -1120,6 +1130,40 @@ Response `data` fields:
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
+#### `GET /api/v1/users/me/blocks`
+
+**Members blocked by the caller** — auth: `user`
+
+Response `data` fields:
+
+- `items`: array of object { id, displayName, createdAt }
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/users/me/blocks`
+
+**Hide a member's content in both directions** — auth: `user`
+
+Body fields:
+
+- `userId` (required): string
+
+Response `data` fields:
+
+- `message`: string
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `DELETE /api/v1/users/me/blocks/{userId}`
+
+**Unblock a member** — auth: `user`
+
+Response `data` fields:
+
+- `message`: string
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
 ### Support
 
 _Member support requests and the operator queue._
@@ -1157,6 +1201,16 @@ Response `data` fields:
 
 - `message`: string
 - `supportId`: string
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `GET /api/v1/support/mine`
+
+**The caller's support requests and resolution status** — auth: `user`
+
+Response `data` fields:
+
+- `items`: array of object { id, topic, message, status, createdAt, resolvedAt, displayName, email }
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
@@ -1218,10 +1272,6 @@ Statuses: `200`, `400`, `401`, `403`, `404`, `429`, `500`, `503`
 
 **Report queue (moderator view)** — auth: `moderator`
 
-Response `data` fields:
-
-- `items`: array of object { id, reason, resource_type, resource_id, status, created_at, reporter_name, reported_name, description }
-
 Statuses: `200`, `400`, `401`, `403`, `404`, `429`, `500`, `503`
 
 #### `POST /api/v1/admin/reports/{reportId}/resolve`
@@ -1237,7 +1287,7 @@ Response `data` fields:
 
 - `message`: string
 
-Statuses: `200`, `400`, `401`, `403`, `404`, `429`, `500`, `503`
+Statuses: `200`, `400`, `401`, `403`, `404`, `409`, `429`, `500`, `503`
 
 #### `GET /api/v1/admin/retention`
 
@@ -1252,13 +1302,6 @@ Statuses: `200`, `400`, `401`, `403`, `404`, `429`, `500`, `503`
 #### `GET /api/v1/admin/users`
 
 **Member directory with trust score and platform role** — auth: `admin`
-
-Response `data` fields:
-
-- `items`: array of object { id, email, display_name, photo_url, status, created_at, trust_score, platform_role }
-- `total`: number
-- `limit`: number
-- `offset`: number
 
 Statuses: `200`, `400`, `401`, `403`, `404`, `429`, `500`, `503`
 
@@ -1449,9 +1492,123 @@ Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 Response `data` fields:
 
 - `communities`: array of object { id, name, description, slug, is_public, isPublic, max_members, maxMembers, logo_url, banner_url, owner_id, invite_code, status, created_at, updated_at }
-- `videos`: array of object { id, title, duration_seconds, status, created_at, user_id, youtube_video_id, youtube_url, channel_id, magic_word, display_name, photo_url, watch_status, xp_awarded, credits_awarded }
+- `videos`: array of object { id, title, duration_seconds, status, created_at, user_id, youtube_video_id, youtubeVideoId, creatorId, owner, avatar, durationSec, requiredSec, reward, niche, postedAgo, youtubeUrl, creatorChannelId, magicWord, rewardedXp, rewardedCredits, thumbnailUrl, creatorName, youtube_url, channel_id, magic_word, display_name, photo_url, watch_status, xp_awarded, credits_awarded }
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+### Mobile
+
+_Android configuration, consent and device push._
+
+#### `GET /api/v1/mobile/config`
+
+**Native client capability and compatibility flags** — auth: `public`
+
+Response `data` fields:
+
+- `apiVersion`: string
+- `minAndroidVersionCode`: number
+- `maintenance`: boolean
+- `watchSessionsEnabled`: boolean
+- `billingEnabled`: boolean
+- `pushEnabled`: boolean
+- `coachEnabled`: boolean
+- `youtubeEnabled`: boolean
+- `policyVersion`: string
+
+Statuses: `200`, `400`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/mobile/consent`
+
+**Record acceptance of the current terms and privacy notice** — auth: `user`
+
+Body fields:
+
+- `policyVersion` (required): string (min 1, max 32)
+- `termsAccepted` (required): `true`
+- `privacyAccepted` (required): `true`
+- `ageConfirmed` (required): `true`
+
+Response `data` fields:
+
+- `message`: string
+- `policyVersion`: string
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/mobile/devices`
+
+**Register an FCM token for this account and installation** — auth: `user`
+
+Body fields:
+
+- `token` (required): string (min 20, max 4096)
+- `installationId` (required): string
+
+Response `data` fields:
+
+- `message`: string
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `DELETE /api/v1/mobile/devices`
+
+**Remove this installation's push token** — auth: `user`
+
+Body fields:
+
+- `installationId` (required): string
+
+Response `data` fields:
+
+- `message`: string
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+### Billing
+
+_Server-verified Google Play credit purchases._
+
+#### `GET /api/v1/billing/products`
+
+**Server-authoritative Play credit products; prices come from Play** — auth: `user`
+
+Response `data` fields:
+
+- `enabled`: boolean
+- `products`: array of object { productId, label, credits }
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `GET /api/v1/billing/purchases`
+
+**The caller's verified Play purchase history** — auth: `user`
+
+Response `data` fields:
+
+- `items`: array of object { orderId, productId, credits, status, createdAt }
+
+Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
+
+#### `POST /api/v1/billing/verify`
+
+**Verify, grant once and consume a Play purchase** — auth: `user`
+
+Body fields:
+
+- `productId` (required): string (min 1, max 100)
+- `purchaseToken` (required): string (min 10, max 4096)
+
+Response `data` fields:
+
+- `orderId`: string
+- `productId`: string
+- `credits`: number
+- `balance`: number
+- `alreadyGranted`: boolean
+- `consumed`: boolean
+
+Statuses: `200`, `400`, `401`, `403`, `404`, `409`, `429`, `500`, `503`
 
 ### System
 

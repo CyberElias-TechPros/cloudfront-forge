@@ -89,6 +89,7 @@ export const integrationsEndpoints: EndpointContract[] = [
     tag: "YouTube",
     auth: "user",
     response: youtubeAuthorizeResponseSchema,
+    query: [{ name: "client", enum: ["web", "android"], default: "web" }],
     errors: ["SERVICE_UNAVAILABLE"],
   },
   {

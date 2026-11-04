@@ -128,6 +128,10 @@ export function scoreHeartbeatStream(
       acceptedCount += 1;
       verifiedSeconds += verdict.deltaSeconds;
       previousAccepted = sample;
+    } else if (verdict.rejectReason === "gap_too_large") {
+      // The absent interval earns nothing, but foreground playback can resume.
+      // Keep this zero-credit baseline so one pause does not poison the session.
+      previousAccepted = sample;
     }
   }
 

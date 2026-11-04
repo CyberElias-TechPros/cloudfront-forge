@@ -129,10 +129,13 @@ describe("heartbeat integrity — attack simulations", () => {
       { playerTime: 0, receivedAt: 1_000_000 },
       { playerTime: 600, receivedAt: 1_000_600 },
       { playerTime: 1200, receivedAt: 1_001_200 },
+      { playerTime: 1230, receivedAt: 1_001_230 },
     ];
     const { verifiedSeconds, acceptedCount } = scoreHeartbeatStream(samples);
-    expect(acceptedCount).toBe(1);
-    expect(verifiedSeconds).toBe(0);
+    // The first long absence earns zero; the next continuous interval can
+    // earn again from a fresh baseline, but the absent 600 seconds never count.
+    expect(acceptedCount).toBe(2);
+    expect(verifiedSeconds).toBe(30);
   });
 
   it("respects a custom gap configuration", () => {

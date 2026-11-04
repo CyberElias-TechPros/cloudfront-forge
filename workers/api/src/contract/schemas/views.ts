@@ -80,7 +80,7 @@ export const communityDetailResponseSchema = z
     settings: z.record(z.unknown()).optional(),
     isOwner: z.boolean().optional(),
     isMember: z.boolean().optional(),
-    role: nullableString.optional(),
+    role: nullableString.optional(), myRole: nullableString.optional(), rules: nullableString.optional(),
   })
   .passthrough();
 
@@ -135,6 +135,13 @@ export const queueItemSchema = z
     created_at: iso.optional(),
     user_id: z.string().optional(),
     youtube_video_id: nullableString.optional(),
+    youtubeVideoId: nullableString.optional(),
+    creatorId: id.optional(), owner: z.string().optional(), avatar: nullableString.optional(),
+    durationSec: z.number().optional(), requiredSec: z.number().optional(), reward: z.number().optional(),
+    niche: z.string().optional(), postedAgo: z.string().optional(), youtubeUrl: z.string().optional(),
+    creatorChannelId: nullableString.optional(), magicWord: nullableString.optional(),
+    rewardedXp: z.number().optional(), rewardedCredits: z.number().optional(),
+    thumbnailUrl: nullableString.optional(), creatorName: nullableString.optional(),
     youtube_url: nullableString.optional(),
     channel_id: nullableString.optional(),
     magic_word: nullableString.optional(),
@@ -159,6 +166,8 @@ export const submissionItemSchema = z
     comment_count: z.number().optional(),
     watcher_count: z.number().optional(),
     subs_count: z.number().optional(),
+    postedAgo: z.string().optional(), watchers: z.number().optional(), target: z.number().optional(),
+    subs: z.number().optional(), comments: z.number().optional(),
   })
   .passthrough();
 
@@ -171,7 +180,7 @@ export const activityItemSchema = z
     type: z.string(),
     title: nullableString.optional(),
     message: nullableString.optional(),
-    created_at: iso.optional(),
+    created_at: iso.optional(), what: z.string().optional(), when: z.string().optional(),
   })
   .passthrough();
 
@@ -266,7 +275,8 @@ export const questSchema = z
     target: z.number().optional(),
     completed: z.boolean().optional(),
     xpReward: z.number().optional(),
-    creditReward: z.number().optional(),
+    creditReward: z.number().optional(), questType: z.string().optional(), targetCount: z.number().optional(),
+    rewardXp: z.number().optional(), rewardCredits: z.number().optional(), status: z.string().optional(),
   })
   .passthrough();
 
@@ -281,7 +291,8 @@ export const leaderboardEntrySchema = z
     photo_url: nullableString.optional(),
     total_xp: z.number().optional(),
     credits: z.number().optional(),
-    reputation: z.number().optional(),
+    reputation: z.number().optional(), displayName: nullableString.optional(), photoUrl: nullableString.optional(),
+    totalXp: z.number().optional(), weightedScore: z.number().optional(), rank: z.number().optional(),
   })
   .passthrough();
 
@@ -304,8 +315,10 @@ export const missionAssignmentSchema = z
     title: nullableString.optional(),
     description: nullableString.optional(),
     difficulty: z.string().optional(),
-    xp_reward: z.number().optional(),
-    credit_reward: z.number().optional(),
+    xp_reward: z.number().optional(), xpReward: z.number().optional(),
+    credit_reward: z.number().optional(), creditReward: z.number().optional(),
+    isAssigned: z.boolean().optional(), isCompleted: z.boolean().optional(),
+    chainId: nullableString.optional(), chainStep: z.number().optional(),
     time_estimate_minutes: z.number().optional(),
     assigned_at: iso.optional(),
     completed_at: nullableIso.optional(),
@@ -321,8 +334,9 @@ export const missionListResponseSchema = paginated(
       title: z.string(),
       description: nullableString.optional(),
       difficulty: z.string().optional(),
-      xp_reward: z.number().optional(),
-      credit_reward: z.number().optional(),
+      xp_reward: z.number().optional(), xpReward: z.number().optional(),
+      credit_reward: z.number().optional(), creditReward: z.number().optional(),
+      isAssigned: z.boolean().optional(), isCompleted: z.boolean().optional(),
       assignment_status: nullableString.optional(),
     })
     .passthrough(),
@@ -405,7 +419,7 @@ export const adminUserSchema = z
   })
   .passthrough();
 
-export const adminUserListResponseSchema = paginated(adminUserSchema);
+export const adminUserListResponseSchema = z.array(adminUserSchema);
 
 export const adminCommunitySchema = z
   .object({
@@ -432,14 +446,13 @@ export const adminReportSchema = z
     status: z.string().optional(),
     created_at: iso.optional(),
     reporter_name: nullableString.optional(),
-    reported_name: nullableString.optional(),
+    reported_name: nullableString.optional(), reportedUserName: nullableString.optional(),
+    reporterName: nullableString.optional(), resourceType: z.string().optional(), resourceId: z.string().optional(),
     description: nullableString.optional(),
   })
   .passthrough();
 
-export const adminReportListResponseSchema = z
-  .object({ items: z.array(adminReportSchema) })
-  .passthrough();
+export const adminReportListResponseSchema = z.array(adminReportSchema);
 
 export const appealSchema = z
   .object({

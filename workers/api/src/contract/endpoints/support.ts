@@ -19,6 +19,9 @@ export const supportEndpoints: EndpointContract[] = [
     request: supportRequestSchema,
     response: supportCreateResponseSchema,
   },
+  { route: { method: "GET", path: "/api/v1/support/mine" }, path: "/api/v1/support/mine",
+    operationId: "listMySupportRequests", summary: "The caller's support requests and resolution status",
+    tag: "Support", auth: "user", response: supportTicketListResponseSchema },
   {
     route: { method: "GET", path: "/api/v1/admin/support" },
     path: "/api/v1/admin/support",

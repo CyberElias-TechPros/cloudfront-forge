@@ -1,0 +1,40 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>html,body,#player{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden}iframe{width:100%;height:100%;border:0}</style>
+</head><body><div id="player"></div>
+<script>
+// Isolated YouTube IFrame surface. No LoopSquad credentials, cookies or API calls live here.
+var VIDEO_ID = "__VIDEO_ID__";
+var ORIGIN = "https://loop.freegameplay.site";
+var player, state = -1, ready = false;
+function post(type, extra) {
+  try {
+    var payload = Object.assign({ type: type, videoId: VIDEO_ID, state: state }, extra || {});
+    if (window.LoopBridge) window.LoopBridge.onEvent(JSON.stringify(payload));
+  } catch (e) {}
+}
+function snapshot() {
+  if (!player || !ready) return {};
+  try { return { time: player.getCurrentTime(), duration: player.getDuration(), rate: player.getPlaybackRate(), muted: player.isMuted() }; }
+  catch (e) { return {}; }
+}
+window.onYouTubeIframeAPIReady = function () {
+  player = new YT.Player("player", {
+    videoId: VIDEO_ID,
+    host: "https://www.youtube.com",
+    playerVars: { enablejsapi: 1, origin: ORIGIN, playsinline: 1, rel: 0, modestbranding: 1, iv_load_policy: 3, fs: 0, disablekb: 1 },
+    events: {
+      onReady: function () { ready = true; post("ready", snapshot()); },
+      onStateChange: function (e) { state = e.data; post("state", snapshot()); },
+      onPlaybackRateChange: function () { post("rate", snapshot()); },
+      onError: function (e) { post("error", { code: e.data }); },
+      onAutoplayBlocked: function () { post("autoplayBlocked", snapshot()); }
+    }
+  });
+};
+setInterval(function () { if (ready && state === 1) post("tick", snapshot()); }, 1000);
+document.addEventListener("visibilitychange", function () { post("visibility", { visible: document.visibilityState === "visible" }); });
+setTimeout(function () { if (!ready) post("timeout", {}); }, 20000);
+</script>
+<script src="https://www.youtube.com/iframe_api"></script>
+</body></html>
