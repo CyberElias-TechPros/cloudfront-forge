@@ -39,7 +39,7 @@ class SettingsViewModel @Inject constructor(private val repository: LoopReposito
     }
     fun connectYouTube() = actions.run {
         if (!repository.config().youtubeEnabled) throw IllegalStateException("YouTube connection is not enabled in this environment")
-        _youtubeUrl.value = repository.call { startYoutubeAuthorization("android") }.authUrl
+        _youtubeUrl.value = repository.call { startYouTubeAuthorization("android") }.authUrl
         "Opening Google authorization…"
     }
     fun disconnectYouTube() = actions.run { repository.call { disconnectYouTube() }; loader.refresh(); "YouTube disconnected" }

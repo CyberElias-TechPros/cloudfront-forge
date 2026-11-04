@@ -63,13 +63,21 @@ fun ListMySupportRequestsResponseItemsItem.toTicket() = SupportTicket(id, topic.
 fun ListMyReportsResponseItemsItem.toReport() = ReportItem(id, reason.orEmpty(), resourceType.orEmpty(), resourceId.orEmpty(), status.orEmpty(), resolutionNotes.orEmpty(), appealed ?: false)
 fun ListBlockedMembersResponseItemsItem.toBlock() = BlockItem(id, displayName ?: "Creator", createdAt.orEmpty())
 fun ListAiConversationsResponseConversationsItem.toConversation() = CoachConversation(id, title ?: "Coach conversation", updatedAt.orEmpty())
-fun ListAiMessagesResponseMessagesItem.toMessage() = CoachMessage(id, role, content)
+fun ListAiMessagesResponseMessagesItem.toMessage() = CoachMessage(id.orEmpty(), role, content)
 fun ListCreditProductsResponseProductsItem.toPack() = CreditPack(productId, label, credits.toInt())
 fun ListPlayPurchasesResponseItemsItem.toPurchase() = PurchaseRecord(orderId, productId, credits.toInt(), status, createdAt)
 
 fun SearchResponse.toResult() = SearchResult(
     communities = communities.map { CommunityItem(it.id, it.name, it.description.orEmpty(), it.isPublic ?: false, memberCount = it.memberCount?.toInt() ?: 0) },
-    videos = videos.map { it.toVideo() })
+    videos = videos.map { it.toSearchVideo() })
+
+fun SearchResponseVideosItem.toSearchVideo() = VideoItem(id = id, title = title ?: "Video",
+    creatorId = creatorId ?: userId.orEmpty(), creatorName = creatorName ?: displayName ?: owner ?: "Creator",
+    creatorAvatar = avatar ?: photoUrl, youtubeVideoId = youtubeVideoId.orEmpty(), youtubeUrl = youtubeUrl.orEmpty(),
+    thumbnailUrl = thumbnailUrl ?: youtubeVideoId?.let { "https://i.ytimg.com/vi/$it/hqdefault.jpg" },
+    durationSec = (durationSec ?: durationSeconds ?: 0.0).toInt(), requiredSec = (requiredSec ?: 180.0).toInt(),
+    rewardXp = (reward ?: rewardedXp ?: 0.0).toInt(), status = watchStatus ?: status ?: "active",
+    magicWord = magicWord, postedAgo = postedAgo ?: createdAt.orEmpty())
 
 fun JsonObject.toCollaborator() = Collaborator(str("id"), str("displayName", "name", default = "Creator"),
     str("photoUrl").ifBlank { null }, str("niche"), str("experienceLevel", default = "beginner"), str("goals"), str("collaborationIntent", default = "feedback"))

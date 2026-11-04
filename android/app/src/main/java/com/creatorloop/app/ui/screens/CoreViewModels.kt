@@ -76,7 +76,7 @@ class CommunitiesViewModel @Inject constructor(private val repository: LoopRepos
     fun join(code: String) = actions.run {
         if (code.isBlank()) throw IllegalArgumentException("Enter an invite code")
         val result = repository.call { joinCommunityByCode(JoinCommunityByCodeRequest(code.trim())) }
-        repository.invalidate("communities"); loader.refresh(); if (result.status == "pending") "Join request sent for approval" else "Joined the squad"
+        repository.invalidate("communities"); loader.refresh(); if (result.pending == true) "Join request sent for approval" else "Joined the squad"
     }
 }
 
