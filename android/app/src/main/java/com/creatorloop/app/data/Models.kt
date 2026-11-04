@@ -2,7 +2,7 @@ package com.creatorloop.app.data
 
 /** Screen-facing models. Money, permissions and reward decisions never originate here. */
 data class Resource<T>(val data: T, val stale: Boolean = false, val savedAt: Long = System.currentTimeMillis(), val warning: String? = null) {
-    fun <R> map(transform: (T) -> R): Resource<R> = copy(data = transform(data))
+    fun <R> map(transform: (T) -> R): Resource<R> = Resource(transform(data), stale, savedAt, warning)
 }
 data class UiState<T>(val data: T? = null, val loading: Boolean = true, val error: String? = null,
                       val stale: Boolean = false, val savedAt: Long? = null, val busy: Boolean = false, val message: String? = null)

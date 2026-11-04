@@ -6,7 +6,6 @@ import com.android.billingclient.api.*
 import com.creatorloop.app.data.CreditPack
 import com.creatorloop.app.data.LoopRepository
 import com.creatorloop.app.data.friendlyMessage
-import com.creatorloop.core.networkapi.generated.ConsumePurchaseRequest
 import com.creatorloop.core.networkapi.generated.VerifyPlayPurchaseRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
@@ -29,7 +28,6 @@ class BillingManager @Inject constructor(@ApplicationContext private val context
     private val mutex = Mutex()
     private val _state = MutableStateFlow(BillingUiState())
     val state = _state.asStateFlow()
-    private var accountId: String = ""
     private val client: BillingClient = BillingClient.newBuilder(context)
         .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
         .setListener { result, purchases ->
@@ -44,12 +42,18 @@ class BillingManager @Inject constructor(@ApplicationContext private val context
     private suspend fun connected(): Boolean {
         if (client.isReady) return true
         return suspendCancellableCoroutine { continuation ->
-            client.startConnection(object : BillingServiceConnectionListener {
+            client.startConnection(object : BillingClientStateListener {
                 override fun onBillingSetupFinished(result: BillingResult) {
                     if (continuation.isActive) continuation.resume(result.responseCode == BillingClient.BillingResponseCode.OK)
                 }
                 override fun onBillingServiceDisconnected() { _state.value = _state.value.copy(connecting = false) }
             })
+        }
+    }
+
+    private suspend fun queryPurchases(): List<Purchase> = suspendCancellableCoroutine { continuation ->
+        client.queryPurchasesAsync(QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build()) { _, purchases ->
+            if (continuation.isActive) continuation.resume(purchases)
         }
     }
 
@@ -72,7 +76,6 @@ class BillingManager @Inject constructor(@ApplicationContext private val context
         val product = _state.value.products.firstOrNull { it.productId == productId } ?: run {
             _state.value = _state.value.copy(message = "This product is not available in Google Play yet."); return
         }
-        accountId = internalAccountId
         val params = BillingFlowParams.newBuilder().setProductDetailsParamsList(listOf(
             BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(product).build()
         )).setObfuscatedAccountId(internalAccountId).build()
@@ -82,8 +85,7 @@ class BillingManager @Inject constructor(@ApplicationContext private val context
 
     suspend fun restore() {
         if (!connected()) return
-        val result = client.queryPurchases(QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build())
-        result.purchasesList.forEach { verify(it) }
+        queryPurchases().forEach { verify(it) }
     }
 
     private suspend fun verify(purchase: Purchase) = mutex.withLock {
@@ -92,11 +94,9 @@ class BillingManager @Inject constructor(@ApplicationContext private val context
         }
         _state.value = _state.value.copy(busy = true, message = null)
         try {
-            val product = purchase.products.firstOrNull() ?: return@withLock
+            val product = purchase.products.firstOrNull()
+            if (product == null) { _state.value = _state.value.copy(busy = false); return@withLock }
             val granted = repository.call { verifyPlayPurchase(VerifyPlayPurchaseRequest(product, purchase.purchaseToken)) }
-            if (!granted.consumed) {
-                repository.call { consumePlayPurchase(ConsumePurchaseRequest(purchase.purchaseToken)) }
-            }
             repository.invalidate("credits", "member", "purchases", "rewards")
             _state.value = _state.value.copy(busy = false, lastGrantedCredits = granted.credits.toInt(),
                 message = if (granted.alreadyGranted) "This purchase was already credited. Your balance is unchanged." else "${granted.credits.toInt()} credits added.")

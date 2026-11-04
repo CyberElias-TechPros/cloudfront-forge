@@ -22,7 +22,7 @@ fun GetWatchQueueResponseItemsItem.toVideo() = VideoItem(id = id, title = title 
     durationSec = (durationSec ?: durationSeconds ?: 0.0).toInt(), requiredSec = (requiredSec ?: 180.0).toInt(),
     rewardXp = (reward ?: rewardedXp ?: 0.0).toInt(), status = watchStatus ?: status ?: "pending",
     magicWord = magicWord, postedAgo = postedAgo ?: createdAt.orEmpty(),
-    watchers = (watchers ?: 0.0).toInt(), target = (target ?: 0.0).toInt(), comments = (comments ?: 0.0).toInt())
+    watchers = watchers?.toInt() ?: 0, target = target?.toInt() ?: 0, comments = comments?.toInt() ?: 0)
 
 fun ListMySubmissionsResponseItemsItem.toVideo() = VideoItem(id = id, title = title ?: "Untitled video",
     youtubeVideoId = youtubeVideoId.orEmpty(), youtubeUrl = youtubeUrl.orEmpty(),
@@ -33,47 +33,43 @@ fun ListMySubmissionsResponseItemsItem.toVideo() = VideoItem(id = id, title = ti
 
 fun ListMyCommunitiesResponseItemsItem.toCommunity() = CommunityItem(id = id, name = name,
     description = description.orEmpty(), isPublic = isPublic ?: false, inviteCode = inviteCode,
-    memberCount = (memberCount ?: 0.0).toInt(), maxMembers = (maxMembers ?: 0.0).toInt(),
+    memberCount = memberCount?.toInt() ?: 0, maxMembers = maxMembers?.toInt() ?: 0,
     myRole = myRole, ownerId = ownerId.orEmpty())
 
 fun GetCommunityResponse.toDetail() = CommunityDetail(
     community = CommunityItem(id = community.id, name = community.name, description = community.description.orEmpty(),
-        isPublic = community.isPublic ?: false, inviteCode = community.inviteCode, memberCount = (memberCount ?: 0.0).toInt(),
-        maxMembers = (community.maxMembers ?: 0.0).toInt(), myRole = myRole ?: role, ownerId = community.ownerId.orEmpty(), rules = rules.orEmpty()),
+        isPublic = community.isPublic ?: false, inviteCode = community.inviteCode, memberCount = memberCount?.toInt() ?: 0,
+        maxMembers = community.maxMembers?.toInt() ?: 0, myRole = myRole ?: role ?: community.myRole, ownerId = community.ownerId.orEmpty(), rules = rules.orEmpty()),
     members = members.orEmpty().map { MemberBrief(it.userId ?: it.id, it.displayName ?: "Creator", it.photoUrl, it.role ?: "member") },
     requireApproval = settings?.bool("requireApproval") ?: false,
     allowPeerReview = settings?.bool("allowPeerReview", default = true) ?: true,
     allowCollaboration = settings?.bool("allowCollaboration", default = true) ?: true)
 
 fun ListMissionsResponseItemsItem.toMission() = MissionItem(id = id, title = title, description = description.orEmpty(),
-    difficulty = difficulty ?: "medium", xp = (xpReward ?: 0.0).toInt(), credits = (creditReward ?: 0.0).toInt(),
-    minutes = (timeEstimateMinutes ?: 0.0).toInt(), chainId = chainId, chainStep = chainStep?.toInt())
+    difficulty = difficulty ?: "medium", xp = xpReward?.toInt() ?: 0, credits = creditReward?.toInt() ?: 0,
+    minutes = timeEstimateMinutes?.toInt() ?: 0, chainId = chainId, chainStep = chainStep?.toInt())
 
 fun ListDailyQuestsResponseItemsItem.toQuest() = QuestItem(id = id, type = questType ?: title.orEmpty(),
-    progress = (progress ?: 0.0).toInt(), target = (targetCount ?: target ?: 1.0).toInt(),
+    progress = progress?.toInt() ?: 0, target = (targetCount ?: target ?: 1.0).toInt(),
     xp = (rewardXp ?: xpReward ?: 0.0).toInt(), credits = (rewardCredits ?: creditReward ?: 0.0).toInt(),
-    status = if (completed == true || status == "claimed") "claimed" else if (status == "complete" || progress ?: 0.0 >= (targetCount ?: target ?: 1.0)) "complete" else "active")
+    status = if (completed == true || status == "claimed") "claimed" else if (status == "complete" || (progress ?: 0.0) >= (targetCount ?: target ?: 1.0)) "complete" else "active")
 
-fun ListNotificationsResponseItemsItem.toNotification() = NotificationItem(id, type, title, message, isRead ?: false, createdAt ?: updatedAt.orEmpty())
+fun ListNotificationsResponseItemsItem.toNotification() = NotificationItem(id, type, title.orEmpty(), message.orEmpty(), isRead ?: false, createdAt.orEmpty())
 fun GetActivityResponseItemsItem.toActivity() = NotificationItem(id, type, title ?: what ?: "Activity", message.orEmpty(), true, createdAt ?: `when`.orEmpty())
 fun ListShopItemsResponseItemsItem.toShopItem() = ShopItem(id, name, description.orEmpty(), cost.toInt())
 fun GetCreditBalanceResponseTransactionsItem.toTx() = CreditTx(id, amount?.toInt() ?: 0, type.orEmpty(), description.orEmpty(), balanceAfter?.toInt(), createdAt.orEmpty())
-fun ListBadgesResponseItem.toBadge() = BadgeItem(id, name, description.orEmpty(), earnedAt)
-fun ListMySupportRequestsResponseItemsItem.toTicket() = SupportTicket(id, topic, message, status, createdAt, resolvedAt)
-fun ListMyReportsResponseItemsItem.toReport() = ReportItem(id, reason, resourceType, resourceId, status, notes.orEmpty(), appealed ?: false)
+fun ListBadgesResponseItem.toBadge() = BadgeItem(id, name.orEmpty(), description.orEmpty(), earnedAt)
+fun ListMySupportRequestsResponseItemsItem.toTicket() = SupportTicket(id, topic.orEmpty(), message.orEmpty(), status.orEmpty(), createdAt.orEmpty(), resolvedAt)
+fun ListMyReportsResponseItemsItem.toReport() = ReportItem(id, reason.orEmpty(), resourceType.orEmpty(), resourceId.orEmpty(), status.orEmpty(), resolutionNotes.orEmpty(), appealed ?: false)
 fun ListBlockedMembersResponseItemsItem.toBlock() = BlockItem(id, displayName ?: "Creator", createdAt.orEmpty())
 fun ListAiConversationsResponseConversationsItem.toConversation() = CoachConversation(id, title ?: "Coach conversation", updatedAt.orEmpty())
 fun ListAiMessagesResponseMessagesItem.toMessage() = CoachMessage(id, role, content)
 fun ListCreditProductsResponseProductsItem.toPack() = CreditPack(productId, label, credits.toInt())
-fun ListPlayPurchasesResponseItemsItem.toPurchase() = PurchaseRecord(orderId, productId, creditsGranted.toInt(), status, createdAt.orEmpty())
+fun ListPlayPurchasesResponseItemsItem.toPurchase() = PurchaseRecord(orderId, productId, credits.toInt(), status, createdAt)
 
 fun SearchResponse.toResult() = SearchResult(
-    communities = communities.map { CommunityItem(it.id, it.name, it.description.orEmpty(), it.isPublic ?: false, memberCount = (it.memberCount ?: 0.0).toInt()) },
-    videos = videos.map { VideoItem(id = it.id, title = it.title ?: "Video", creatorId = it.creatorId ?: it.userId.orEmpty(),
-        creatorName = it.creatorName ?: it.displayName.orEmpty(), creatorAvatar = it.avatar ?: it.photoUrl,
-        youtubeVideoId = it.youtubeVideoId.orEmpty(), youtubeUrl = it.youtubeUrl.orEmpty(),
-        thumbnailUrl = it.thumbnailUrl ?: it.youtubeVideoId?.let { id -> "https://i.ytimg.com/vi/$id/hqdefault.jpg" },
-        status = it.status ?: "active", postedAgo = it.postedAgo.orEmpty()) })
+    communities = communities.map { CommunityItem(it.id, it.name, it.description.orEmpty(), it.isPublic ?: false, memberCount = it.memberCount?.toInt() ?: 0) },
+    videos = videos.map { it.toVideo() })
 
 fun JsonObject.toCollaborator() = Collaborator(str("id"), str("displayName", "name", default = "Creator"),
     str("photoUrl").ifBlank { null }, str("niche"), str("experienceLevel", default = "beginner"), str("goals"), str("collaborationIntent", default = "feedback"))

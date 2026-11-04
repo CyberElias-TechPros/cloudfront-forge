@@ -46,8 +46,10 @@ export const communitySummarySchema = z
     maxMembers: z.number().optional(),
     logo_url: nullableString.optional(),
     banner_url: nullableString.optional(),
-    owner_id: z.string().optional(),
-    invite_code: z.string().optional(),
+    owner_id: z.string().optional(), ownerId: z.string().optional(),
+    invite_code: z.string().optional(), inviteCode: z.string().optional(),
+    my_role: z.string().optional(), myRole: z.string().optional(),
+    member_count: z.number().optional(), memberCount: z.number().optional(),
     status: z.string().optional(),
     created_at: iso.optional(),
     updated_at: iso.optional(),
@@ -150,6 +152,7 @@ export const queueItemSchema = z
     watch_status: nullableString.optional(),
     xp_awarded: z.number().optional(),
     credits_awarded: z.number().optional(),
+    target: z.number().optional(), watchers: z.number().optional(), comments: z.number().optional(),
   })
   .passthrough();
 
@@ -168,6 +171,9 @@ export const submissionItemSchema = z
     subs_count: z.number().optional(),
     postedAgo: z.string().optional(), watchers: z.number().optional(), target: z.number().optional(),
     subs: z.number().optional(), comments: z.number().optional(),
+    youtube_video_id: nullableString.optional(), youtubeVideoId: nullableString.optional(),
+    youtube_url: nullableString.optional(), youtubeUrl: nullableString.optional(),
+    thumbnail_url: nullableString.optional(), thumbnailUrl: nullableString.optional(),
   })
   .passthrough();
 
@@ -338,6 +344,8 @@ export const missionListResponseSchema = paginated(
       credit_reward: z.number().optional(), creditReward: z.number().optional(),
       isAssigned: z.boolean().optional(), isCompleted: z.boolean().optional(),
       assignment_status: nullableString.optional(),
+      timeEstimateMinutes: z.number().optional(), time_estimate_minutes: z.number().optional(),
+      chainId: nullableString.optional(), chainStep: z.number().optional(),
     })
     .passthrough(),
 );

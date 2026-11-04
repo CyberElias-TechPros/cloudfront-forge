@@ -455,7 +455,7 @@ _Missions, chains and assignments._
 
 Response `data` fields:
 
-- `items`: array of object { id, title, description, difficulty, xp_reward, xpReward, credit_reward, creditReward, isAssigned, isCompleted, assignment_status }
+- `items`: array of object { id, title, description, difficulty, xp_reward, xpReward, credit_reward, creditReward, isAssigned, isCompleted, assignment_status, timeEstimateMinutes, time_estimate_minutes, chainId, chainStep }
 - `total`: number
 - `limit`: number
 - `offset`: number
@@ -635,7 +635,7 @@ Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
 Response `data` fields:
 
-- `items`: array of object { id, title, duration_seconds, status, created_at, user_id, youtube_video_id, youtubeVideoId, creatorId, owner, avatar, durationSec, requiredSec, reward, niche, postedAgo, youtubeUrl, creatorChannelId, magicWord, rewardedXp, rewardedCredits, thumbnailUrl, creatorName, youtube_url, channel_id, magic_word, display_name, photo_url, watch_status, xp_awarded, credits_awarded }
+- `items`: array of object { id, title, duration_seconds, status, created_at, user_id, youtube_video_id, youtubeVideoId, creatorId, owner, avatar, durationSec, requiredSec, reward, niche, postedAgo, youtubeUrl, creatorChannelId, magicWord, rewardedXp, rewardedCredits, thumbnailUrl, creatorName, youtube_url, channel_id, magic_word, display_name, photo_url, watch_status, xp_awarded, credits_awarded, target, watchers, comments }
 - `total`: number
 - `limit`: number
 - `offset`: number
@@ -648,7 +648,7 @@ Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
 Response `data` fields:
 
-- `items`: array of object { id, title, status, created_at, watch_target, comment_count, watcher_count, subs_count, postedAgo, watchers, target, subs, comments }
+- `items`: array of object { id, title, status, created_at, watch_target, comment_count, watcher_count, subs_count, postedAgo, watchers, target, subs, comments, youtube_video_id, youtubeVideoId, youtube_url, youtubeUrl, thumbnail_url, thumbnailUrl }
 - `total`: number
 - `limit`: number
 - `offset`: number
@@ -665,7 +665,7 @@ _Squads: roster, join requests, settings and invites._
 
 Response `data` fields:
 
-- `items`: array of object { id, name, description, slug, is_public, isPublic, max_members, maxMembers, logo_url, banner_url, owner_id, invite_code, status, created_at, updated_at }
+- `items`: array of object { id, name, description, slug, is_public, isPublic, max_members, maxMembers, logo_url, banner_url, owner_id, ownerId, invite_code, inviteCode, my_role, myRole, member_count, memberCount, status, created_at, updated_at }
 - `total`: number
 - `limit`: number
 - `offset`: number
@@ -698,7 +698,7 @@ Statuses: `200`, `400`, `401`, `404`, `409`, `429`, `500`, `503`
 
 Response `data` fields:
 
-- `community`: object { id, name, description, slug, is_public, isPublic, max_members, maxMembers, logo_url, banner_url, owner_id, invite_code, status, created_at, updated_at }
+- `community`: object { id, name, description, slug, is_public, isPublic, max_members, maxMembers, logo_url, banner_url, owner_id, ownerId, invite_code, inviteCode, my_role, myRole, member_count, memberCount, status, created_at, updated_at }
 - `memberCount`: number
 - `members`: array of object { id, userId, displayName, photoUrl, role, joined_at, joinedAt }
 - `settings`: object
@@ -1491,8 +1491,8 @@ Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 
 Response `data` fields:
 
-- `communities`: array of object { id, name, description, slug, is_public, isPublic, max_members, maxMembers, logo_url, banner_url, owner_id, invite_code, status, created_at, updated_at }
-- `videos`: array of object { id, title, duration_seconds, status, created_at, user_id, youtube_video_id, youtubeVideoId, creatorId, owner, avatar, durationSec, requiredSec, reward, niche, postedAgo, youtubeUrl, creatorChannelId, magicWord, rewardedXp, rewardedCredits, thumbnailUrl, creatorName, youtube_url, channel_id, magic_word, display_name, photo_url, watch_status, xp_awarded, credits_awarded }
+- `communities`: array of object { id, name, description, slug, is_public, isPublic, max_members, maxMembers, logo_url, banner_url, owner_id, ownerId, invite_code, inviteCode, my_role, myRole, member_count, memberCount, status, created_at, updated_at }
+- `videos`: array of object { id, title, duration_seconds, status, created_at, user_id, youtube_video_id, youtubeVideoId, creatorId, owner, avatar, durationSec, requiredSec, reward, niche, postedAgo, youtubeUrl, creatorChannelId, magicWord, rewardedXp, rewardedCredits, thumbnailUrl, creatorName, youtube_url, channel_id, magic_word, display_name, photo_url, watch_status, xp_awarded, credits_awarded, target, watchers, comments }
 
 Statuses: `200`, `400`, `401`, `404`, `429`, `500`, `503`
 

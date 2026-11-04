@@ -280,7 +280,10 @@ data class ListMissionsResponseItemsItem(
     @SerialName("creditReward") @JsonNames("credit_reward") val creditReward: Double? = null,
     @SerialName("isAssigned") @Serializable(with = FlexibleBooleanSerializer::class) val isAssigned: Boolean? = null,
     @SerialName("isCompleted") @Serializable(with = FlexibleBooleanSerializer::class) val isCompleted: Boolean? = null,
-    @SerialName("assignment_status") val assignmentStatus: String? = null
+    @SerialName("assignment_status") val assignmentStatus: String? = null,
+    @SerialName("timeEstimateMinutes") @JsonNames("time_estimate_minutes") val timeEstimateMinutes: Double? = null,
+    @SerialName("chainId") val chainId: String? = null,
+    @SerialName("chainStep") val chainStep: Double? = null
 )
 
 @Serializable
@@ -425,8 +428,10 @@ data class ListMyCommunitiesResponseItemsItem(
     @SerialName("maxMembers") @JsonNames("max_members") val maxMembers: Double? = null,
     @SerialName("logo_url") val logoUrl: String? = null,
     @SerialName("banner_url") val bannerUrl: String? = null,
-    @SerialName("owner_id") val ownerId: String? = null,
-    @SerialName("invite_code") val inviteCode: String? = null,
+    @SerialName("ownerId") @JsonNames("owner_id") val ownerId: String? = null,
+    @SerialName("inviteCode") @JsonNames("invite_code") val inviteCode: String? = null,
+    @SerialName("myRole") @JsonNames("my_role") val myRole: String? = null,
+    @SerialName("memberCount") @JsonNames("member_count") val memberCount: Double? = null,
     @SerialName("status") val status: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
@@ -466,8 +471,10 @@ data class GetCommunityResponseCommunity(
     @SerialName("maxMembers") @JsonNames("max_members") val maxMembers: Double? = null,
     @SerialName("logo_url") val logoUrl: String? = null,
     @SerialName("banner_url") val bannerUrl: String? = null,
-    @SerialName("owner_id") val ownerId: String? = null,
-    @SerialName("invite_code") val inviteCode: String? = null,
+    @SerialName("ownerId") @JsonNames("owner_id") val ownerId: String? = null,
+    @SerialName("inviteCode") @JsonNames("invite_code") val inviteCode: String? = null,
+    @SerialName("myRole") @JsonNames("my_role") val myRole: String? = null,
+    @SerialName("memberCount") @JsonNames("member_count") val memberCount: Double? = null,
     @SerialName("status") val status: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
@@ -639,7 +646,10 @@ data class GetWatchQueueResponseItemsItem(
     @SerialName("photo_url") val photoUrl: String? = null,
     @SerialName("watch_status") val watchStatus: String? = null,
     @SerialName("xp_awarded") val xpAwarded: Double? = null,
-    @SerialName("credits_awarded") val creditsAwarded: Double? = null
+    @SerialName("credits_awarded") val creditsAwarded: Double? = null,
+    @SerialName("target") val target: Double? = null,
+    @SerialName("watchers") val watchers: Double? = null,
+    @SerialName("comments") val comments: Double? = null
 )
 
 @Serializable
@@ -664,7 +674,10 @@ data class ListMySubmissionsResponseItemsItem(
     @SerialName("watchers") val watchers: Double? = null,
     @SerialName("target") val target: Double? = null,
     @SerialName("subs") val subs: Double? = null,
-    @SerialName("comments") val comments: Double? = null
+    @SerialName("comments") val comments: Double? = null,
+    @SerialName("youtubeVideoId") @JsonNames("youtube_video_id") val youtubeVideoId: String? = null,
+    @SerialName("youtubeUrl") @JsonNames("youtube_url") val youtubeUrl: String? = null,
+    @SerialName("thumbnailUrl") @JsonNames("thumbnail_url") val thumbnailUrl: String? = null
 )
 
 @Serializable
@@ -1176,8 +1189,10 @@ data class SearchResponseCommunitiesItem(
     @SerialName("maxMembers") @JsonNames("max_members") val maxMembers: Double? = null,
     @SerialName("logo_url") val logoUrl: String? = null,
     @SerialName("banner_url") val bannerUrl: String? = null,
-    @SerialName("owner_id") val ownerId: String? = null,
-    @SerialName("invite_code") val inviteCode: String? = null,
+    @SerialName("ownerId") @JsonNames("owner_id") val ownerId: String? = null,
+    @SerialName("inviteCode") @JsonNames("invite_code") val inviteCode: String? = null,
+    @SerialName("myRole") @JsonNames("my_role") val myRole: String? = null,
+    @SerialName("memberCount") @JsonNames("member_count") val memberCount: Double? = null,
     @SerialName("status") val status: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
@@ -1212,7 +1227,10 @@ data class SearchResponseVideosItem(
     @SerialName("photo_url") val photoUrl: String? = null,
     @SerialName("watch_status") val watchStatus: String? = null,
     @SerialName("xp_awarded") val xpAwarded: Double? = null,
-    @SerialName("credits_awarded") val creditsAwarded: Double? = null
+    @SerialName("credits_awarded") val creditsAwarded: Double? = null,
+    @SerialName("target") val target: Double? = null,
+    @SerialName("watchers") val watchers: Double? = null,
+    @SerialName("comments") val comments: Double? = null
 )
 
 @Serializable

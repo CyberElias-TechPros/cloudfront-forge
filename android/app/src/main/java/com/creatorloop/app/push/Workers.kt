@@ -2,8 +2,7 @@ package com.creatorloop.app.push
 
 import android.content.Context
 import androidx.hilt.work.HiltWorker
-import androidx.work.CoroutineWorker
-import androidx.work.WorkerParameters
+import androidx.work.*
 import com.creatorloop.app.data.ApiException
 import com.creatorloop.app.data.CacheDao
 import com.creatorloop.app.data.LoopRepository
@@ -36,7 +35,7 @@ class SyncWorker @AssistedInject constructor(@Assisted context: Context, @Assist
             } catch (e: Exception) {
                 val permanent = e is ApiException && e.status in 400..499
                 if (permanent || item.attempts >= 5) cache.remove(item.id)
-                else { cache.failed(item.id, e.message); retry = true }
+                else { cache.failed(item.id, e.message ?: "unknown"); retry = true }
             }
         }
         runCatching { repository.invalidate("notifications") }

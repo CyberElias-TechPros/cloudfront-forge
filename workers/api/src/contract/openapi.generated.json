@@ -9406,6 +9406,19 @@
                               "assignment_status": {
                                 "type": "string",
                                 "nullable": true
+                              },
+                              "timeEstimateMinutes": {
+                                "type": "number"
+                              },
+                              "time_estimate_minutes": {
+                                "type": "number"
+                              },
+                              "chainId": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "chainStep": {
+                                "type": "number"
                               }
                             },
                             "required": [
@@ -16881,8 +16894,26 @@
                               "owner_id": {
                                 "type": "string"
                               },
+                              "ownerId": {
+                                "type": "string"
+                              },
                               "invite_code": {
                                 "type": "string"
+                              },
+                              "inviteCode": {
+                                "type": "string"
+                              },
+                              "my_role": {
+                                "type": "string"
+                              },
+                              "myRole": {
+                                "type": "string"
+                              },
+                              "member_count": {
+                                "type": "number"
+                              },
+                              "memberCount": {
+                                "type": "number"
                               },
                               "status": {
                                 "type": "string"
@@ -17682,8 +17713,26 @@
                             "owner_id": {
                               "type": "string"
                             },
+                            "ownerId": {
+                              "type": "string"
+                            },
                             "invite_code": {
                               "type": "string"
+                            },
+                            "inviteCode": {
+                              "type": "string"
+                            },
+                            "my_role": {
+                              "type": "string"
+                            },
+                            "myRole": {
+                              "type": "string"
+                            },
+                            "member_count": {
+                              "type": "number"
+                            },
+                            "memberCount": {
+                              "type": "number"
                             },
                             "status": {
                               "type": "string"
@@ -23049,6 +23098,15 @@
                               },
                               "credits_awarded": {
                                 "type": "number"
+                              },
+                              "target": {
+                                "type": "number"
+                              },
+                              "watchers": {
+                                "type": "number"
+                              },
+                              "comments": {
+                                "type": "number"
                               }
                             },
                             "required": [
@@ -23448,6 +23506,30 @@
                               },
                               "comments": {
                                 "type": "number"
+                              },
+                              "youtube_video_id": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "youtubeVideoId": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "youtube_url": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "youtubeUrl": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "thumbnail_url": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "thumbnailUrl": {
+                                "type": "string",
+                                "nullable": true
                               }
                             },
                             "required": [
@@ -39293,8 +39375,26 @@
                               "owner_id": {
                                 "type": "string"
                               },
+                              "ownerId": {
+                                "type": "string"
+                              },
                               "invite_code": {
                                 "type": "string"
+                              },
+                              "inviteCode": {
+                                "type": "string"
+                              },
+                              "my_role": {
+                                "type": "string"
+                              },
+                              "myRole": {
+                                "type": "string"
+                              },
+                              "member_count": {
+                                "type": "number"
+                              },
+                              "memberCount": {
+                                "type": "number"
                               },
                               "status": {
                                 "type": "string"
@@ -39424,6 +39524,15 @@
                                 "type": "number"
                               },
                               "credits_awarded": {
+                                "type": "number"
+                              },
+                              "target": {
+                                "type": "number"
+                              },
+                              "watchers": {
+                                "type": "number"
+                              },
+                              "comments": {
                                 "type": "number"
                               }
                             },
