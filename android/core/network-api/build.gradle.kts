@@ -14,4 +14,5 @@ dependencies {
     api(libs.retrofit)
     api(libs.okhttp)
     api(libs.serialization.json)
+    testImplementation(libs.junit)
 }

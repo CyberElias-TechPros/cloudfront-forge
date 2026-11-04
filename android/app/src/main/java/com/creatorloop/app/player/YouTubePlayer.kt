@@ -32,7 +32,8 @@ fun YouTubePlayer(videoId: String, onEvent: (PlayerEvent) -> Unit, modifier: Mod
     }
     AndroidView(modifier = modifier, factory = {
         WebView(context).apply {
-            CookieManager.getInstance().apply { setAcceptCookie(false); setAcceptThirdPartyCookies(this@apply, false) }
+            val view = this
+            CookieManager.getInstance().apply { setAcceptCookie(false); setAcceptThirdPartyCookies(view, false) }
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true

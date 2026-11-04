@@ -22,6 +22,7 @@ fun Throwable.friendlyMessage(): String = when (this) {
         else -> message.ifBlank { "Something went wrong. Please try again." }
     }
     is java.io.IOException -> "Couldn't reach the service. Check your connection; saved data is still available."
-    is IllegalStateException -> message ?: "This feature is not configured for this build."
+    is IllegalArgumentException -> message ?: "Please check the form and try again."
+  is IllegalStateException -> message ?: "This feature is not configured for this build."
     else -> "Something went wrong. Please try again."
 }

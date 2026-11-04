@@ -12,6 +12,7 @@ import com.creatorloop.core.networkapi.generated.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.JsonObject
 import javax.inject.Inject
@@ -22,8 +23,10 @@ class RewardsViewModel @Inject constructor(private val repository: LoopRepositor
     val loader = ScreenLoader(viewModelScope) { repository.rewards() }
     val state = loader.state
     val purchases = ScreenLoader(viewModelScope) { repository.purchases() }
+    val submissions = ScreenLoader(viewModelScope) { repository.submissions() }
     val actions = ActionRunner(viewModelScope)
-    fun refresh() { loader.refresh(); purchases.refresh(); viewModelScope.launch { billing.refresh() } }
+    init { viewModelScope.launch { billing.refresh() } }
+    fun refresh() { loader.refresh(); purchases.refresh(); submissions.refresh(); viewModelScope.launch { billing.refresh() } }
     fun buy(item: ShopItem, videoId: String?) = actions.run {
         if (item.id == "boost" && videoId.isNullOrBlank()) throw IllegalArgumentException("Choose one of your active videos to boost")
         repository.call { purchaseShopItem(PurchaseShopItemRequest(item.id, videoId)) }
