@@ -4,7 +4,8 @@ import { requireAdmin, requireModerator, isAuthError, isForbiddenError } from ".
 import { Database } from "../lib/database";
 import { recordAudit } from "../lib/audit";
 import { notify } from "../lib/notify";
-import { userSuspendSchema, userRoleChangeSchema } from "../contract/schemas/moderation";
+import { userSuspendSchema, userRoleChangeSchema, reportResolveSchema } from "../contract/schemas/moderation";
+import { applyTrustPenalty } from "./reports";
 
 const suspendSchema = userSuspendSchema;
 const roleChangeSchema = userRoleChangeSchema;
@@ -226,23 +227,23 @@ export const adminRoutes: RouteDefinition[] = [
         const adminId = await requireModerator(request, env);
         const url = new URL(request.url);
         const reportId = url.pathname.split("/")[5];
-        const body = await request.json().catch(() => ({}));
-        const status = (body as Record<string, unknown>).status as string | undefined;
-        const resolutionNotes = (body as Record<string, unknown>).resolutionNotes as
-          string | undefined;
-
-        if (!status || !["resolved", "dismissed"].includes(status)) {
-          return createErrorResponse("VALIDATION_ERROR", "Invalid status", 400);
-        }
-
+        const parsed = reportResolveSchema.safeParse(await request.json().catch(() => ({})));
+        if (!parsed.success) return createErrorResponse("VALIDATION_ERROR", "Invalid resolution", 400);
+        const { status, resolutionNotes } = parsed.data;
         const db = new Database(env);
         const now = new Date().toISOString();
-
-        await db.execute(
-          "UPDATE reports SET status = ?, resolved_by = ?, resolution_notes = ?, updated_at = ? WHERE id = ?",
+        const report = await db.querySingle("SELECT * FROM reports WHERE id = ?", [reportId]);
+        if (!report) return createErrorResponse("NOT_FOUND", "Report not found", 404);
+        const claim = await db.execute(
+          "UPDATE reports SET status = ?, resolved_by = ?, resolution_notes = ?, updated_at = ? WHERE id = ? AND status = 'pending'",
           [status, adminId, resolutionNotes ?? null, now, reportId],
         );
-
+        if ((claim.meta?.changes ?? 0) !== 1) return createErrorResponse("CONFLICT", "This report was already reviewed", 409);
+        if (status === "resolved" && report.reported_user_id && report.reported_user_id !== adminId) {
+          await applyTrustPenalty(db, report.reported_user_id);
+        }
+        await recordAudit(db, { actorId: adminId, action: `report.${status}`, resourceType: "report", resourceId: reportId, request, metadata: { resolutionNotes } }, env);
+        await notify(env, report.reporter_id, { type: "REPORT_REVIEWED", title: "Your report was reviewed", message: resolutionNotes ?? `Your report was ${status}.`, category: "moderation", url: "/support" });
         return createResponse({ message: "Report resolved" });
       } catch (error: any) {
         if (isAuthError(error)) {

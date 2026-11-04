@@ -83,9 +83,11 @@ jobs:
         run: npm run docs:api
       - name: Regenerate the web client types
         run: npm run contract:client
+      - name: Regenerate the Android client
+        run: npm run contract:android
       - name: Fail on drift
         run: |
-          git diff --exit-code -- workers/api/src/contract docs/API.md src/contract/api.generated.ts || {
+          git diff --exit-code -- workers/api/src/contract docs/API.md src/contract/api.generated.ts android/core/network-api/src/main/java/com/creatorloop/core/networkapi/generated || {
             echo "::error title=Contract is stale::Run 'npm run contract:build && npm run docs:api && npm run contract:client' and commit the result."
             exit 1
           }

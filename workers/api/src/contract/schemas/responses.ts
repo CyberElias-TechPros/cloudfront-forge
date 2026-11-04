@@ -87,15 +87,8 @@ export const videoSummarySchema = z
   .passthrough();
 
 export const videoListResponseSchema = z.object({
-  videos: z.array(videoSummarySchema),
-  pagination: z
-    .object({
-      limit: z.number(),
-      offset: z.number(),
-      total: z.number().optional(),
-    })
-    .passthrough()
-    .optional(),
+  items: z.array(videoSummarySchema), total: z.number(),
+  limit: z.number().optional(), offset: z.number().optional(),
 });
 
 export const notificationSchema = z
@@ -110,8 +103,8 @@ export const notificationSchema = z
   .passthrough();
 
 export const notificationListResponseSchema = z.object({
-  notifications: z.array(notificationSchema),
-  unreadCount: z.number().optional(),
+  items: z.array(notificationSchema), total: z.number(),
+  limit: z.number().optional(), offset: z.number().optional(),
 });
 
 export const missionSchema = z
@@ -136,7 +129,7 @@ export const shopItemSchema = z
     name: z.string(),
     description: z.string().nullable().optional(),
     cost: z.number(),
-    itemType: z.string(),
+    itemType: z.string().optional(),
   })
   .passthrough();
 

@@ -32,6 +32,8 @@ export const watchStartSchema = z.object({
  */
 export const watchHeartbeatSchema = z.object({
   sessionToken: z.string().min(1).max(512),
+  /** Native clients bind every sample to the video they actually display. */
+  videoId: z.string().min(1).max(100).optional(),
   /** Player position in seconds, as reported by the embed. */
   playerTime: z.number().min(0).max(86400),
 });

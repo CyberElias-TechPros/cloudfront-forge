@@ -44,8 +44,9 @@ export const youtubeRoutes: RouteDefinition[] = [
         const userId = await requireAuth(request, env);
         const state = crypto.randomUUID();
         const authUrl = youtubeService(env).getAuthUrl(state);
-
+        const isAndroid = new URL(request.url).searchParams.get("client") === "android";
         const db = new Database(env);
+        if (isAndroid) await env.KV_CACHE.put(`youtube:android:${state}`, "1", { expirationTtl: STATE_TTL_SEC });
         const nowEpoch = Math.floor(Date.now() / 1000);
 
         // Opportunistic cleanup of expired states
@@ -76,40 +77,45 @@ export const youtubeRoutes: RouteDefinition[] = [
     method: "GET",
     path: "/api/v1/youtube/oauth/callback",
     handler: async (request: Request, env: Env): Promise<Response> => {
+      let androidResult: ((result: string) => Response) | null = null;
       try {
         const url = new URL(request.url);
         const code = url.searchParams.get("code") || undefined;
         const state = url.searchParams.get("state") || undefined;
 
-        if (!code) {
-          return createErrorResponse("VALIDATION_ERROR", "Authorization code is required", 400);
-        }
-
         const db = new Database(env);
         const nowEpoch = Math.floor(Date.now() / 1000);
-        const stateRow = state
-          ? await db.querySingle(
-              "SELECT user_id FROM youtube_oauth_states WHERE state = ? AND expires_at > ?",
-              [state, nowEpoch],
-            )
-          : null;
-
-        if (!stateRow) {
-          return createErrorResponse("VALIDATION_ERROR", "Invalid or expired state", 400);
-        }
-
+        // Consume state atomically: two simultaneous callbacks cannot link twice.
+        const stateRow = state ? await db.querySingle(
+          "DELETE FROM youtube_oauth_states WHERE state = ? AND expires_at > ? RETURNING user_id",
+          [state, nowEpoch],
+        ) : null;
+        const isAndroid = state ? await env.KV_CACHE.get(`youtube:android:${state}`) === "1" : false;
+        if (isAndroid) androidResult = (result) => Response.redirect(`${env.ANDROID_OAUTH_REDIRECT_URI ?? "creatorloop://youtube"}?result=${result}`, 302);
+        const nativeResult = (result: string) => Response.redirect(
+          `${env.ANDROID_OAUTH_REDIRECT_URI ?? "creatorloop://youtube"}?result=${result}`, 302);
+        if (!stateRow) return isAndroid ? nativeResult("expired") :
+          createErrorResponse("VALIDATION_ERROR", "Invalid or expired state", 400);
+        // Keep the non-secret client marker until TTL so a replay can receive
+        // the same native "expired" result. The database state is already consumed.
+        if (url.searchParams.get("error")) return isAndroid ? nativeResult("cancelled") :
+          Response.redirect(`${frontendOrigin(env)}/settings?youtube=cancelled`, 302);
+        if (!code) return isAndroid ? nativeResult("error") :
+          createErrorResponse("VALIDATION_ERROR", "Authorization code is required", 400);
         const tokens = await youtubeService(env).exchangeCodeForTokens(code);
         await youtubeService(env).saveTokens(stateRow.user_id, tokens);
         await enrichWithChannel(env, stateRow.user_id);
 
         await db.execute("DELETE FROM youtube_oauth_states WHERE state = ?", [state]);
 
+        if (isAndroid) return nativeResult("connected");
         // Redirect to frontend settings with success - for Google OAuth popup flow
         const frontendUrl = `${frontendOrigin(env)}/settings?youtube=connected`;
         return Response.redirect(frontendUrl, 302);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
-        const frontendErrorUrl = `${frontendOrigin(env)}/settings?youtube=error&reason=${encodeURIComponent(message)}`;
+        if (androidResult) return androidResult("error");
+        const frontendErrorUrl = `${frontendOrigin(env)}/settings?youtube=error`;
         if (message === "YOUTUBE_OAUTH_NOT_CONFIGURED") {
           return Response.redirect(frontendErrorUrl, 302);
         }
@@ -138,7 +144,7 @@ export const youtubeRoutes: RouteDefinition[] = [
         const nowEpoch = Math.floor(Date.now() / 1000);
         const stateRow = state
           ? await db.querySingle(
-              "SELECT user_id FROM youtube_oauth_states WHERE state = ? AND expires_at > ?",
+              "DELETE FROM youtube_oauth_states WHERE state = ? AND expires_at > ? RETURNING user_id",
               [state, nowEpoch],
             )
           : null;

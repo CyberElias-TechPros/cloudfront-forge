@@ -16,7 +16,7 @@ const createReportSchema = createReportContractSchema;
 const appealSchema = reportAppealSchema;
 
 /** Apply a trust-score penalty on report (soft enforcement, capped at 0). */
-async function applyTrustPenalty(db: Database, userId: string): Promise<void> {
+export async function applyTrustPenalty(db: Database, userId: string): Promise<void> {
   const now = new Date().toISOString();
   await db.execute(
     "INSERT INTO reputation_events (id, user_id, event_type, points_change, description, created_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -74,10 +74,8 @@ export const reportRoutes: RouteDefinition[] = [
           [reportId, userId, reportedUserId ?? null, resourceType, resourceId, reason, description ?? null, now, now],
         );
 
-        // Apply trust penalty to the reported user if provided
-        if (reportedUserId && reportedUserId !== userId) {
-          await applyTrustPenalty(db, reportedUserId);
-        }
+        // Reports are allegations. Trust penalties are applied only when a
+        // moderator resolves the report, never at filing time (appealable abuse).
 
         // Auto-pull video from rotation on 3+ distinct "misleading" reports
         if (resourceType === "video" && reason === "misleading") {

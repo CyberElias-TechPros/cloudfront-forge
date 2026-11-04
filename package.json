@@ -20,7 +20,9 @@
     "lint:workers": "cd workers/api && npm run lint",
     "format": "prettier --write .",
     "roadmap:status": "node scripts/roadmap-status.mjs",
-    "lockfile:bun": "rm -f bun.lock && npx -y bun@1.2.15 install --lockfile-only"
+    "lockfile:bun": "rm -f bun.lock && npx -y bun@1.2.15 install --lockfile-only",
+    "contract:android": "node scripts/android-client.mjs",
+    "contract:android:check": "node scripts/android-client.mjs --check"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

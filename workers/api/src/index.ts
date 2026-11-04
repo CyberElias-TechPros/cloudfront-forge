@@ -79,7 +79,12 @@ async function assertSchemaReady(env: Env): Promise<void> {
        (SELECT id FROM join_requests LIMIT 1) AS join_request_id,
        (SELECT id FROM support_requests LIMIT 1) AS support_request_id,
        (SELECT welcome_sent_at FROM users LIMIT 1) AS user_welcome_sent_at,
-       (SELECT rules FROM communities LIMIT 1) AS community_rules`,
+       (SELECT rules FROM communities LIMIT 1) AS community_rules,
+       (SELECT id FROM mobile_devices LIMIT 1) AS mobile_device_id,
+       (SELECT token_hash FROM play_purchases LIMIT 1) AS play_purchase_token,
+       (SELECT blocker_id FROM user_blocks LIMIT 1) AS user_block_id,
+       (SELECT id FROM consent_records LIMIT 1) AS consent_id,
+       (SELECT operation FROM mobile_operation_locks LIMIT 1) AS operation_lock`,
   );
 }
 
@@ -194,7 +199,7 @@ async function handleRequest(
           {
             status: "ready",
             environment: env.ENVIRONMENT,
-            schemaVersion: "037",
+            schemaVersion: "039",
             timestamp: new Date().toISOString(),
           },
           200,

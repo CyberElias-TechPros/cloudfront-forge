@@ -2,6 +2,7 @@ import type { Env, RouteDefinition } from "../types";
 import { createResponse, createErrorResponse } from "../middleware/errorHandler";
 import { requireAuth, isAuthError } from "../middleware/auth";
 import { Database } from "../lib/database";
+import { notBlockedSql } from "../lib/blocks";
 
 export const searchRoutes: RouteDefinition[] = [
   {
@@ -9,7 +10,7 @@ export const searchRoutes: RouteDefinition[] = [
     path: "/api/v1/search",
     handler: async (request: Request, env: Env): Promise<Response> => {
       try {
-        await requireAuth(request, env);
+        const userId = await requireAuth(request, env);
         const { searchParams } = new URL(request.url);
         const q = searchParams.get("q")?.trim();
 
@@ -27,10 +28,10 @@ export const searchRoutes: RouteDefinition[] = [
           `SELECT id, name, description, slug, is_public, created_at
            FROM communities
            WHERE (name LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')
-             AND is_public = 1 AND status = 'active'
+             AND is_public = 1 AND status = 'active' ${notBlockedSql("owner_id")}
            ORDER BY created_at DESC
            LIMIT 20`,
-          [searchTerm, searchTerm],
+          [searchTerm, searchTerm, userId, userId],
         );
 
         const videosResult = await db.query(
@@ -38,10 +39,10 @@ export const searchRoutes: RouteDefinition[] = [
                   u.display_name as creator_name
            FROM videos v
            LEFT JOIN users u ON v.user_id = u.id
-           WHERE v.title LIKE ? ESCAPE '\\' AND v.status = 'active'
+           WHERE v.title LIKE ? ESCAPE '\\' AND v.status = 'active' AND v.user_id != ? ${notBlockedSql("v.user_id")}
            ORDER BY v.created_at DESC
            LIMIT 20`,
-          [searchTerm],
+          [searchTerm, userId, userId, userId],
         );
 
         return createResponse({
