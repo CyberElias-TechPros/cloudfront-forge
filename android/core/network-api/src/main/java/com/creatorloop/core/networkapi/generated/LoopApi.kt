@@ -51,7 +51,7 @@ interface LoopApi {
     suspend fun claimWatch(@Body body: ClaimWatchRequest): Response<ApiEnvelope<ClaimWatchResponse>>
 
     @POST("api/v1/watch/challenge")
-    suspend fun createAttentionChallenge(@Body body: JsonObject = JsonObject()): Response<ApiEnvelope<JsonObject>>
+    suspend fun createAttentionChallenge(@Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<JsonObject>>
 
     @POST("api/v1/watch/challenge/{challengeId}/answer")
     suspend fun answerAttentionChallenge(@Path("challengeId") challengeId: String, @Body body: AnswerAttentionChallengeRequest): Response<ApiEnvelope<JsonObject>>
@@ -66,7 +66,7 @@ interface LoopApi {
     suspend fun getVideo(@Path("videoId") videoId: String): Response<ApiEnvelope<JsonObject>>
 
     @POST("api/v1/videos/{videoId}/archive")
-    suspend fun archiveVideo(@Path("videoId") videoId: String, @Body body: JsonObject = JsonObject()): Response<ApiEnvelope<JsonObject>>
+    suspend fun archiveVideo(@Path("videoId") videoId: String, @Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<JsonObject>>
 
     @GET("api/v1/reviews")
     suspend fun listReviews(@Query("status") status: String? = null, @Query("videoId") videoId: String? = null, @Query("limit") limit: Int? = null, @Query("offset") offset: Int? = null): Response<ApiEnvelope<JsonObject>>
@@ -75,7 +75,7 @@ interface LoopApi {
     suspend fun getReview(@Path("reviewId") reviewId: String): Response<ApiEnvelope<JsonObject>>
 
     @POST("api/v1/reviews/{reviewId}/start")
-    suspend fun startReview(@Path("reviewId") reviewId: String, @Body body: JsonObject = JsonObject()): Response<ApiEnvelope<JsonObject>>
+    suspend fun startReview(@Path("reviewId") reviewId: String, @Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<JsonObject>>
 
     @POST("api/v1/reviews/{reviewId}/complete")
     suspend fun completeReview(@Path("reviewId") reviewId: String, @Body body: CompleteReviewRequest): Response<ApiEnvelope<JsonObject>>
@@ -96,7 +96,7 @@ interface LoopApi {
     suspend fun createMissionChain(@Body body: CreateMissionChainRequest): Response<ApiEnvelope<JsonObject>>
 
     @POST("api/v1/missions/{missionId}/assign")
-    suspend fun assignMission(@Path("missionId") missionId: String, @Body body: JsonObject = JsonObject()): Response<ApiEnvelope<JsonObject>>
+    suspend fun assignMission(@Path("missionId") missionId: String, @Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<JsonObject>>
 
     @GET("api/v1/missions/assignments")
     suspend fun listMissionAssignments(): Response<ApiEnvelope<JsonObject>>
@@ -129,13 +129,13 @@ interface LoopApi {
     suspend fun createNotification(@Body body: CreateNotificationRequest): Response<ApiEnvelope<CreateNotificationResponse>>
 
     @POST("api/v1/notifications/read-all")
-    suspend fun markAllNotificationsRead(@Body body: JsonObject = JsonObject()): Response<ApiEnvelope<JsonObject>>
+    suspend fun markAllNotificationsRead(@Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<JsonObject>>
 
     @POST("api/v1/notifications/{notificationId}/read")
-    suspend fun markNotificationRead(@Path("notificationId") notificationId: String, @Body body: JsonObject = JsonObject()): Response<ApiEnvelope<JsonObject>>
+    suspend fun markNotificationRead(@Path("notificationId") notificationId: String, @Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<JsonObject>>
 
     @HTTP(method = "DELETE", path = "api/v1/notifications/{notificationId}", hasBody = true)
-    suspend fun deleteNotification(@Path("notificationId") notificationId: String, @Body body: JsonObject = JsonObject()): Response<ApiEnvelope<JsonObject>>
+    suspend fun deleteNotification(@Path("notificationId") notificationId: String, @Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<JsonObject>>
 
     @GET("api/v1/notifications/preferences")
     suspend fun getNotificationPreferences(): Response<ApiEnvelope<JsonObject>>
@@ -159,7 +159,7 @@ interface LoopApi {
     suspend fun getCommunity(@Path("communityId") communityId: String): Response<ApiEnvelope<GetCommunityResponse>>
 
     @HTTP(method = "DELETE", path = "api/v1/communities/{communityId}", hasBody = true)
-    suspend fun archiveCommunity(@Path("communityId") communityId: String, @Body body: JsonObject = JsonObject()): Response<ApiEnvelope<ArchiveCommunityResponse>>
+    suspend fun archiveCommunity(@Path("communityId") communityId: String, @Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<ArchiveCommunityResponse>>
 
     @POST("api/v1/communities/join")
     suspend fun joinCommunityByCode(@Body body: JoinCommunityByCodeRequest): Response<ApiEnvelope<JoinCommunityByCodeResponse>>
@@ -171,7 +171,7 @@ interface LoopApi {
     suspend fun updateCommunitySettings(@Path("communityId") communityId: String, @Body body: UpdateCommunitySettingsRequest): Response<ApiEnvelope<UpdateCommunitySettingsResponse>>
 
     @POST("api/v1/communities/{communityId}/leave")
-    suspend fun leaveCommunity(@Path("communityId") communityId: String, @Body body: JsonObject = JsonObject()): Response<ApiEnvelope<LeaveCommunityResponse>>
+    suspend fun leaveCommunity(@Path("communityId") communityId: String, @Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<LeaveCommunityResponse>>
 
     @POST("api/v1/communities/{communityId}/join")
     suspend fun requestToJoinCommunity(@Path("communityId") communityId: String, @Body body: RequestToJoinCommunityRequest): Response<ApiEnvelope<RequestToJoinCommunityResponse>>
@@ -180,19 +180,19 @@ interface LoopApi {
     suspend fun listJoinRequests(@Path("communityId") communityId: String): Response<ApiEnvelope<ListJoinRequestsResponse>>
 
     @POST("api/v1/communities/{communityId}/requests/{requestId}/approve")
-    suspend fun approveJoinRequest(@Path("communityId") communityId: String, @Path("requestId") requestId: String, @Body body: JsonObject = JsonObject()): Response<ApiEnvelope<ApproveJoinRequestResponse>>
+    suspend fun approveJoinRequest(@Path("communityId") communityId: String, @Path("requestId") requestId: String, @Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<ApproveJoinRequestResponse>>
 
     @POST("api/v1/communities/{communityId}/requests/{requestId}/reject")
-    suspend fun rejectJoinRequest(@Path("communityId") communityId: String, @Path("requestId") requestId: String, @Body body: JsonObject = JsonObject()): Response<ApiEnvelope<RejectJoinRequestResponse>>
+    suspend fun rejectJoinRequest(@Path("communityId") communityId: String, @Path("requestId") requestId: String, @Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<RejectJoinRequestResponse>>
 
     @POST("api/v1/communities/{communityId}/members/{memberId}/role")
     suspend fun setMemberRole(@Path("communityId") communityId: String, @Path("memberId") memberId: String, @Body body: SetMemberRoleRequest): Response<ApiEnvelope<SetMemberRoleResponse>>
 
     @POST("api/v1/communities/{communityId}/members/{memberId}/remove")
-    suspend fun removeMember(@Path("communityId") communityId: String, @Path("memberId") memberId: String, @Body body: JsonObject = JsonObject()): Response<ApiEnvelope<RemoveMemberResponse>>
+    suspend fun removeMember(@Path("communityId") communityId: String, @Path("memberId") memberId: String, @Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<RemoveMemberResponse>>
 
     @POST("api/v1/communities/{communityId}/invite/regenerate")
-    suspend fun regenerateInviteCode(@Path("communityId") communityId: String, @Body body: JsonObject = JsonObject()): Response<ApiEnvelope<RegenerateInviteCodeResponse>>
+    suspend fun regenerateInviteCode(@Path("communityId") communityId: String, @Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<RegenerateInviteCodeResponse>>
 
     @GET("api/v1/queue")
     suspend fun getWatchQueue(@Query("communityId") communityId: String? = null, @Query("limit") limit: Int? = null, @Query("offset") offset: Int? = null): Response<ApiEnvelope<GetWatchQueueResponse>>
@@ -225,7 +225,7 @@ interface LoopApi {
     suspend fun getLeaderboard(@Query("timeframe") timeframe: String? = null, @Query("cohort") cohort: String? = null, @Query("limit") limit: Int? = null, @Query("offset") offset: Int? = null): Response<ApiEnvelope<GetLeaderboardResponse>>
 
     @POST("api/v1/gamification/daily-bonus")
-    suspend fun claimDailyBonus(@Body body: JsonObject = JsonObject()): Response<ApiEnvelope<ClaimDailyBonusResponse>>
+    suspend fun claimDailyBonus(@Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<ClaimDailyBonusResponse>>
 
     @GET("api/v1/admin/analytics")
     suspend fun getAnalytics(@Query("days") days: Int? = null): Response<ApiEnvelope<GetAnalyticsResponse>>
@@ -255,19 +255,19 @@ interface LoopApi {
     suspend fun suspendMember(@Path("userId") userId: String, @Body body: SuspendMemberRequest): Response<ApiEnvelope<SuspendMemberResponse>>
 
     @POST("api/v1/admin/users/{userId}/reinstate")
-    suspend fun reinstateMember(@Path("userId") userId: String, @Body body: JsonObject = JsonObject()): Response<ApiEnvelope<ReinstateMemberResponse>>
+    suspend fun reinstateMember(@Path("userId") userId: String, @Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<ReinstateMemberResponse>>
 
     @POST("api/v1/admin/users/{userId}/role")
     suspend fun setPlatformRole(@Path("userId") userId: String, @Body body: SetPlatformRoleRequest): Response<ApiEnvelope<SetPlatformRoleResponse>>
 
     @POST("api/v1/admin/videos/{videoId}/restore")
-    suspend fun restoreVideo(@Path("videoId") videoId: String, @Body body: JsonObject = JsonObject()): Response<ApiEnvelope<RestoreVideoResponse>>
+    suspend fun restoreVideo(@Path("videoId") videoId: String, @Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<RestoreVideoResponse>>
 
     @GET("api/v1/users/me/youtube-channels")
     suspend fun listMyYouTubeChannels(): Response<ApiEnvelope<ListMyYouTubeChannelsResponse>>
 
     @HTTP(method = "DELETE", path = "api/v1/users/me", hasBody = true)
-    suspend fun deleteMyAccount(@Body body: JsonObject = JsonObject()): Response<ApiEnvelope<DeleteMyAccountResponse>>
+    suspend fun deleteMyAccount(@Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<DeleteMyAccountResponse>>
 
     @POST("api/v1/ai/chat")
     suspend fun chatWithCoach(@Body body: ChatWithCoachRequest): Response<ApiEnvelope<ChatWithCoachResponse>>
@@ -282,7 +282,7 @@ interface LoopApi {
     suspend fun listAiMessages(@Path("conversationId") conversationId: String): Response<ApiEnvelope<ListAiMessagesResponse>>
 
     @HTTP(method = "DELETE", path = "api/v1/ai/conversations/{conversationId}", hasBody = true)
-    suspend fun deleteAiConversation(@Path("conversationId") conversationId: String, @Body body: JsonObject = JsonObject()): Response<ApiEnvelope<DeleteAiConversationResponse>>
+    suspend fun deleteAiConversation(@Path("conversationId") conversationId: String, @Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<DeleteAiConversationResponse>>
 
     @GET("api/v1/youtube/oauth/authorize")
     suspend fun startYouTubeAuthorization(@Query("client") client: String? = null): Response<ApiEnvelope<StartYouTubeAuthorizationResponse>>
@@ -291,13 +291,13 @@ interface LoopApi {
     suspend fun youTubeOAuthCallback(@Query("code") code: String? = null, @Query("state") state: String, @Query("error") error: String? = null): Response<ApiEnvelope<JsonObject>>
 
     @POST("api/v1/youtube/oauth/callback")
-    suspend fun completeYouTubeOAuth(@Body body: JsonObject = JsonObject()): Response<ApiEnvelope<CompleteYouTubeOAuthResponse>>
+    suspend fun completeYouTubeOAuth(@Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<CompleteYouTubeOAuthResponse>>
 
     @GET("api/v1/youtube/status")
     suspend fun getYouTubeStatus(): Response<ApiEnvelope<GetYouTubeStatusResponse>>
 
     @POST("api/v1/youtube/disconnect")
-    suspend fun disconnectYouTube(@Body body: JsonObject = JsonObject()): Response<ApiEnvelope<DisconnectYouTubeResponse>>
+    suspend fun disconnectYouTube(@Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<DisconnectYouTubeResponse>>
 
     @POST("api/v1/reports")
     suspend fun createReport(@Body body: CreateReportRequest): Response<ApiEnvelope<CreateReportResponse>>
@@ -321,7 +321,7 @@ interface LoopApi {
     suspend fun listSupportRequests(@Query("status") status: String? = null): Response<ApiEnvelope<ListSupportRequestsResponse>>
 
     @POST("api/v1/admin/support/{supportId}/resolve")
-    suspend fun resolveSupportRequest(@Path("supportId") supportId: String, @Body body: JsonObject = JsonObject()): Response<ApiEnvelope<ResolveSupportRequestResponse>>
+    suspend fun resolveSupportRequest(@Path("supportId") supportId: String, @Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<ResolveSupportRequestResponse>>
 
     @GET("api/v1/search")
     suspend fun search(@Query("q") q: String): Response<ApiEnvelope<SearchResponse>>
@@ -337,13 +337,13 @@ interface LoopApi {
     suspend fun getTopupProof(@Path("topupId") topupId: String): Response<ResponseBody>
 
     @POST("api/v1/admin/topups/{topupId}/approve")
-    suspend fun approveTopup(@Path("topupId") topupId: String, @Body body: JsonObject = JsonObject()): Response<ApiEnvelope<ApproveTopupResponse>>
+    suspend fun approveTopup(@Path("topupId") topupId: String, @Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<ApproveTopupResponse>>
 
     @POST("api/v1/admin/topups/{topupId}/reject")
     suspend fun rejectTopup(@Path("topupId") topupId: String, @Body body: RejectTopupRequest): Response<ApiEnvelope<RejectTopupResponse>>
 
     @POST("api/v1/missions/assignments/{assignmentId}/skip")
-    suspend fun skipMissionAssignment(@Path("assignmentId") assignmentId: String, @Body body: JsonObject = JsonObject()): Response<ApiEnvelope<SkipMissionAssignmentResponse>>
+    suspend fun skipMissionAssignment(@Path("assignmentId") assignmentId: String, @Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<SkipMissionAssignmentResponse>>
 
     @GET("api/v1/mobile/config")
     suspend fun getMobileConfig(): Response<ApiEnvelope<GetMobileConfigResponse>>
@@ -364,7 +364,7 @@ interface LoopApi {
     suspend fun blockMember(@Body body: BlockMemberRequest): Response<ApiEnvelope<BlockMemberResponse>>
 
     @HTTP(method = "DELETE", path = "api/v1/users/me/blocks/{userId}", hasBody = true)
-    suspend fun unblockMember(@Path("userId") userId: String, @Body body: JsonObject = JsonObject()): Response<ApiEnvelope<UnblockMemberResponse>>
+    suspend fun unblockMember(@Path("userId") userId: String, @Body body: JsonObject = JsonObject(emptyMap())): Response<ApiEnvelope<UnblockMemberResponse>>
 
     @GET("api/v1/billing/products")
     suspend fun listCreditProducts(): Response<ApiEnvelope<ListCreditProductsResponse>>

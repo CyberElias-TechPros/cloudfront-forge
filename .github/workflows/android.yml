@@ -57,12 +57,15 @@ jobs:
             const fs = require('fs');
             const path = 'android/build.log';
             const log = fs.existsSync(path) ? fs.readFileSync(path, 'utf8') : 'No build log found';
-            const tail = log.split('\n').slice(-220).join('\n').slice(-60000);
+            const lines = log.split('\n');
+            const errors = lines.filter(l => /^e:|error:|FAILED|What went wrong|Execution failed/.test(l)).slice(0, 120).join('\n');
+            const tail = lines.slice(-80).join('\n');
+            const body = (errors ? 'Errors:\n' + errors + '\n\n' : '') + 'Tail:\n' + tail;
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.payload.pull_request.number,
-              body: 'Android build failure (tail):\n```\n' + tail + '\n```'
+              body: 'Android build failure:\n```\n' + body.slice(-60000) + '\n```'
             });
       - name: Upload dev APK
         uses: actions/upload-artifact@v4
